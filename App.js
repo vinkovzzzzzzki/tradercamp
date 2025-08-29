@@ -30,8 +30,10 @@ export default function App() {
   // Auth state
   const [users, setUsers] = useState(() => storage.get('users', [
     { id: 1, nickname: 'Trader_Pro', password: 'demo', bio: 'Crypto & Stocks trader', avatar: '', friends: [2] },
-    { id: 2, nickname: 'StockMaster', password: 'demo', bio: 'Growth & AI plays', avatar: '', friends: [1] },
+    { id: 2, nickname: 'StockMaster', password: 'demo', bio: 'Growth & AI plays', avatar: '', friends: [1,3] },
+    { id: 3, nickname: 'DemoUser', password: 'demo', bio: 'Тестовый пользователь: люблю крипту и фитнес', avatar: '', friends: [2] },
   ]));
+  useEffect(() => storage.set('users', users), [users]);
   const [currentUserId, setCurrentUserId] = useState(() => storage.get('currentUserId', null));
   // Supabase auth session (email/password)
   const [supaAuth, setSupaAuth] = useState(() => storage.get('supaAuth', null));
@@ -40,9 +42,35 @@ export default function App() {
   const [supaProfiles, setSupaProfiles] = useState(() => storage.get('supaProfiles', {})); // { [supaUserId]: { nickname, bio, avatar, friends: number[] } }
   useEffect(() => storage.set('supaProfiles', supaProfiles), [supaProfiles]);
   // Theme
-  const [appTheme, setAppTheme] = useState(() => storage.get('appTheme', 'light'));
+  const [appTheme, setAppTheme] = useState(() => storage.get('appTheme', 'dark'));
   useEffect(() => storage.set('appTheme', appTheme), [appTheme]);
   const isDark = appTheme === 'dark';
+  // Lightweight in-app toast (reliable on web)
+  const [toast, setToast] = useState(null); // { msg, kind: 'info'|'warning'|'error' }
+  const notify = (msg, kind = 'info') => {
+    setToast({ msg, kind });
+    setTimeout(() => setToast(null), 4000);
+  };
+  // Profile section tabs
+  const [profileTab, setProfileTab] = useState('overview'); // 'overview'|'friends'|'achievements'|'settings'
+
+  // Cross-platform confirm helper (Promise<boolean>)
+  const confirmAsync = (message) => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && typeof window.confirm === 'function') {
+      try { return Promise.resolve(window.confirm(message)); } catch { return Promise.resolve(false); }
+    }
+    return new Promise((resolve) => {
+      try {
+        Alert.alert('Подтверждение', message, [
+          { text: 'Нет', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Да', onPress: () => resolve(true) },
+        ], { cancelable: true });
+      } catch {
+        resolve(false);
+      }
+    });
+  };
+  
   const currentUserLocal = users.find(u => u.id === currentUserId) || null;
   const currentSupaUser = supaAuth && supaAuth.user ? supaAuth.user : null;
   const currentUser = currentSupaUser ? (() => {
@@ -53,6 +81,12 @@ export default function App() {
       bio: overlay.bio || '',
       avatar: overlay.avatar || '',
       friends: Array.isArray(overlay.friends) ? overlay.friends : [],
+      statusText: overlay.statusText || '',
+      experienceYears: Number(overlay.experienceYears || 0),
+      markets: Array.isArray(overlay.markets) ? overlay.markets : [],
+      timezone: overlay.timezone || '',
+      links: overlay.links || {},
+      location: overlay.location || '',
     };
   })() : currentUserLocal;
 
@@ -254,6 +288,12 @@ export default function App() {
     }
     Alert.alert('Готово', 'Профиль обновлён');
   };
+  const toggleMarketPref = (m) => {
+    if (!currentUser) return;
+    const has = (currentUser.markets || []).includes(m);
+    const next = has ? (currentUser.markets || []).filter(x => x !== m) : [ ...(currentUser.markets || []), m ];
+    updateProfile({ markets: next });
+  };
 
   const addFriend = (userId) => {
     if (!currentUser) return Alert.alert('Войдите', 'Авторизуйтесь для добавления друзей');
@@ -390,12 +430,134 @@ export default function App() {
   });
 
   // Community state
-  const [posts, setPosts] = useState(() => storage.get('posts', [
+  const demoPostsSeed = [
     { id: 1, userId: 1, title: 'BTC: лонг после закрепления', content: 'BTC: лонг после закрепления над ключевым уровнем. Риск 1%.', market: 'Crypto', likes: [2], comments: [{ id: 1, userId: 2, text: 'Согласен!', date: '2025-01-20' }] },
     { id: 2, userId: 2, title: 'NVDA анализ', content: 'NVDA показывает признаки разворота. Рассматриваю вход на откате.', market: 'Stocks', likes: [], comments: [] },
-  ]));
+    { id: 3, userId: 3, title: 'ETH краткосрок', content: 'Ожидаю откат к 0,5 Fibo и продолжение тренда. Управление риском 0.5%.', market: 'Crypto', likes: [], comments: [] },
+  ];
+  const [posts, setPosts] = useState(() => {
+    const stored = storage.get('posts', null);
+    return (Array.isArray(stored) && stored.length > 0) ? stored : demoPostsSeed;
+  });
+  useEffect(() => { storage.set('posts', posts); }, [posts]);
+  // Bookmarks per userId -> Set of postIds
+  const [bookmarks, setBookmarks] = useState(() => storage.get('bookmarks', {}));
+  useEffect(() => storage.set('bookmarks', bookmarks), [bookmarks]);
+  const isBookmarked = (pid) => {
+    const uid = currentUser?.id;
+    if (!uid) return false;
+    const list = bookmarks[uid] || [];
+    return list.includes(pid);
+  };
+  const toggleBookmark = (pid) => {
+    const uid = currentUser?.id;
+    if (!uid) return notify('Войдите, чтобы сохранять посты', 'error');
+    setBookmarks(prev => {
+      const list = prev[uid] || [];
+      const nextList = list.includes(pid) ? list.filter(id => id !== pid) : [...list, pid];
+      return { ...prev, [uid]: nextList };
+    });
+  };
   const [newPost, setNewPost] = useState({ title: '', content: '', market: 'Crypto', images: [] });
   const [commentDrafts, setCommentDrafts] = useState({}); // postId -> text
+  // Social: search and profile view
+  const [userSearch, setUserSearch] = useState('');
+  const [searchResults, setSearchResults] = useState([]);
+  const [viewUserId, setViewUserId] = useState(null);
+  // Community filters
+  const [postFilterMarket, setPostFilterMarket] = useState('All');
+  const [postSort, setPostSort] = useState('date_desc'); // 'date_desc' | 'likes_desc'
+  const [showMine, setShowMine] = useState(false);
+  const [showBookmarksOnly, setShowBookmarksOnly] = useState(false);
+  const [hashtagFilter, setHashtagFilter] = useState('');
+  // Subviews per tab (to reduce cognitive load)
+  const [financeView, setFinanceView] = useState(null); // 'fund' | 'invest' | 'debts'
+  const [journalView, setJournalView] = useState(null); // 'new' | 'list'
+  const [calendarView, setCalendarView] = useState(null); // 'news' | 'workouts' | 'events'
+
+  // Friend requests (local)
+  const [friendRequests, setFriendRequests] = useState(() => storage.get('friendRequests', []));
+  useEffect(() => storage.set('friendRequests', friendRequests), [friendRequests]);
+  const areFriends = (aId, bId) => {
+    const a = (users.find(u => u.id === aId) || {});
+    return Array.isArray(a.friends) && a.friends.includes(bId);
+  };
+  const requestBetween = (aId, bId) => friendRequests.find(r => (r.from === aId && r.to === bId && r.status === 'pending') || (r.from === bId && r.to === aId && r.status === 'pending'));
+  const sendFriendRequest = (toId) => {
+    if (!currentUser || toId === currentUser.id) return;
+    if (areFriends(currentUser.id, toId)) return;
+    const exists = requestBetween(currentUser.id, toId);
+    if (exists) return;
+    setFriendRequests(prev => [{ id: Date.now(), from: currentUser.id, to: toId, status: 'pending' }, ...prev]);
+    notify('Запрос в друзья отправлен', 'info');
+  };
+  const acceptFriendRequest = (reqId) => {
+    const req = friendRequests.find(r => r.id === reqId);
+    if (!req) return;
+    // add both sides as friends
+    setUsers(prev => prev.map(u => u.id === req.to ? { ...u, friends: [...(u.friends||[]), req.from] } : (u.id === req.from ? { ...u, friends: [...(u.friends||[]), req.to] } : u)));
+    setFriendRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'accepted' } : r));
+  };
+  const rejectFriendRequest = (reqId) => setFriendRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'rejected' } : r));
+  const cancelFriendRequest = (reqId) => setFriendRequests(prev => prev.filter(r => r.id !== reqId));
+  const myIncomingRequests = () => currentUser ? friendRequests.filter(r => r.to === currentUser.id && r.status === 'pending') : [];
+  const myOutgoingRequests = () => currentUser ? friendRequests.filter(r => r.from === currentUser.id && r.status === 'pending') : [];
+  const pendingWithUser = (otherId) => {
+    if (!currentUser) return null;
+    return friendRequests.find(r => r.status === 'pending' && ((r.from === currentUser.id && r.to === otherId) || (r.from === otherId && r.to === currentUser.id))) || null;
+  };
+
+  // Friend recommendations
+  const getMutualFriendsCount = (otherId) => {
+    if (!currentUser) return 0;
+    const my = (users.find(u => u.id === currentUser.id) || { friends: [] }).friends || [];
+    const other = (users.find(u => u.id === otherId) || { friends: [] }).friends || [];
+    const setMy = new Set(my);
+    return other.reduce((acc, id) => acc + (setMy.has(id) ? 1 : 0), 0);
+  };
+  const friendRecommendations = () => {
+    const all = getAllKnownUsers();
+    return all
+      .filter(u => currentUser && u.id !== currentUser.id)
+      .filter(u => !(currentUser?.friends || []).includes(u.id))
+      .filter(u => !pendingWithUser(u.id))
+      .map(u => ({
+        u,
+        score: getMutualFriendsCount(u.id) + ((u.markets || []).filter(m => (currentUser?.markets || []).includes(m)).length)
+      }))
+      .sort((a,b) => b.score - a.score)
+      .slice(0, 6)
+      .map(x => x.u);
+  };
+
+  // Mention/hashtag rendering
+  const getUserByNickname = (nick) => {
+    const all = getAllKnownUsers();
+    return all.find(u => (u.nickname || '').toLowerCase() === nick.toLowerCase()) || null;
+  };
+  const renderPostContent = (text) => {
+    const parts = String(text || '').split(/(#[\p{L}0-9_]+|@[A-Za-z0-9_]+)/u);
+    return (
+      <Text style={styles.postContent}>
+        {parts.map((p, idx) => {
+          if (!p) return null;
+          if (p.startsWith('#')) {
+            const tag = p.slice(1);
+            return (
+              <Text key={idx} style={{ color: '#1f6feb' }} onPress={() => setHashtagFilter(tag)}>#{tag}</Text>
+            );
+          }
+          if (p.startsWith('@')) {
+            const nick = p.slice(1);
+            return (
+              <Text key={idx} style={{ color: '#1f6feb' }} onPress={() => { const u = getUserByNickname(nick); if (u) setViewUserId(u.id); }}>{'@'}{nick}</Text>
+            );
+          }
+          return <Text key={idx}>{p}</Text>;
+        })}
+      </Text>
+    );
+  };
 
   // Backend (Supabase REST) config
   const [supa, setSupa] = useState(() => storage.get('supa', { url: '', anonKey: '', bucket: 'public' }));
@@ -714,13 +876,27 @@ export default function App() {
 
   const deleteTrade = (id) => setTrades(prev => prev.filter(t => t.id !== id));
 
-  const formatCurrency = (value) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(value);
+  const formatCurrency = (value) => `${formatCurrencyCustom(value, 'USD')}`;
   const formatCurrencyCustom = (value, currency) => {
-    try {
-      return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD' }).format(value);
-    } catch {
-      return `${Number(value || 0).toFixed(2)} ${currency || ''}`.trim();
+    const num = Number(value);
+    const cur = (currency || '').toString().trim();
+    if (!Number.isFinite(num)) return `0,00000000${cur ? ' ' + cur : ''}`;
+    const sign = num < 0 ? '-' : '';
+    const abs = Math.abs(num);
+    const fixed = abs.toFixed(10); // up to 10 decimals
+    const parts = fixed.split('.');
+    const intPart = parts[0] || '0';
+    let fracPart = parts[1] || '';
+    // Trim trailing zeros but keep at least 8 decimals
+    while (fracPart.length > 8 && fracPart.endsWith('0')) {
+      fracPart = fracPart.slice(0, -1);
     }
+    if (fracPart.length < 8) {
+      fracPart = (fracPart + '00000000').slice(0, 8);
+    }
+    // Thousands separator for integer part (space), decimal comma
+    const intWithSpaces = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return `${sign}${intWithSpaces},${fracPart}${cur ? ' ' + cur : ''}`;
   };
   const getImportanceStars = (importance) => '★'.repeat(importance);
   const parseNumberSafe = (value) => {
@@ -1220,13 +1396,40 @@ export default function App() {
     }
   };
 
-  const addEmergencyTransaction = () => {
+  const addEmergencyTransaction = async () => {
     const amount = Number(newEmergencyTx.amount) || 0;
     if (amount <= 0) return Alert.alert('Ошибка', 'Введите сумму > 0');
+    // Disallow withdrawing more than available reserve
+    if (newEmergencyTx.type === 'withdraw') {
+      const prevReserve = Number(cashReserve) || 0;
+      if (amount > prevReserve) {
+        notify('Недостаточно средств в подушке безопасности для этой суммы', 'error');
+        return;
+      }
+      // Immediate warning before state updates to ensure it shows on web
+      if (prevReserve > 0) {
+        const withdrawnRatio = amount / prevReserve;
+        if (withdrawnRatio >= 0.8) {
+          // Ask for confirmation with explicit info
+          const ok = await confirmAsync('Эта операция спишет более 80% подушки безопасности. Продолжить?');
+          if (!ok) return;
+        }
+      }
+    }
     const entry = { id: Date.now(), date: new Date().toISOString().slice(0,10), ...newEmergencyTx, amount };
     withFinance(cur => ({ ...cur, emergencyTx: [entry, ...(cur.emergencyTx || [])] }));
-    // Keep existing cashReserve state updated
-    setCashReserve(prev => newEmergencyTx.type === 'deposit' ? prev + amount : Math.max(0, prev - amount));
+    // Update reserve and warn if withdrawal >= 80% of current reserve
+    if (newEmergencyTx.type === 'deposit') {
+      const newReserve = (Number(cashReserve) || 0) + amount;
+      setCashReserve(newReserve);
+    } else {
+      const prevReserve = Number(cashReserve) || 0;
+      const newReserve = Math.max(0, prevReserve - amount);
+      setCashReserve(newReserve);
+      if (prevReserve > 0 && (amount / prevReserve) >= 0.8) {
+        notify('Вы сняли больше 80% подушки безопасности', 'error');
+      }
+    }
     setNewEmergencyTx(tx => ({ ...tx, amount: '', note: '' }));
     if (supaConfigured && currentSupaUser) {
       (async () => {
@@ -1343,28 +1546,42 @@ export default function App() {
     Alert.alert('Уведомления', ids.length ? 'Напоминания настроены' : 'Нет указанных дат для напоминаний');
   };
 
+  // Social: search and profile view
+  const getAllKnownUsers = () => {
+    const base = [...users];
+    if (currentSupaUser) {
+      const overlayIds = Object.keys(supaProfiles || {});
+      for (const sid of overlayIds) {
+        const u = supaProfiles[sid];
+        if (u) base.push({ id: sid, nickname: u.nickname || `user_${sid.slice(0,4)}`, bio: u.bio || '', avatar: u.avatar || '', friends: Array.isArray(u.friends) ? u.friends : [] });
+      }
+    }
+    // Ensure uniqueness by id
+    const seen = new Set();
+    return base.filter(u => (u && !seen.has(u.id) && seen.add(u.id)));
+  };
+  const runUserSearch = (query) => {
+    const q = (query || '').trim().toLowerCase();
+    if (!q) { setSearchResults([]); return; }
+    const all = getAllKnownUsers();
+    const res = all.filter(u => (u.nickname || '').toLowerCase().includes(q));
+    setSearchResults(res.slice(0, 20));
+  };
+
   return (
     <View style={[styles.container, isDark ? { backgroundColor: '#0b0f14' } : null]}>
       <StatusBar style="dark" />
 
+      {toast && (
+        <View style={[styles.toast, toast.kind === 'warning' ? styles.toastWarn : null, toast.kind === 'error' ? styles.toastError : null]}>
+          <Text style={styles.toastText}>{toast.msg}</Text>
+        </View>
+      )}
+
       {/* Header */}
       <View style={[styles.header, isDark ? { backgroundColor: '#121820', borderBottomColor: '#1f2a36' } : null]}>
-        <Text style={[styles.title, isDark ? { color: '#e6edf3' } : null]}>Trader's Hub</Text>
         <View style={styles.topBar}>
-          <View style={[styles.tabContainer, isDark ? { backgroundColor: '#1b2430' } : null]}>
-            {[
-              { key: 'finance', label: 'Финансы' },
-              { key: 'journal', label: 'Дневник' },
-              { key: 'calendar', label: 'Календари' },
-              { key: 'community', label: 'Сообщество' },
-              { key: 'achievements', label: 'Достижения' },
-              { key: 'profile', label: 'Профиль' },
-            ].map(({ key, label }) => (
-              <Pressable key={key} style={[styles.tab, tab === key ? styles.activeTab : styles.inactiveTab]} onPress={() => setTab(key)}>
-                <Text style={[styles.tabText, tab === key ? styles.activeTabText : (isDark ? { color: '#9fb0c0' } : styles.inactiveTabText)]}>{label}</Text>
-              </Pressable>
-            ))}
-          </View>
+          <View style={{ flex: 1 }} />
           <View style={styles.authStatus}>
             <Text style={[styles.authStatusText, isDark ? { color: '#9fb0c0' } : null]}>{currentUser ? `@${currentUser.nickname}` : 'Гость'}</Text>
             {currentUser && (
@@ -1473,8 +1690,52 @@ export default function App() {
 
       {/* Content */}
       <ScrollView style={styles.content}>
+        {/* Brand banner (scrolls with content) */}
+        <View style={{ alignItems: 'center', marginBottom: 12 }}>
+          <Image source={require('./assets/investcamp-logo.png')} style={styles.brandLogo} resizeMode="contain" />
+        </View>
+
+        {/* Tabs (moved below the logo) */}
+        <View style={[styles.tabContainer, isDark ? { backgroundColor: '#1b2430' } : null]}>
+          {[
+            { key: 'finance', label: 'Финансы' },
+            { key: 'journal', label: 'Дневник' },
+            { key: 'calendar', label: 'Календари' },
+            { key: 'community', label: 'Сообщество' },
+            { key: 'profile', label: 'Профиль' },
+          ].map(({ key, label }) => (
+            <Pressable key={key} style={[styles.tab, tab === key ? styles.activeTab : styles.inactiveTab]} onPress={() => setTab(key)}>
+              <Text style={[styles.tabText, tab === key ? styles.activeTabText : (isDark ? { color: '#9fb0c0' } : styles.inactiveTabText)]}>{label}</Text>
+            </Pressable>
+          ))}
+        </View>
+        
         {tab === 'finance' && (
           <>
+            {/* Finance entry picker */}
+            {!financeView && (
+              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
+                <Text style={styles.cardTitle}>Куда перейти?</Text>
+                <View style={styles.inputRow}>
+                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setFinanceView('fund')}><Text style={styles.addButtonText}>Подушка безопасности</Text></Pressable>
+                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setFinanceView('invest')}><Text style={styles.addButtonText}>Инвестиции</Text></Pressable>
+                </View>
+                <View style={styles.inputRow}>
+                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setFinanceView('debts')}><Text style={styles.addButtonText}>Долги</Text></Pressable>
+                </View>
+              </View>
+            )}
+
+            {financeView && (
+              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
+                <View style={styles.inputRow}>
+                  <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} onPress={() => setFinanceView(null)}>
+                    <Text style={styles.addButtonText}>← Назад к выбору</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
             {/* Summary chart (moved to top) */}
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
               <Text style={styles.cardTitle}>📊 Сводный баланс</Text>
@@ -1603,6 +1864,7 @@ export default function App() {
               )}
             </View>
             {/* Investment Planning */}
+            {financeView === 'invest' && (
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
               <Text style={styles.cardTitle}>📈 Планирование инвестиций</Text>
               <Text style={styles.cardDescription}>Рассчитайте рост вашего капитала с учетом сложного процента</Text>
@@ -1632,8 +1894,10 @@ export default function App() {
                 <Text style={styles.resultSubtitle}>Общий рост: {(((futureValue - startCapital) / startCapital) * 100).toFixed(1)}%</Text>
               </View>
             </View>
+            )}
 
             {/* Emergency Fund */}
+            {financeView === 'fund' && (
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
               <Text style={styles.cardTitle}>🛡️ Подушка безопасности</Text>
               <Text style={styles.cardDescription}>Резерв на непредвиденные расходы</Text>
@@ -1657,8 +1921,10 @@ export default function App() {
                 <Text style={styles.emergencyRecommendation}>Рекомендация: доведите резерв до {formatCurrency(monthlyExpenses * 6)} ({(6 - emergencyMonths).toFixed(1)} мес. до цели)</Text>
               )}
             </View>
+            )}
 
             {/* Debts */}
+            {financeView === 'debts' && (
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
               <Text style={styles.cardTitle}>🔻 Долги</Text>
               {!currentUser && <Text style={styles.noteText}>Войдите, чтобы управлять долгами</Text>}
@@ -1705,8 +1971,10 @@ export default function App() {
                 </>
               )}
             </View>
+            )}
 
             {/* Emergency Fund Transactions */}
+            {financeView === 'fund' && (
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
               <Text style={styles.cardTitle}>💼 Подушка: транзакции</Text>
               {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять транзакции</Text>}
@@ -1764,8 +2032,10 @@ export default function App() {
                 </>
               )}
             </View>
+            )}
 
             {/* Investment Capital */}
+            {financeView === 'invest' && (
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
               <Text style={styles.cardTitle}>💹 Инвестиционный капитал</Text>
               <Text style={styles.cardDescription}>Баланс: {formatCurrencyCustom(investmentBalance, (currentFinance?.investTx?.[0]?.currency) || 'USD')}</Text>
@@ -1824,13 +2094,34 @@ export default function App() {
                 </>
               )}
             </View>
-
-            
+            )}
           </>
         )}
 
         {tab === 'journal' && (
           <>
+            {/* Journal entry picker */}
+            {!journalView && (
+              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
+                <Text style={styles.cardTitle}>Куда перейти?</Text>
+                <View style={styles.inputRow}>
+                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setJournalView('new')}><Text style={styles.addButtonText}>Новая сделка</Text></Pressable>
+                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setJournalView('list')}><Text style={styles.addButtonText}>Журнал сделок</Text></Pressable>
+                </View>
+              </View>
+            )}
+
+            {journalView && (
+              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
+                <View style={styles.inputRow}>
+                  <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} onPress={() => setJournalView(null)}>
+                    <Text style={styles.addButtonText}>← Назад к выбору</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
+            {journalView === 'new' && (
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
               <Text style={styles.cardTitle}>➕ Новая сделка</Text>
               {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять сделки</Text>}
@@ -1892,7 +2183,9 @@ export default function App() {
               </View>
               <Pressable style={styles.addButton} onPress={addTrade}><Text style={styles.addButtonText}>Добавить сделку</Text></Pressable>
             </View>
+            )}
 
+            {journalView === 'list' && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>📊 Дневник сделок</Text>
               <View style={styles.filterContainer}>
@@ -1959,12 +2252,38 @@ export default function App() {
                 </View>
               ))}
             </View>
+            )}
           </>
         )}
 
         {tab === 'calendar' && (
           <>
+            {/* Calendar entry picker */}
+            {!calendarView && (
+              <View style={styles.card}>
+                <Text style={styles.cardTitle}>Куда перейти?</Text>
+                <View style={styles.inputRow}>
+                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setCalendarView('news')}><Text style={styles.addButtonText}>Новости</Text></Pressable>
+                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setCalendarView('workouts')}><Text style={styles.addButtonText}>Тренировки</Text></Pressable>
+                </View>
+                <View style={styles.inputRow}>
+                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setCalendarView('events')}><Text style={styles.addButtonText}>Планер</Text></Pressable>
+                </View>
+              </View>
+            )}
+
+            {calendarView && (
+              <View style={styles.card}>
+                <View style={styles.inputRow}>
+                  <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} onPress={() => setCalendarView(null)}>
+                    <Text style={styles.addButtonText}>← Назад к выбору</Text>
+                  </Pressable>
+                </View>
+              </View>
+            )}
+
             {/* News */}
+            {calendarView === 'news' && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>📰 Календарь новостей</Text>
               <Text style={styles.cardDescription}>Данные с TradingEconomics (демо). Фильтр по стране и важности.</Text>
@@ -2013,8 +2332,10 @@ export default function App() {
               </View>
               <Text style={styles.noteText}>Источник: TradingEconomics (guest:guest). Для продакшена используйте собственные ключи/API.</Text>
             </View>
+            )}
 
             {/* Workouts */}
+            {calendarView === 'workouts' && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>💪 Дневник тренировок</Text>
               {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять тренировки</Text>}
@@ -2127,8 +2448,10 @@ export default function App() {
                 ))}
               </View>
             </View>
+            )}
 
             {/* Events */}
+            {calendarView === 'events' && (
             <View style={styles.card}>
               <Text style={styles.cardTitle}>📅 Планер</Text>
               {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять события</Text>}
@@ -2199,13 +2522,283 @@ export default function App() {
                 ))}
               </View>
             </View>
+            )}
           </>
+        )}
+
+        {tab === 'profile' && (
+          <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
+            <Text style={styles.cardTitle}>👤 Профиль</Text>
+            {!currentUser ? (
+              <Text style={styles.noteText}>Войдите или зарегистрируйтесь, чтобы редактировать профиль</Text>
+            ) : (
+              <>
+                <View style={styles.profileHeader}>
+                  {currentUser.avatar ? (
+                    <Image source={{ uri: currentUser.avatar }} style={styles.avatar} />
+                  ) : (
+                    <View style={[styles.avatar, styles.avatarPlaceholder]}><Text style={styles.avatarLetter}>{currentUser.nickname[0]?.toUpperCase()}</Text></View>
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.profileNickname}>@{currentUser.nickname}</Text>
+                    <Text style={styles.profileBio}>{currentUser.bio || 'Без описания'}</Text>
+                  </View>
+                </View>
+
+                {/* Profile section tabs */}
+                <View style={[styles.inputRow, { marginTop: 12 }]}>
+                  {[
+                    { k: 'overview', l: 'Обзор' },
+                    { k: 'friends', l: 'Друзья' },
+                    { k: 'achievements', l: 'Достижения' },
+                    { k: 'settings', l: 'Настройки' },
+                  ].map(o => (
+                    <Pressable key={o.k} style={[styles.pickerOption, profileTab === o.k ? styles.pickerOptionActive : null]} onPress={() => setProfileTab(o.k)}>
+                      <Text style={[styles.pickerText, profileTab === o.k ? styles.pickerTextActive : null]}>{o.l}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+
+                {profileTab === 'overview' && (
+                  <>
+                    <Text style={[styles.cardTitle, { marginTop: 12 }]}>Редактирование</Text>
+                    <View style={styles.inputRow}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Никнейм</Text>
+                        <TextInput style={styles.input} value={currentUser.nickname} onChangeText={(t) => updateProfile({ nickname: t })} />
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Аватар</Text>
+                        <Pressable style={styles.addButton} onPress={pickAvatarImage}><Text style={styles.addButtonText}>Загрузить фото</Text></Pressable>
+                      </View>
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Статус</Text>
+                      <TextInput style={styles.input} value={currentUser.statusText} onChangeText={(t) => updateProfile({ statusText: t })} placeholder="Например: Swing-трейдер, риск ≤1%" />
+                    </View>
+                    <View style={styles.inputRow}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Опыт (лет)</Text>
+                        <TextInput style={styles.input} value={String(currentUser.experienceYears || 0)} onChangeText={(t) => updateProfile({ experienceYears: Number(t || 0) })} keyboardType="numeric" />
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Часовой пояс</Text>
+                        <TextInput style={styles.input} value={currentUser.timezone} onChangeText={(t) => updateProfile({ timezone: t })} placeholder="Europe/Moscow" />
+                      </View>
+                    </View>
+                    <View style={styles.inputRow}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Локация</Text>
+                        <TextInput style={styles.input} value={currentUser.location} onChangeText={(t) => updateProfile({ location: t })} placeholder="Москва, РФ" />
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Ссылки</Text>
+                        <TextInput style={styles.input} value={currentUser.links?.tg || ''} onChangeText={(t) => updateProfile({ links: { ...(currentUser.links||{}), tg: t } })} placeholder="Telegram @handle" />
+                        <TextInput style={[styles.input, { marginTop: 8 }]} value={currentUser.links?.x || ''} onChangeText={(t) => updateProfile({ links: { ...(currentUser.links||{}), x: t } })} placeholder="X/Twitter link" />
+                      </View>
+                    </View>
+                    <Text style={[styles.cardTitle, { marginTop: 12 }]}>Рынки интереса</Text>
+                    <View style={styles.inputRow}>
+                      {['Crypto','Stocks','Forex'].map(m => (
+                        <Pressable key={m} style={[styles.pickerOption, (currentUser.markets||[]).includes(m) ? styles.pickerOptionActive : null]} onPress={() => toggleMarketPref(m)}>
+                          <Text style={[styles.pickerText, (currentUser.markets||[]).includes(m) ? styles.pickerTextActive : null]}>{m}</Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>О себе</Text>
+                      <TextInput style={[styles.input, styles.textArea]} value={currentUser.bio} onChangeText={(t) => updateProfile({ bio: t })} multiline numberOfLines={3} />
+                    </View>
+                  </>
+                )}
+
+                {profileTab === 'friends' && (
+                  <>
+                    <Text style={[styles.cardTitle, { marginTop: 12 }]}>Друзья</Text>
+                    <View style={styles.friendsList}>
+                      {friendsOfCurrent.length === 0 && <Text style={styles.noteText}>Пока нет друзей</Text>}
+                      {friendsOfCurrent.map(f => (
+                        <View key={f.id} style={styles.friendItem}>
+                          <Text style={styles.friendName}>@{f.nickname}</Text>
+                          <Pressable style={styles.removeFriendBtn} onPress={() => removeFriend(f.id)}><Text style={styles.removeFriendText}>Удалить</Text></Pressable>
+                        </View>
+                      ))}
+                    </View>
+                    <Text style={[styles.cardTitle, { marginTop: 12 }]}>Найти пользователей</Text>
+                    <View style={styles.inputRow}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Поиск пользователей</Text>
+                        <TextInput style={styles.input} value={userSearch} onChangeText={(t) => { setUserSearch(t); runUserSearch(t); }} placeholder="Введите никнейм" />
+                      </View>
+                    </View>
+                    {userSearch.trim().length > 0 && (
+                      <View style={{ marginBottom: 12 }}>
+                        {searchResults.length === 0 ? (
+                          <Text style={styles.noteText}>Ничего не найдено</Text>
+                        ) : (
+                          <View style={styles.friendsList}>
+                            {searchResults.map(u => (
+                              <View key={`s_${u.id}`} style={styles.friendItem}>
+                                <Text style={styles.friendName}>@{u.nickname}</Text>
+                                {currentUser && u.id !== currentUser.id && (
+                                  (() => {
+                                    const pending = pendingWithUser(u.id);
+                                    if ((currentUser.friends || []).includes(u.id)) {
+                                      return <Pressable style={styles.removeFriendBtn} onPress={() => removeFriend(u.id)}><Text style={styles.removeFriendText}>Удалить</Text></Pressable>;
+                                    }
+                                    if (pending && pending.to === currentUser.id) {
+                                      return (
+                                        <View style={{ flexDirection: 'row', gap: 8 }}>
+                                          <Pressable style={styles.addFriendBtn} onPress={() => acceptFriendRequest(pending.id)}><Text style={styles.addFriendText}>Принять</Text></Pressable>
+                                          <Pressable style={styles.removeFriendBtn} onPress={() => rejectFriendRequest(pending.id)}><Text style={styles.removeFriendText}>Отклонить</Text></Pressable>
+                                        </View>
+                                      );
+                                    }
+                                    if (pending && pending.from === currentUser.id) {
+                                      return <Pressable style={styles.removeFriendBtn} onPress={() => cancelFriendRequest(pending.id)}><Text style={styles.removeFriendText}>Отменить</Text></Pressable>;
+                                    }
+                                    return <Pressable style={styles.addFriendBtn} onPress={() => sendFriendRequest(u.id)}><Text style={styles.addFriendText}>Добавить</Text></Pressable>;
+                                  })()
+                                )}
+                              </View>
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                    )}
+
+                    {/* Incoming requests */}
+                    {myIncomingRequests().length > 0 && (
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={styles.cardTitle}>Входящие запросы</Text>
+                        <View style={styles.friendsList}>
+                          {myIncomingRequests().map(r => (
+                            <View key={r.id} style={styles.friendItem}>
+                              <Text style={styles.friendName}>@{userById(r.from).nickname}</Text>
+                              <View style={{ flexDirection: 'row', gap: 8 }}>
+                                <Pressable style={styles.addFriendBtn} onPress={() => acceptFriendRequest(r.id)}><Text style={styles.addFriendText}>Принять</Text></Pressable>
+                                <Pressable style={styles.removeFriendBtn} onPress={() => rejectFriendRequest(r.id)}><Text style={styles.removeFriendText}>Отклонить</Text></Pressable>
+                              </View>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Outgoing requests */}
+                    {myOutgoingRequests().length > 0 && (
+                      <View style={{ marginTop: 12 }}>
+                        <Text style={styles.cardTitle}>Исходящие запросы</Text>
+                        <View style={styles.friendsList}>
+                          {myOutgoingRequests().map(r => (
+                            <View key={r.id} style={styles.friendItem}>
+                              <Text style={styles.friendName}>@{userById(r.to).nickname}</Text>
+                              <Pressable style={styles.removeFriendBtn} onPress={() => cancelFriendRequest(r.id)}><Text style={styles.removeFriendText}>Отменить</Text></Pressable>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    )}
+
+                    {/* Recommendations */}
+                    <View style={{ marginTop: 12 }}>
+                      <Text style={styles.cardTitle}>Рекомендации</Text>
+                      <View style={styles.friendsList}>
+                        {friendRecommendations().map(u => (
+                          <View key={`rec_${u.id}`} style={styles.friendItem}>
+                            <Text style={styles.friendName}>@{u.nickname}</Text>
+                            <Pressable style={styles.addFriendBtn} onPress={() => sendFriendRequest(u.id)}><Text style={styles.addFriendText}>Добавить</Text></Pressable>
+                          </View>
+                        ))}
+                        {friendRecommendations().length === 0 && <Text style={styles.noteText}>Пока нет рекомендаций</Text>}
+                      </View>
+                    </View>
+                  </>
+                )}
+
+                {profileTab === 'achievements' && (
+                  <>
+                    <Text style={[styles.cardTitle, { marginTop: 12 }]}>🏆 Достижения</Text>
+                    <View style={styles.achievementsGrid}>
+                      {achievements.map((a) => (
+                        <View key={a.id} style={[styles.achievement, a.unlocked ? styles.achievementUnlocked : styles.achievementLocked]}>
+                          <Text style={styles.achievementTitle}>{a.title}</Text>
+                          <Text style={styles.achievementDesc}>{a.description}</Text>
+                          {a.unlocked ? (
+                            <Text style={styles.achievementDate}>Получено: {a.date || '—'}</Text>
+                          ) : (
+                            <Text style={styles.achievementLockedText}>🔒 Заблокировано</Text>
+                          )}
+                        </View>
+                      ))}
+                    </View>
+                  </>
+                )}
+
+                {profileTab === 'settings' && (
+                  <>
+                    <Text style={[styles.cardTitle, { marginTop: 12 }]}>Настройки</Text>
+                    <View style={styles.inputRow}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Тема</Text>
+                        <View style={styles.pickerContainer}>
+                          {[{k:'light',l:'Светлая'},{k:'dark',l:'Тёмная'}].map(o => (
+                            <Pressable key={o.k} style={[styles.pickerOption, appTheme === o.k ? styles.pickerOptionActive : null]} onPress={() => setAppTheme(o.k)}>
+                              <Text style={[styles.pickerText, appTheme === o.k ? styles.pickerTextActive : null]}>{o.l}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </View>
+                    </View>
+                  </>
+                )}
+              </>
+            )}
+          </View>
         )}
 
         {tab === 'community' && (
           <View style={styles.card}>
             <Text style={styles.cardTitle}>👥 Сообщество трейдеров</Text>
             <Text style={styles.cardDescription}>Публикуйте идеи, лайкайте и комментируйте</Text>
+
+            {/* Feed filters */}
+            <View style={styles.inputRow}>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Фильтр по рынку</Text>
+                <View style={styles.pickerContainer}>
+                  {['All','Crypto','Stocks','Forex'].map(m => (
+                    <Pressable key={m} style={[styles.pickerOption, postFilterMarket === m ? styles.pickerOptionActive : null]} onPress={() => setPostFilterMarket(m)}>
+                      <Text style={[styles.pickerText, postFilterMarket === m ? styles.pickerTextActive : null]}>{m}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+              <View style={styles.inputGroup}>
+                <Text style={styles.label}>Сортировка</Text>
+                <View style={styles.pickerContainer}>
+                  {[{k:'date_desc',l:'Сначала новые'},{k:'likes_desc',l:'По лайкам'}].map(o => (
+                    <Pressable key={o.k} style={[styles.pickerOption, postSort === o.k ? styles.pickerOptionActive : null]} onPress={() => setPostSort(o.k)}>
+                      <Text style={[styles.pickerText, postSort === o.k ? styles.pickerTextActive : null]}>{o.l}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              </View>
+            </View>
+            <View style={styles.inputRow}>
+              <Pressable style={[styles.addButton, { flex: 1, backgroundColor: showMine ? '#1f6feb' : '#0f1520' }]} onPress={() => setShowMine(v => !v)}>
+                <Text style={styles.addButtonText}>{showMine ? 'Показать все' : 'Только мои посты'}</Text>
+              </Pressable>
+              <Pressable style={[styles.addButton, { flex: 1, backgroundColor: showBookmarksOnly ? '#1f6feb' : '#0f1520' }]} onPress={() => setShowBookmarksOnly(v => !v)}>
+                <Text style={styles.addButtonText}>{showBookmarksOnly ? 'Все посты' : 'Закладки'}</Text>
+              </Pressable>
+            </View>
+            {hashtagFilter ? (
+              <View style={styles.inputRow}>
+                <Text style={styles.noteText}>Фильтр по тегу: #{hashtagFilter}</Text>
+                <Pressable style={[styles.addButton, { marginLeft: 12 }]} onPress={() => setHashtagFilter('')}><Text style={styles.addButtonText}>Сбросить</Text></Pressable>
+              </View>
+            ) : null}
 
             {/* Post composer */}
             <View style={styles.inputRow}>
@@ -2250,10 +2843,18 @@ export default function App() {
 
             {/* Feed */}
             <View style={styles.communityGrid}>
-              {posts.map((post) => (
+              {posts
+                .filter(p => postFilterMarket === 'All' ? true : p.market === postFilterMarket)
+                .filter(p => showMine ? (currentUser && p.userId === currentUser.id) : true)
+                .filter(p => showBookmarksOnly ? isBookmarked(p.id) : true)
+                .filter(p => hashtagFilter ? (p.content || '').includes(`#${hashtagFilter}`) : true)
+                .sort((a,b) => postSort === 'likes_desc' ? (b.likes.length - a.likes.length) : (b.id - a.id))
+                .map((post) => (
                 <View key={post.id} style={styles.communityPost}>
                   <View style={styles.postHeader}>
+                    <Pressable onPress={() => setViewUserId(post.userId)}>
                     <Text style={styles.postUser}>@{userById(post.userId).nickname}</Text>
+                    </Pressable>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                       <Text style={styles.postMarket}>{post.market}</Text>
                       {currentUser && post.userId === currentUser.id && (
@@ -2261,10 +2862,15 @@ export default function App() {
                           <Text style={styles.deleteButtonText}>×</Text>
                         </Pressable>
                       )}
+                      {currentUser && (
+                        <Pressable style={styles.actionButton} onPress={() => toggleBookmark(post.id)}>
+                          <Text style={styles.actionText}>{isBookmarked(post.id) ? '★' : '☆'}</Text>
+                        </Pressable>
+                      )}
                     </View>
                   </View>
                   <Text style={styles.postTitle}>{post.title}</Text>
-                  <Text style={styles.postContent}>{post.content}</Text>
+                  {renderPostContent(post.content)}
                   {(post.images || []).length > 0 && (
                     <ScrollView horizontal style={{ marginBottom: 8 }}>
                       {(post.images || []).map((uri, idx) => (
@@ -2302,104 +2908,33 @@ export default function App() {
           </View>
         )}
 
-        {tab === 'achievements' && (
-          <View style={styles.card}>
-            <Text style={styles.cardTitle}>🏆 Достижения</Text>
-            <Text style={styles.cardDescription}>Отслеживайте ваш прогресс в торговле</Text>
-            <View style={styles.achievementsGrid}>
-              {achievements.map((a) => (
-                <View key={a.id} style={[styles.achievement, a.unlocked ? styles.achievementUnlocked : styles.achievementLocked]}>
-                  <Text style={styles.achievementTitle}>{a.title}</Text>
-                  <Text style={styles.achievementDesc}>{a.description}</Text>
-                  {a.unlocked ? (
-                    <Text style={styles.achievementDate}>Получено: {a.date || '—'}</Text>
-                  ) : (
-                    <Text style={styles.achievementLockedText}>🔒 Заблокировано</Text>
-                  )}
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
+        
 
-        {tab === 'profile' && (
-          <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
-            <Text style={styles.cardTitle}>👤 Профиль</Text>
-            {!currentUser ? (
-              <Text style={styles.noteText}>Войдите или зарегистрируйтесь, чтобы редактировать профиль</Text>
-            ) : (
-              <>
-                <View style={styles.profileHeader}>
-                  {currentUser.avatar ? (
-                    <Image source={{ uri: currentUser.avatar }} style={styles.avatar} />
-                  ) : (
-                    <View style={[styles.avatar, styles.avatarPlaceholder]}><Text style={styles.avatarLetter}>{currentUser.nickname[0]?.toUpperCase()}</Text></View>
-                  )}
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.profileNickname}>@{currentUser.nickname}</Text>
-                    <Text style={styles.profileBio}>{currentUser.bio || 'Без описания'}</Text>
+        {/* Lightweight profile viewer */}
+        {!!viewUserId && (
+          <View style={styles.profileModalOverlay}>
+            <View style={[styles.profileModal, isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null]}>
+              {(() => {
+                const u = userById(viewUserId);
+                const isFriend = currentUser && currentUser.friends && currentUser.friends.includes(viewUserId);
+                return (
+                  <>
+                    <Text style={styles.cardTitle}>Профиль @{u.nickname}</Text>
+                    <Text style={styles.profileBio}>{u.bio || 'Без описания'}</Text>
+                    <View style={[styles.inputRow, { marginTop: 8 }]}>
+                      {currentUser && viewUserId !== currentUser.id && (
+                        isFriend ? (
+                          <Pressable style={styles.removeFriendBtn} onPress={() => { removeFriend(viewUserId); }}><Text style={styles.removeFriendText}>Удалить из друзей</Text></Pressable>
+                        ) : (
+                          <Pressable style={styles.addFriendBtn} onPress={() => { addFriend(viewUserId); }}><Text style={styles.addFriendText}>Добавить в друзья</Text></Pressable>
+                        )
+                      )}
+                      <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb' }]} onPress={() => setViewUserId(null)}><Text style={styles.addButtonText}>Закрыть</Text></Pressable>
                   </View>
+                  </>
+                );
+              })()}
                 </View>
-
-                <Text style={[styles.cardTitle, { marginTop: 12 }]}>Редактирование</Text>
-                <View style={styles.inputRow}>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Никнейм</Text>
-                    <TextInput style={[styles.input, isDark ? { backgroundColor: '#0f1520', color: '#e6edf3', borderColor: '#1f2a36' } : null]} value={currentUser.nickname} onChangeText={(t) => updateProfile({ nickname: t })} />
-                  </View>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Аватар</Text>
-                    <Pressable style={styles.addButton} onPress={pickAvatarImage}><Text style={styles.addButtonText}>Загрузить фото</Text></Pressable>
-                  </View>
-                </View>
-                <Text style={[styles.cardTitle, { marginTop: 12 }]}>Backend (Supabase)</Text>
-                <View style={styles.inputRow}>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>URL</Text>
-                    <TextInput style={[styles.input, isDark ? { backgroundColor: '#0f1520', color: '#e6edf3', borderColor: '#1f2a36' } : null]} value={supa.url} onChangeText={(t) => setSupa(v => ({ ...v, url: t }))} placeholder="https://xxxxx.supabase.co" />
-                  </View>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Anon Key</Text>
-                    <TextInput style={[styles.input, isDark ? { backgroundColor: '#0f1520', color: '#e6edf3', borderColor: '#1f2a36' } : null]} value={supa.anonKey} onChangeText={(t) => setSupa(v => ({ ...v, anonKey: t }))} placeholder="eyJ..." />
-                  </View>
-                </View>
-                <View style={styles.inputRow}>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Bucket</Text>
-                    <TextInput style={[styles.input, isDark ? { backgroundColor: '#0f1520', color: '#e6edf3', borderColor: '#1f2a36' } : null]} value={supa.bucket} onChangeText={(t) => setSupa(v => ({ ...v, bucket: t }))} placeholder="public" />
-                  </View>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Синхронизация</Text>
-                    <Pressable style={styles.addButton} onPress={fetchSupaPosts}><Text style={styles.addButtonText}>Обновить посты</Text></Pressable>
-                  </View>
-                </View>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>О себе</Text>
-                  <TextInput style={[styles.input, styles.textArea, isDark ? { backgroundColor: '#0f1520', color: '#e6edf3', borderColor: '#1f2a36' } : null]} value={currentUser.bio} onChangeText={(t) => updateProfile({ bio: t })} multiline numberOfLines={3} />
-                </View>
-
-                <Text style={[styles.cardTitle, { marginTop: 12 }]}>Друзья</Text>
-                <View style={styles.friendsList}>
-                  {friendsOfCurrent.length === 0 && <Text style={styles.noteText}>Пока нет друзей</Text>}
-                  {friendsOfCurrent.map(f => (
-                    <View key={f.id} style={styles.friendItem}>
-                      <Text style={styles.friendName}>@{f.nickname}</Text>
-                      <Pressable style={styles.removeFriendBtn} onPress={() => removeFriend(f.id)}><Text style={styles.removeFriendText}>Удалить</Text></Pressable>
-                    </View>
-                  ))}
-                </View>
-
-                <Text style={[styles.cardTitle, { marginTop: 12 }]}>Кого добавить</Text>
-                <View style={styles.friendsList}>
-                  {suggestedUsers.filter(u => !currentUser.friends.includes(u.id) && u.id !== currentUser.id).map(u => (
-                    <View key={u.id} style={styles.friendItem}>
-                      <Text style={styles.friendName}>@{u.nickname}</Text>
-                      <Pressable style={styles.addFriendBtn} onPress={() => addFriend(u.id)}><Text style={styles.addFriendText}>Добавить</Text></Pressable>
-                    </View>
-                  ))}
-                </View>
-              </>
-            )}
           </View>
         )}
       </ScrollView>
@@ -2408,40 +2943,41 @@ export default function App() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f5f5f5' },
-  header: { backgroundColor: '#fff', paddingTop: 50, paddingBottom: 12, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#e0e0e0' },
-  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 12 },
+  container: { flex: 1, backgroundColor: '#0b0f14' },
+  header: { backgroundColor: '#121820', paddingTop: 50, paddingBottom: 12, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
+  title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 12, color: '#e6edf3' },
+  brandLogo: { width: 560, height: 240, alignSelf: 'center', marginBottom: 6 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  tabContainer: { flex: 1, flexDirection: 'row', backgroundColor: '#f0f0f0', borderRadius: 10, padding: 4 },
+  tabContainer: { flex: 1, flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4 },
   tab: { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center' },
-  activeTab: { backgroundColor: '#007AFF' },
+  activeTab: { backgroundColor: '#1f6feb' },
   inactiveTab: { backgroundColor: 'transparent' },
-  tabText: { fontSize: 12, fontWeight: '600' },
+  tabText: { fontSize: 12, fontWeight: '600', color: '#9fb0c0' },
   activeTabText: { color: '#fff' },
-  inactiveTabText: { color: '#666' },
+  inactiveTabText: { color: '#9fb0c0' },
   authStatus: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  authStatusText: { fontSize: 12, color: '#333' },
+  authStatusText: { fontSize: 12, color: '#9fb0c0' },
   logoutBtn: { backgroundColor: '#ef4444', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
   logoutText: { color: '#fff', fontWeight: '600' },
 
   content: { flex: 1, padding: 20 },
-  card: { backgroundColor: '#fff', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
-  cardTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8 },
-  cardDescription: { fontSize: 14, color: '#666', marginBottom: 16 },
+  card: { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
+  cardTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#e6edf3' },
+  cardDescription: { fontSize: 14, color: '#9fb0c0', marginBottom: 16 },
   inputRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   inputGroup: { flex: 1 },
-  label: { fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#333' },
-  input: { borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#f9f9f9' },
+  label: { fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' },
+  input: { borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' },
   textArea: { height: 80, textAlignVertical: 'top' },
   pickerContainer: { flexDirection: 'row', gap: 6 },
-  pickerOption: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6, backgroundColor: '#f0f0f0', alignItems: 'center' },
-  pickerOptionActive: { backgroundColor: '#007AFF' },
-  pickerText: { fontSize: 12, color: '#666' },
+  pickerOption: { flex: 1, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6, backgroundColor: '#1b2430', alignItems: 'center' },
+  pickerOptionActive: { backgroundColor: '#1f6feb' },
+  pickerText: { fontSize: 12, color: '#9fb0c0' },
   pickerTextActive: { color: '#fff', fontWeight: '600' },
-  resultCard: { backgroundColor: '#f8f9fa', borderRadius: 8, padding: 16, marginTop: 8, alignItems: 'center' },
-  resultTitle: { fontSize: 14, fontWeight: '600', marginBottom: 6 },
-  resultValue: { fontSize: 22, fontWeight: 'bold', color: '#007AFF', marginBottom: 4 },
-  resultSubtitle: { fontSize: 13, color: '#666' },
+  resultCard: { backgroundColor: '#0f1520', borderRadius: 8, padding: 16, marginTop: 8, alignItems: 'center' },
+  resultTitle: { fontSize: 14, fontWeight: '600', marginBottom: 6, color: '#e6edf3' },
+  resultValue: { fontSize: 22, fontWeight: 'bold', color: '#10b981', marginBottom: 4 },
+  resultSubtitle: { fontSize: 13, color: '#9fb0c0' },
   emergencyStatus: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 },
   emergencyBadge: { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
   emergencyGood: { backgroundColor: '#28a745' },
@@ -2451,14 +2987,14 @@ const styles = StyleSheet.create({
   emergencyTextWarning: { color: '#000' },
   emergencyGoal: { fontSize: 13, color: '#666' },
   emergencyRecommendation: { fontSize: 12, color: '#666', marginTop: 6, fontStyle: 'italic' },
-  addButton: { backgroundColor: '#007AFF', borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 8 },
+  addButton: { backgroundColor: '#10b981', borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 8 },
   addButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   filterContainer: { marginBottom: 12 },
   filterGroup: { marginBottom: 10 },
-  filterLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#333' },
+  filterLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#9fb0c0' },
   statsContainer: { flexDirection: 'row', justifyContent: 'space-around', backgroundColor: '#f8f9fa', borderRadius: 8, padding: 10, marginBottom: 12 },
-  statItem: { fontSize: 13, fontWeight: '600', color: '#333' },
-  tradeItem: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 8, padding: 12, marginBottom: 8 },
+  statItem: { fontSize: 13, fontWeight: '600', color: '#e6edf3' },
+  tradeItem: { borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 12, marginBottom: 8 },
   tradeHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   tradeAsset: { fontSize: 15, fontWeight: 'bold' },
   tradeSide: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, fontSize: 12, fontWeight: '600' },
@@ -2467,90 +3003,100 @@ const styles = StyleSheet.create({
   deleteButton: { backgroundColor: '#dc3545', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' },
   deleteButtonText: { color: '#fff', fontSize: 16, fontWeight: 'bold' },
   tradeDetails: { marginBottom: 4 },
-  tradeDetail: { fontSize: 12, color: '#666', marginBottom: 2 },
-  tradeNotes: { fontSize: 12, color: '#007AFF', fontStyle: 'italic' },
+  tradeDetail: { fontSize: 12, color: '#9fb0c0', marginBottom: 2 },
+  tradeNotes: { fontSize: 12, color: '#1f6feb', fontStyle: 'italic' },
 
   newsList: { marginBottom: 8 },
-  newsItem: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 8, padding: 12, marginBottom: 8 },
+  newsItem: { borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 12, marginBottom: 8 },
   newsHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 },
-  newsDate: { fontSize: 12, color: '#666' },
-  newsTime: { fontSize: 12, color: '#666' },
-  newsCountry: { fontSize: 12, color: '#666' },
-  newsTitle: { fontSize: 14, fontWeight: '600', marginBottom: 2 },
+  newsDate: { fontSize: 12, color: '#9fb0c0' },
+  newsTime: { fontSize: 12, color: '#9fb0c0' },
+  newsCountry: { fontSize: 12, color: '#9fb0c0' },
+  newsTitle: { fontSize: 14, fontWeight: '600', marginBottom: 2, color: '#e6edf3' },
   newsImportance: { fontSize: 12, color: '#ffc107' },
-  noteText: { fontSize: 12, color: '#666', fontStyle: 'italic' },
+  noteText: { fontSize: 12, color: '#9fb0c0', fontStyle: 'italic' },
   toolbarRow: { flexDirection: 'row', gap: 12, marginBottom: 12, flexWrap: 'wrap' },
   chipsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  chip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: '#f0f0f0' },
-  chipActive: { backgroundColor: '#007AFF' },
-  chipText: { fontSize: 12, color: '#555' },
+  chip: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: '#1b2430' },
+  chipActive: { backgroundColor: '#1f6feb' },
+  chipText: { fontSize: 12, color: '#9fb0c0' },
   chipTextActive: { color: '#fff', fontWeight: '600' },
 
   workoutList: { marginTop: 8 },
-  workoutItem: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 8, padding: 12, marginBottom: 8 },
+  workoutItem: { borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 12, marginBottom: 8 },
   workoutHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   workoutType: { fontSize: 15, fontWeight: 'bold' },
-  workoutDate: { fontSize: 12, color: '#666', marginBottom: 2 },
-  workoutNotes: { fontSize: 12, color: '#007AFF', fontStyle: 'italic' },
+  workoutDate: { fontSize: 12, color: '#9fb0c0', marginBottom: 2 },
+  workoutNotes: { fontSize: 12, color: '#1f6feb', fontStyle: 'italic' },
 
   eventList: { marginTop: 8 },
-  eventItem: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 8, padding: 12, marginBottom: 8 },
+  eventItem: { borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 12, marginBottom: 8 },
   eventHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   eventTitle: { fontSize: 15, fontWeight: 'bold' },
-  eventDate: { fontSize: 12, color: '#666', marginBottom: 2 },
-  eventNotes: { fontSize: 12, color: '#007AFF', fontStyle: 'italic' },
+  eventDate: { fontSize: 12, color: '#9fb0c0', marginBottom: 2 },
+  eventNotes: { fontSize: 12, color: '#1f6feb', fontStyle: 'italic' },
 
   communityGrid: { gap: 12 },
-  communityPost: { borderWidth: 1, borderColor: '#e0e0e0', borderRadius: 8, padding: 12 },
+  communityPost: { borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 12 },
   postHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  postUser: { fontSize: 13, fontWeight: '600', color: '#007AFF' },
-  postMarket: { fontSize: 12, backgroundColor: '#f0f0f0', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 },
-  postTitle: { fontSize: 15, fontWeight: 'bold', marginBottom: 4 },
-  postContent: { fontSize: 14, color: '#333', marginBottom: 8 },
+  postUser: { fontSize: 13, fontWeight: '600', color: '#1f6feb' },
+  postMarket: { fontSize: 12, backgroundColor: '#1b2430', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4, color: '#9fb0c0' },
+  postTitle: { fontSize: 15, fontWeight: 'bold', marginBottom: 4, color: '#e6edf3' },
+  postContent: { fontSize: 14, color: '#e6edf3', marginBottom: 8 },
   postActions: { flexDirection: 'row', gap: 10 },
-  actionButton: { paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#f8f9fa', borderRadius: 4 },
-  actionText: { fontSize: 12, color: '#666' },
+  actionButton: { paddingHorizontal: 8, paddingVertical: 4, backgroundColor: '#0f1520', borderRadius: 4 },
+  actionText: { fontSize: 12, color: '#9fb0c0' },
   commentItem: { marginTop: 8, borderTopWidth: 1, borderTopColor: '#f0f0f0', paddingTop: 6 },
   commentHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  commentMeta: { fontSize: 11, color: '#888', marginBottom: 2 },
-  commentText: { fontSize: 13, color: '#333' },
+  commentMeta: { fontSize: 11, color: '#9fb0c0', marginBottom: 2 },
+  commentText: { fontSize: 13, color: '#e6edf3' },
   deleteButtonSmall: { backgroundColor: '#dc3545', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' },
   commentComposer: { marginTop: 8 },
 
   achievementsGrid: { gap: 12 },
-  achievement: { borderRadius: 8, padding: 12, borderWidth: 1 },
-  achievementUnlocked: { backgroundColor: '#d4edda', borderColor: '#c3e6cb' },
-  achievementLocked: { backgroundColor: '#f8f9fa', borderColor: '#e0e0e0' },
-  achievementTitle: { fontSize: 14, fontWeight: '600' },
-  achievementDesc: { fontSize: 13, color: '#666', marginTop: 2 },
-  achievementDate: { fontSize: 12, color: '#28a745', fontWeight: '600', marginTop: 4 },
-  achievementLockedText: { fontSize: 12, color: '#666', fontStyle: 'italic', marginTop: 4 },
+  achievement: { borderRadius: 8, padding: 12, borderWidth: 1, backgroundColor: '#0f1520', borderColor: '#1f2a36' },
+  achievementUnlocked: { backgroundColor: '#0f1520', borderColor: '#10b981' },
+  achievementLocked: { backgroundColor: '#0f1520', borderColor: '#1f2a36' },
+  achievementTitle: { fontSize: 14, fontWeight: '600', color: '#e6edf3' },
+  achievementDesc: { fontSize: 13, color: '#9fb0c0', marginTop: 2 },
+  achievementDate: { fontSize: 12, color: '#10b981', fontWeight: '600', marginTop: 4 },
+  achievementLockedText: { fontSize: 12, color: '#9fb0c0', fontStyle: 'italic', marginTop: 4 },
 
-  authCard: { backgroundColor: '#fff', borderRadius: 12, padding: 16, margin: 16, borderWidth: 1, borderColor: '#eee' },
+  authCard: { backgroundColor: '#121820', borderRadius: 12, padding: 16, margin: 16, borderWidth: 1, borderColor: '#1f2a36' },
   switchAuth: { marginTop: 8, alignItems: 'center' },
-  switchAuthText: { color: '#007AFF', fontSize: 12 },
+  switchAuthText: { color: '#1f6feb', fontSize: 12 },
+
+  // Toast
+  toast: { position: 'absolute', top: 70, left: 20, right: 20, padding: 12, borderRadius: 8, backgroundColor: '#0f1520', borderWidth: 1, borderColor: '#1f2a36', zIndex: 1000 },
+  toastWarn: { borderColor: '#ef4444', backgroundColor: '#2b0f12' },
+  toastError: { borderColor: '#ef4444', backgroundColor: '#2b0f12' },
+  toastText: { color: '#e6edf3', fontSize: 13, textAlign: 'center' },
 
   profileHeader: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#ddd' },
+  avatar: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#1b2430' },
   avatarPlaceholder: { alignItems: 'center', justifyContent: 'center' },
-  avatarLetter: { fontSize: 20, fontWeight: '700', color: '#555' },
-  profileNickname: { fontSize: 16, fontWeight: '700' },
-  profileBio: { fontSize: 13, color: '#666' },
+  avatarLetter: { fontSize: 20, fontWeight: '700', color: '#e6edf3' },
+  profileNickname: { fontSize: 16, fontWeight: '700', color: '#e6edf3' },
+  profileBio: { fontSize: 13, color: '#9fb0c0' },
   friendsList: { gap: 8, marginTop: 8 },
-  friendItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#eee', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12 },
-  friendName: { fontSize: 13, fontWeight: '600' },
+  friendItem: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, paddingVertical: 8, paddingHorizontal: 12 },
+  friendName: { fontSize: 13, fontWeight: '600', color: '#e6edf3' },
   addFriendBtn: { backgroundColor: '#10b981', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
   addFriendText: { color: '#fff', fontWeight: '600' },
   removeFriendBtn: { backgroundColor: '#ef4444', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
   removeFriendText: { color: '#fff', fontWeight: '600' },
 
   // Finance tables and chart
-  tableHeaderRow: { flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#eee', marginTop: 8 },
-  tableHeaderCell: { fontSize: 12, fontWeight: '700', color: '#333' },
-  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#f4f4f4' },
-  tableCell: { fontSize: 12, color: '#333' },
-  barRow: { width: '100%', height: 10, backgroundColor: '#f0f0f0', borderRadius: 6, marginTop: 6, overflow: 'hidden' },
-  barLabel: { fontSize: 12, color: '#666', marginTop: 2 },
+  tableHeaderRow: { flexDirection: 'row', paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: '#1f2a36', marginTop: 8 },
+  tableHeaderCell: { fontSize: 12, fontWeight: '700', color: '#e6edf3' },
+  tableRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
+  tableCell: { fontSize: 12, color: '#e6edf3' },
+  barRow: { width: '100%', height: 10, backgroundColor: '#1b2430', borderRadius: 6, marginTop: 6, overflow: 'hidden' },
+  barLabel: { fontSize: 12, color: '#9fb0c0', marginTop: 2 },
+
+  // Profile modal
+  profileModalOverlay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
+  profileModal: { width: '90%', maxWidth: 500, borderRadius: 12, borderWidth: 1, padding: 16, backgroundColor: '#fff' },
 });
 
 
