@@ -531,14 +531,21 @@ export default function App() {
   };
   const openComposeForDate = (dateISO) => {
     if (!currentUser) return;
-    setNewEvent(v => ({ ...v, date: dateISO }));
+    // default 1 hour duration
+    const t = '10:00';
+    const [hh, mm] = t.split(':').map(Number);
+    const end = pad2((hh + 1) % 24) + ':' + pad2(mm || 0);
+    setNewEvent(v => ({ ...v, date: dateISO, time: t, endTime: end }));
     setPlannerComposeType('event');
     setPlannerEditing(null);
     setPlannerComposeOpen(true);
   };
   const openComposeForDateTime = (dateISO, timeHHMM) => {
     if (!currentUser) return;
-    setNewEvent(v => ({ ...v, date: dateISO, time: timeHHMM || '' }));
+    const t = timeHHMM || '10:00';
+    const [hh, mm] = t.split(':').map(Number);
+    const end = pad2((hh + 1) % 24) + ':' + pad2(mm || 0);
+    setNewEvent(v => ({ ...v, date: dateISO, time: t, endTime: end }));
     setPlannerComposeType('event');
     setPlannerEditing(null);
     setPlannerComposeOpen(true);
@@ -622,6 +629,7 @@ export default function App() {
   const [newEvent, setNewEvent] = useState({
     date: new Date().toISOString().slice(0, 10),
     time: '10:00',
+    endTime: '11:00',
     title: '',
     notes: '',
     remindBefore: 30,
@@ -3348,7 +3356,7 @@ export default function App() {
                               <Pressable key={`c_${iso}_${h}`} style={[styles.plannerCell, { minHeight: 40 }]} onPress={() => openComposeForDateTime(iso, hhmm)}>
                                 {items.map(ev => (
                                   <Pressable key={ev.id} onPress={() => openComposeForEdit(ev)}>
-                                    <Text style={styles.plannerEventItem}>{(ev.time || '')} {ev.title}</Text>
+                                    <Text style={styles.plannerEventItem}>{(ev.time || '')}{ev.endTime ? `–${ev.endTime}` : ''} {ev.title}</Text>
                                   </Pressable>
                                 ))}
                               </Pressable>
@@ -3379,8 +3387,22 @@ export default function App() {
                         <TextInput style={styles.input} value={newEvent.time} onChangeText={(t) => setNewEvent(v => ({ ...v, time: t }))} placeholder="10:00" />
                       </View>
                       <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Окончание</Text>
+                        <TextInput style={styles.input} value={newEvent.endTime || ''} onChangeText={(t) => setNewEvent(v => ({ ...v, endTime: t }))} placeholder="11:00" />
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Тип</Text>
+                        <View style={styles.pickerContainer}>
+                          {['event','workout'].map(t => (
+                            <Pressable key={t} style={[styles.pickerOption, plannerComposeType === t ? styles.pickerOptionActive : null]} onPress={() => setPlannerComposeType(t)}>
+                              <Text style={[styles.pickerText, plannerComposeType === t ? styles.pickerTextActive : null]}>{t === 'event' ? 'Событие' : 'Тренировка'}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      </View>
+                      <View style={styles.inputGroup}>
                         <Text style={styles.label}>Заголовок</Text>
-                        <TextInput style={styles.input} value={newEvent.title} onChangeText={(t) => setNewEvent(v => ({ ...v, title: t }))} placeholder="Событие" />
+                        <TextInput style={styles.input} value={newEvent.title} onChangeText={(t) => setNewEvent(v => ({ ...v, title: t }))} placeholder={plannerComposeType === 'event' ? "Событие" : "Тренировка"} />
                       </View>
                     </View>
                     <View style={styles.inputGroup}>
