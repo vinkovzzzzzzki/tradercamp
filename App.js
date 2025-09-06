@@ -988,23 +988,33 @@ export default function App() {
   const formatCurrencyCustom = (value, currency) => {
     const num = Number(value);
     const cur = (currency || '').toString().trim();
-    if (!Number.isFinite(num)) return `0,00000000${cur ? ' ' + cur : ''}`;
+    if (!Number.isFinite(num)) return `0,0${cur ? ' ' + cur : ''}`;
     const sign = num < 0 ? '-' : '';
     const abs = Math.abs(num);
-    const fixed = abs.toFixed(10); // up to 10 decimals
+    // Start with high precision, then trim
+    const fixed = abs.toFixed(10);
     const parts = fixed.split('.');
     const intPart = parts[0] || '0';
     let fracPart = parts[1] || '';
-    // Trim trailing zeros but keep at least 8 decimals
-    while (fracPart.length > 8 && fracPart.endsWith('0')) {
-      fracPart = fracPart.slice(0, -1);
-    }
-    if (fracPart.length < 8) {
-      fracPart = (fracPart + '00000000').slice(0, 8);
-    }
+    // Remove trailing zeros fully
+    while (fracPart.endsWith('0')) fracPart = fracPart.slice(0, -1);
+    // Ensure at least one decimal digit is shown
+    if (fracPart.length === 0) fracPart = '0';
     // Thousands separator for integer part (space), decimal comma
     const intWithSpaces = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
     return `${sign}${intWithSpaces},${fracPart}${cur ? ' ' + cur : ''}`;
+  };
+  const formatNumberCompact = (value, options = {}) => {
+    const num = Number(value);
+    if (!Number.isFinite(num)) return '0,0';
+    const sign = num < 0 ? '-' : '';
+    const abs = Math.abs(num);
+    const fixed = abs.toFixed(options.maxDecimals ?? 6);
+    let [intPart, fracPart = ''] = fixed.split('.');
+    while (fracPart.endsWith('0')) fracPart = fracPart.slice(0, -1);
+    if (fracPart.length === 0) fracPart = '0';
+    const intWithSpaces = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return `${sign}${intWithSpaces},${fracPart}`;
   };
   const getImportanceStars = (importance) => '★'.repeat(importance);
   const parseNumberSafe = (value) => {
@@ -3075,7 +3085,7 @@ export default function App() {
                           {sl ? `SL: ${formatCurrency(sl)}` : ''}
                           {sl && tp ? ' • ' : ''}
                           {tp ? `TP: ${formatCurrency(tp)}` : ''}
-                          {(rr && rr > 0) ? ` • R:R ${rr.toFixed(2)}` : ''}
+                          {(rr && rr > 0) ? ` • R:R ${formatNumberCompact(rr, { maxDecimals: 6 })}` : ''}
                           {trade.trailingEnabled ? ` • Trailing ${trade.trailingType === 'percent' ? (trade.trailingValue || 0) + '%' : formatCurrency(trade.trailingValue || 0)}` : ''}
                         </Text>
                       );
