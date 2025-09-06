@@ -2020,7 +2020,7 @@ export default function App() {
           {[
             { key: 'finance', label: 'Финансы' },
             { key: 'journal', label: 'Дневник' },
-            { key: 'calendar', label: 'Календари' },
+            { key: 'planner', label: 'Планер' },
             { key: 'community', label: 'Сообщество' },
             { key: 'profile', label: 'Профиль' },
           ].map(({ key, label }) => (
@@ -3123,7 +3123,7 @@ export default function App() {
           </>
         )}
 
-        {tab === 'calendar' && (
+        {tab === 'planner' && (
           <>
             {/* Calendar entry picker */}
             {!calendarView && (
