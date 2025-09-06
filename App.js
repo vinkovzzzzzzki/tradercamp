@@ -366,6 +366,17 @@ export default function App() {
   const [newEmergencyTx, setNewEmergencyTx] = useState({ type: 'deposit', amount: '', currency: 'USD', location: '', note: '' });
   // Investment transactions
   const [newInvestTx, setNewInvestTx] = useState({ type: 'in', amount: '', currency: 'USD', destination: '', note: '' });
+  // Finance filters
+  const [emFilter, setEmFilter] = useState({ type: 'All', currency: 'All', q: '' });
+  const [invFilter, setInvFilter] = useState({ type: 'All', currency: 'All', q: '' });
+  // Transfers between holdings
+  const [newEmergencyTransfer, setNewEmergencyTransfer] = useState({ fromLocation: '', toLocation: '', currency: 'USD', amount: '' });
+  const [newInvestTransfer, setNewInvestTransfer] = useState({ fromDestination: '', toDestination: '', currency: 'USD', amount: '' });
+  // Rename/Merge holdings
+  const [renameEmergency, setRenameEmergency] = useState({ sourceLocation: '', currency: 'USD', newLocation: '' });
+  const [mergeEmergency, setMergeEmergency] = useState({ fromLocation: '', toLocation: '', currency: 'USD' });
+  const [renameInvest, setRenameInvest] = useState({ sourceDestination: '', currency: 'USD', newDestination: '' });
+  const [mergeInvest, setMergeInvest] = useState({ fromDestination: '', toDestination: '', currency: 'USD' });
 
   // Journal state
   const [trades, setTrades] = useState([]);
@@ -381,8 +392,49 @@ export default function App() {
     market: 'Crypto',
     style: 'Скальпинг',
     date: new Date().toISOString().slice(0, 10),
-    notes: ''
+    notes: '',
+    stopLoss: '',
+    takeProfit: '',
+    trailingEnabled: false,
+    trailingType: 'percent', // 'percent' | 'amount'
+    trailingValue: ''
   });
+  const [riskCalc, setRiskCalc] = useState({ account: '', riskPct: '1', slPrice: '' });
+  const [rrTarget, setRrTarget] = useState('2');
+
+  const applyRiskPositionSize = () => {
+    // Use provided SL field if not overridden in calc
+    const priceN = parseNumberSafe(newTrade.price);
+    const isBuy = newTrade.side === 'BUY';
+    const slPrice = riskCalc.slPrice ? parseNumberSafe(riskCalc.slPrice) : (newTrade.stopLoss ? parseNumberSafe(newTrade.stopLoss) : NaN);
+    const account = parseNumberSafe(riskCalc.account);
+    const riskPct = parseNumberSafe(riskCalc.riskPct);
+    if (!Number.isFinite(priceN) || priceN <= 0) return Alert.alert('Риск', 'Сначала укажите цену входа');
+    if (!Number.isFinite(slPrice) || slPrice <= 0) return Alert.alert('Риск', 'Укажите корректный Stop Loss');
+    if (!Number.isFinite(account) || account <= 0) return Alert.alert('Риск', 'Укажите размер счёта');
+    if (!Number.isFinite(riskPct) || riskPct <= 0) return Alert.alert('Риск', 'Процент риска должен быть > 0');
+    // distance per unit
+    const perUnitRisk = isBuy ? (priceN - slPrice) : (slPrice - priceN);
+    if (!(perUnitRisk > 0)) return Alert.alert('Риск', 'SL должен быть по правильную сторону от цены входа');
+    const riskMoney = account * (riskPct / 100);
+    const qty = riskMoney / perUnitRisk;
+    if (!(qty > 0)) return Alert.alert('Риск', 'Не удалось рассчитать размер позиции');
+    setNewTrade(v => ({ ...v, qty: String(qty.toFixed(6)), stopLoss: String(Number.isFinite(parseFloat(v.stopLoss)) ? v.stopLoss : slPrice) }));
+  };
+
+  const applyAutoTakeProfit = () => {
+    const priceN = parseNumberSafe(newTrade.price);
+    const slN = newTrade.stopLoss ? parseNumberSafe(newTrade.stopLoss) : NaN;
+    const rr = parseNumberSafe(rrTarget);
+    if (!Number.isFinite(priceN) || priceN <= 0) return Alert.alert('TP', 'Сначала укажите цену входа');
+    if (!Number.isFinite(slN) || slN <= 0) return Alert.alert('TP', 'Сначала укажите Stop Loss');
+    if (!Number.isFinite(rr) || rr <= 0) return Alert.alert('TP', 'Целевой R:R должен быть > 0');
+    const isBuy = newTrade.side === 'BUY';
+    const perUnitRisk = isBuy ? (priceN - slN) : (slN - priceN);
+    if (!(perUnitRisk > 0)) return Alert.alert('TP', 'SL должен быть по правильную сторону от цены');
+    const tp = isBuy ? (priceN + perUnitRisk * rr) : (priceN - perUnitRisk * rr);
+    setNewTrade(v => ({ ...v, takeProfit: String(tp.toFixed(2)) }));
+  };
   const [closeDrafts, setCloseDrafts] = useState({}); // tradeId -> { qty, price }
 
   // Calendar state
@@ -754,12 +806,30 @@ export default function App() {
     const priceN = parseNumberSafe(newTrade.price);
     if (!Number.isFinite(qtyN) || qtyN <= 0) return Alert.alert('Ошибка', 'Количество должно быть числом > 0');
     if (!Number.isFinite(priceN) || priceN <= 0) return Alert.alert('Ошибка', 'Цена должна быть числом > 0');
+    // Optional SL/TP validation relative to side
+    const slN = newTrade.stopLoss ? parseNumberSafe(newTrade.stopLoss) : null;
+    const tpN = newTrade.takeProfit ? parseNumberSafe(newTrade.takeProfit) : null;
+    if (slN != null && (!Number.isFinite(slN) || slN <= 0)) return Alert.alert('Ошибка', 'Stop Loss: введите корректное число');
+    if (tpN != null && (!Number.isFinite(tpN) || tpN <= 0)) return Alert.alert('Ошибка', 'Take Profit: введите корректное число');
+    if (slN != null) {
+      if (newTrade.side === 'BUY' && slN >= priceN) return Alert.alert('Ошибка', 'Для BUY Stop Loss должен быть ниже цены входа');
+      if (newTrade.side === 'SELL' && slN <= priceN) return Alert.alert('Ошибка', 'Для SELL Stop Loss должен быть выше цены входа');
+    }
+    if (tpN != null) {
+      if (newTrade.side === 'BUY' && tpN <= priceN) return Alert.alert('Ошибка', 'Для BUY Take Profit должен быть выше цены входа');
+      if (newTrade.side === 'SELL' && tpN >= priceN) return Alert.alert('Ошибка', 'Для SELL Take Profit должен быть ниже цены входа');
+    }
     const trade = {
       id: trades.length ? Math.max(...trades.map(t => t.id)) + 1 : 1,
       userId: currentUser.id,
       ...newTrade,
       qty: qtyN,
       price: priceN,
+      stopLoss: slN,
+      takeProfit: tpN,
+      trailingEnabled: !!newTrade.trailingEnabled,
+      trailingType: newTrade.trailingType,
+      trailingValue: newTrade.trailingValue ? parseNumberSafe(newTrade.trailingValue) : null,
       remainingQty: qtyN,
       closures: []
     };
@@ -768,7 +838,7 @@ export default function App() {
     setFilterMarket('All');
     setFilterStyle('All');
     Alert.alert('Готово', 'Сделка добавлена');
-    setNewTrade({ asset: '', side: 'BUY', qty: '', price: '', market: 'Crypto', style: 'Скальпинг', date: new Date().toISOString().slice(0,10), notes: '' });
+    setNewTrade({ asset: '', side: 'BUY', qty: '', price: '', market: 'Crypto', style: 'Скальпинг', date: new Date().toISOString().slice(0,10), notes: '', stopLoss: '', takeProfit: '', trailingEnabled: false, trailingType: 'percent', trailingValue: '' });
   };
 
   // Upgrade existing trades to ensure remainingQty/closures exist
@@ -875,6 +945,40 @@ export default function App() {
   };
 
   const deleteTrade = (id) => setTrades(prev => prev.filter(t => t.id !== id));
+
+  // Finance: delete emergency/invest/debt transactions
+  const deleteEmergencyTx = (txId) => {
+    if (!currentUser) return;
+    let removed = null;
+    withFinance(cur => {
+      const list = cur.emergencyTx || [];
+      removed = list.find(t => t.id === txId) || null;
+      const next = list.filter(t => t.id !== txId);
+      return { ...cur, emergencyTx: next };
+    });
+    if (removed) {
+      const delta = (removed.type === 'deposit' ? -1 : 1) * (Number(removed.amount) || 0);
+      setCashReserve(prev => Math.max(0, (Number(prev) || 0) + delta));
+    }
+  };
+
+  const deleteInvestTx = (txId) => {
+    if (!currentUser) return;
+    withFinance(cur => {
+      const list = cur.investTx || [];
+      const next = list.filter(t => t.id !== txId);
+      return { ...cur, investTx: next };
+    });
+  };
+
+  const deleteDebtTx = (txId) => {
+    if (!currentUser) return;
+    withFinance(cur => {
+      const list = cur.debtTx || [];
+      const next = list.filter(t => t.id !== txId);
+      return { ...cur, debtTx: next };
+    });
+  };
 
   const formatCurrency = (value) => `${formatCurrencyCustom(value, 'USD')}`;
   const formatCurrencyCustom = (value, currency) => {
@@ -1310,6 +1414,7 @@ export default function App() {
       debts: (currentFinance && Array.isArray(currentFinance.debts)) ? currentFinance.debts : [],
       emergencyTx: (currentFinance && Array.isArray(currentFinance.emergencyTx)) ? currentFinance.emergencyTx : [],
       investTx: (currentFinance && Array.isArray(currentFinance.investTx)) ? currentFinance.investTx : [],
+      debtTx: (currentFinance && Array.isArray(currentFinance.debtTx)) ? currentFinance.debtTx : [],
       notifyEnabled: !!financeForm.notifyEnabled,
       notifIds: currentFinance?.notifIds || [],
     };
@@ -1333,7 +1438,7 @@ export default function App() {
   const withFinance = (updater) => {
     if (!currentUser) return;
     setFinanceData(prev => {
-      const cur = prev[currentUser.id] || { debts: [], emergencyTx: [], investTx: [], incomeDays: [] };
+      const cur = prev[currentUser.id] || { debts: [], emergencyTx: [], investTx: [], debtTx: [], incomeDays: [] };
       const next = updater(cur);
       return { ...prev, [currentUser.id]: next };
     });
@@ -1347,7 +1452,9 @@ export default function App() {
     withFinance(cur => {
       const id = (cur.debts?.length ? Math.max(...cur.debts.map(d => d.id || 0)) + 1 : 1);
       const debts = [...(cur.debts || []), { id, name, amount, currency: newDebt.currency || 'USD' }];
-      return { ...cur, debts };
+      const tx = { id: Date.now(), date: new Date().toISOString().slice(0,10), debtId: id, type: 'add', amount, currency: newDebt.currency || 'USD', note: 'Создание долга' };
+      const debtTx = [tx, ...(cur.debtTx || [])];
+      return { ...cur, debts, debtTx };
     });
     setNewDebt({ name: '', amount: '', currency: newDebt.currency || 'USD' });
     if (supaConfigured && currentSupaUser) {
@@ -1365,8 +1472,13 @@ export default function App() {
     const draft = Number(repayDrafts[debtId]) || 0;
     if (draft <= 0) return;
     withFinance(cur => {
-      const debts = (cur.debts || []).map(d => d.id === debtId ? { ...d, amount: Math.max(0, (d.amount || 0) - draft) } : d).filter(d => (d.amount || 0) > 0);
-      return { ...cur, debts };
+      const target = (cur.debts || []).find(d => d.id === debtId);
+      if (!target) return cur;
+      const newAmount = Math.max(0, (target.amount || 0) - draft);
+      const debts = (cur.debts || []).map(d => d.id === debtId ? { ...d, amount: newAmount } : d).filter(d => (d.amount || 0) > 0);
+      const tx = { id: Date.now(), date: new Date().toISOString().slice(0,10), debtId, type: 'repay', amount: draft, currency: target.currency || 'USD', note: '' };
+      const debtTx = [tx, ...(cur.debtTx || [])];
+      return { ...cur, debts, debtTx };
     });
     setRepayDrafts(prev => ({ ...prev, [debtId]: '' }));
     if (supaConfigured && currentSupaUser) {
@@ -1384,8 +1496,11 @@ export default function App() {
 
   const repayDebtFull = (debtId) => {
     withFinance(cur => {
+      const target = (cur.debts || []).find(d => d.id === debtId);
       const debts = (cur.debts || []).filter(d => d.id !== debtId);
-      return { ...cur, debts };
+      const tx = target ? { id: Date.now(), date: new Date().toISOString().slice(0,10), debtId, type: 'close', amount: target.amount || 0, currency: target.currency || 'USD', note: 'Полное погашение' } : null;
+      const debtTx = tx ? [tx, ...(cur.debtTx || [])] : (cur.debtTx || []);
+      return { ...cur, debts, debtTx };
     });
     if (supaConfigured && currentSupaUser) {
       (async () => {
@@ -1396,14 +1511,90 @@ export default function App() {
     }
   };
 
+  // Emergency holdings helper: current balance for a specific destination (location + currency)
+  const getEmergencyHoldingBalance = (location, currency) => {
+    const list = currentFinance?.emergencyTx || [];
+    const loc = (location || '').toString();
+    const cur = (currency || 'USD').toString();
+    let sum = 0;
+    for (const tx of list) {
+      if (((tx.location || '').toString() === loc) && ((tx.currency || 'USD').toString() === cur)) {
+        sum += (tx.type === 'deposit' ? 1 : -1) * (Number(tx.amount) || 0);
+      }
+    }
+    return sum;
+  };
+
+  // Investment holdings helper: current balance for a specific destination (destination + currency)
+  const getInvestHoldingBalance = (destination, currency) => {
+    const list = currentFinance?.investTx || [];
+    const dest = (destination || '').toString();
+    const cur = (currency || 'USD').toString();
+    let sum = 0;
+    for (const tx of list) {
+      if (((tx.destination || '').toString() === dest) && ((tx.currency || 'USD').toString() === cur)) {
+        sum += (tx.type === 'in' ? 1 : -1) * (Number(tx.amount) || 0);
+      }
+    }
+    return sum;
+  };
+
+  const emergencyHoldings = useMemo(() => {
+    const list = currentFinance?.emergencyTx || [];
+    const map = {};
+    for (const tx of list) {
+      const currency = (tx.currency || 'USD').toString();
+      const location = (tx.location || '').toString();
+      const key = `${currency}::${location}`;
+      const delta = (tx.type === 'deposit' ? 1 : -1) * (Number(tx.amount) || 0);
+      map[key] = (map[key] || 0) + delta;
+    }
+    return Object.entries(map)
+      .map(([key, amount]) => {
+        const [currency, location] = key.split('::');
+        return { currency, location, amount };
+      })
+      .filter(h => (h.amount || 0) > 0)
+      .sort((a, b) => (b.amount - a.amount));
+  }, [currentFinance]);
+
+  const investHoldings = useMemo(() => {
+    const list = currentFinance?.investTx || [];
+    const map = {};
+    for (const tx of list) {
+      const currency = (tx.currency || 'USD').toString();
+      const destination = (tx.destination || '').toString();
+      const key = `${currency}::${destination}`;
+      const delta = (tx.type === 'in' ? 1 : -1) * (Number(tx.amount) || 0);
+      map[key] = (map[key] || 0) + delta;
+    }
+    return Object.entries(map)
+      .map(([key, amount]) => {
+        const [currency, destination] = key.split('::');
+        return { currency, destination, amount };
+      })
+      .filter(h => (h.amount || 0) > 0)
+      .sort((a, b) => (b.amount - a.amount));
+  }, [currentFinance]);
+
   const addEmergencyTransaction = async () => {
     const amount = Number(newEmergencyTx.amount) || 0;
     if (amount <= 0) return Alert.alert('Ошибка', 'Введите сумму > 0');
-    // Disallow withdrawing more than available reserve
+    // Disallow withdrawing more than available reserve and require selecting holding
     if (newEmergencyTx.type === 'withdraw') {
       const prevReserve = Number(cashReserve) || 0;
       if (amount > prevReserve) {
         notify('Недостаточно средств в подушке безопасности для этой суммы', 'error');
+        return;
+      }
+      const selLoc = (newEmergencyTx.location || '').trim();
+      if (!selLoc) {
+        notify('Выберите вклад для списания', 'error');
+        return;
+      }
+      const holdBal = getEmergencyHoldingBalance(selLoc, newEmergencyTx.currency);
+      if (amount > holdBal) {
+        notify('Недостаточно средств в выбранном вкладе', 'error');
         return;
       }
       // Immediate warning before state updates to ensure it shows on web
@@ -1442,9 +1633,68 @@ export default function App() {
     }
   };
 
+  const transferEmergencyBetweenHoldings = () => {
+    if (!currentUser) return Alert.alert('Войдите', 'Авторизуйтесь для перевода');
+    const amount = Number(newEmergencyTransfer.amount) || 0;
+    if (amount <= 0) return Alert.alert('Ошибка', 'Введите сумму > 0');
+    const from = (newEmergencyTransfer.fromLocation || '').trim();
+    const to = (newEmergencyTransfer.toLocation || '').trim();
+    const cur = (newEmergencyTransfer.currency || 'USD').trim();
+    if (!from || !to) return Alert.alert('Ошибка', 'Выберите откуда и куда');
+    if (from === to) return Alert.alert('Ошибка', 'Места должны отличаться');
+    const bal = getEmergencyHoldingBalance(from, cur);
+    if (amount > bal) return Alert.alert('Ошибка', 'Недостаточно средств на исходном вкладе');
+    const date = new Date().toISOString().slice(0,10);
+    withFinance(curState => {
+      const list = curState.emergencyTx || [];
+      const outTx = { id: Date.now(), date, type: 'withdraw', amount, currency: cur, location: from, note: `Перевод → ${to}` };
+      const inTx = { id: Date.now() + 1, date, type: 'deposit', amount, currency: cur, location: to, note: `Перевод из ${from}` };
+      return { ...curState, emergencyTx: [inTx, outTx, ...list] };
+    });
+    // total reserve unchanged
+    setNewEmergencyTransfer({ fromLocation: '', toLocation: '', currency: cur, amount: '' });
+  };
+
+  const renameEmergencyHolding = () => {
+    if (!currentUser) return;
+    const src = (renameEmergency.sourceLocation || '').trim();
+    const dst = (renameEmergency.newLocation || '').trim();
+    const cur = (renameEmergency.currency || 'USD').trim();
+    if (!src || !dst) return Alert.alert('Ошибка', 'Укажите исходное и новое название');
+    if (src === dst) return Alert.alert('Ошибка', 'Названия совпадают');
+    withFinance(state => {
+      const list = state.emergencyTx || [];
+      const next = list.map(t => ((t.location||'') === src && (t.currency||'USD') === cur) ? { ...t, location: dst } : t);
+      return { ...state, emergencyTx: next };
+    });
+    setRenameEmergency({ sourceLocation: '', currency: cur, newLocation: '' });
+  };
+
+  const mergeEmergencyHoldings = () => {
+    if (!currentUser) return;
+    const from = (mergeEmergency.fromLocation || '').trim();
+    const to = (mergeEmergency.toLocation || '').trim();
+    const cur = (mergeEmergency.currency || 'USD').trim();
+    if (!from || !to) return Alert.alert('Ошибка', 'Укажите оба названия');
+    if (from === to) return Alert.alert('Ошибка', 'Названия совпадают');
+    withFinance(state => {
+      const list = state.emergencyTx || [];
+      const next = list.map(t => ((t.location||'') === from && (t.currency||'USD') === cur) ? { ...t, location: to } : t);
+      return { ...state, emergencyTx: next };
+    });
+    setMergeEmergency({ fromLocation: '', toLocation: '', currency: cur });
+  };
+
   const addInvestTransaction = () => {
     const amount = Number(newInvestTx.amount) || 0;
     if (amount <= 0) return Alert.alert('Ошибка', 'Введите сумму > 0');
+    // For withdrawals, require destination selection and ensure enough balance
+    if (newInvestTx.type === 'out') {
+      const dest = (newInvestTx.destination || '').trim();
+      if (!dest) { notify('Выберите направление/вклад для вывода', 'error'); return; }
+      const bal = getInvestHoldingBalance(dest, newInvestTx.currency);
+      if (amount > bal) { notify('Недостаточно средств на выбранном направлении', 'error'); return; }
+    }
     const entry = { id: Date.now(), date: new Date().toISOString().slice(0,10), ...newInvestTx, amount };
     withFinance(cur => ({ ...cur, investTx: [entry, ...(cur.investTx || [])] }));
     setNewInvestTx(tx => ({ ...tx, amount: '', note: '' }));
@@ -1457,6 +1707,57 @@ export default function App() {
         } catch {}
       })();
     }
+  };
+
+  const transferInvestBetweenDestinations = () => {
+    if (!currentUser) return Alert.alert('Войдите', 'Авторизуйтесь для перевода');
+    const amount = Number(newInvestTransfer.amount) || 0;
+    if (amount <= 0) return Alert.alert('Ошибка', 'Введите сумму > 0');
+    const from = (newInvestTransfer.fromDestination || '').trim();
+    const to = (newInvestTransfer.toDestination || '').trim();
+    const cur = (newInvestTransfer.currency || 'USD').trim();
+    if (!from || !to) return Alert.alert('Ошибка', 'Выберите откуда и куда');
+    if (from === to) return Alert.alert('Ошибка', 'Направления должны отличаться');
+    const bal = getInvestHoldingBalance(from, cur);
+    if (amount > bal) return Alert.alert('Ошибка', 'Недостаточно средств на исходном направлении');
+    const date = new Date().toISOString().slice(0,10);
+    withFinance(curState => {
+      const list = curState.investTx || [];
+      const outTx = { id: Date.now(), date, type: 'out', amount, currency: cur, destination: from, note: `Перевод → ${to}` };
+      const inTx = { id: Date.now() + 1, date, type: 'in', amount, currency: cur, destination: to, note: `Перевод из ${from}` };
+      return { ...curState, investTx: [inTx, outTx, ...list] };
+    });
+    setNewInvestTransfer({ fromDestination: '', toDestination: '', currency: cur, amount: '' });
+  };
+
+  const renameInvestDestination = () => {
+    if (!currentUser) return;
+    const src = (renameInvest.sourceDestination || '').trim();
+    const dst = (renameInvest.newDestination || '').trim();
+    const cur = (renameInvest.currency || 'USD').trim();
+    if (!src || !dst) return Alert.alert('Ошибка', 'Укажите исходное и новое название');
+    if (src === dst) return Alert.alert('Ошибка', 'Названия совпадают');
+    withFinance(state => {
+      const list = state.investTx || [];
+      const next = list.map(t => ((t.destination||'') === src && (t.currency||'USD') === cur) ? { ...t, destination: dst } : t);
+      return { ...state, investTx: next };
+    });
+    setRenameInvest({ sourceDestination: '', currency: cur, newDestination: '' });
+  };
+
+  const mergeInvestDestinations = () => {
+    if (!currentUser) return;
+    const from = (mergeInvest.fromDestination || '').trim();
+    const to = (mergeInvest.toDestination || '').trim();
+    const cur = (mergeInvest.currency || 'USD').trim();
+    if (!from || !to) return Alert.alert('Ошибка', 'Укажите оба названия');
+    if (from === to) return Alert.alert('Ошибка', 'Названия совпадают');
+    withFinance(state => {
+      const list = state.investTx || [];
+      const next = list.map(t => ((t.destination||'') === from && (t.currency||'USD') === cur) ? { ...t, destination: to } : t);
+      return { ...state, investTx: next };
+    });
+    setMergeInvest({ fromDestination: '', toDestination: '', currency: cur });
   };
 
   const investmentBalance = useMemo(() => {
@@ -1717,7 +2018,7 @@ export default function App() {
               <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
                 <Text style={styles.cardTitle}>Куда перейти?</Text>
                 <View style={styles.inputRow}>
-                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setFinanceView('fund')}><Text style={styles.addButtonText}>Подушка безопасности</Text></Pressable>
+                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setFinanceView('fund')}><Text style={styles.addButtonText}>Расчёт подушки безопасности</Text></Pressable>
                   <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setFinanceView('invest')}><Text style={styles.addButtonText}>Инвестиции</Text></Pressable>
                 </View>
                 <View style={styles.inputRow}>
@@ -1899,8 +2200,115 @@ export default function App() {
             {/* Emergency Fund */}
             {financeView === 'fund' && (
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
-              <Text style={styles.cardTitle}>🛡️ Подушка безопасности</Text>
+              <Text style={styles.cardTitle}>🛡️ Расчёт подушки безопасности</Text>
               <Text style={styles.cardDescription}>Резерв на непредвиденные расходы</Text>
+              {/* Holdings summary */}
+              {currentUser && (
+                <View style={{ marginBottom: 8 }}>
+                  <Text style={styles.filterLabel}>Ваши вклады (по местам/валютам)</Text>
+                  {emergencyHoldings.length === 0 ? (
+                    <Text style={styles.noteText}>Пока нет вкладов</Text>
+                  ) : (
+                    <View style={styles.chipsRow}>
+                      {emergencyHoldings.map(h => (
+                        <Pressable key={`${h.currency}:${h.location}`}
+                          style={[styles.chip, (newEmergencyTx.location || '') === h.location && (newEmergencyTx.currency || 'USD') === h.currency ? styles.chipActive : null]}
+                          onPress={() => setNewEmergencyTx(v => ({ ...v, location: h.location, currency: h.currency }))}>
+                          <Text style={[styles.chipText, (newEmergencyTx.location || '') === h.location && (newEmergencyTx.currency || 'USD') === h.currency ? styles.chipTextActive : null]}>
+                            {(h.location || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+              {/* Transfer between holdings */}
+              {currentUser && emergencyHoldings.length >= 1 && (
+                <View style={[styles.resultCard, { alignItems: 'stretch' }]}>
+                  <Text style={styles.resultTitle}>Перевод между вкладами</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Откуда</Text>
+                      <View style={styles.chipsRow}>
+                        {emergencyHoldings.map(h => (
+                          <Pressable key={`trf-from-${h.currency}:${h.location}`}
+                            style={[styles.chip, newEmergencyTransfer.fromLocation === h.location && (newEmergencyTransfer.currency||'USD') === h.currency ? styles.chipActive : null]}
+                            onPress={() => setNewEmergencyTransfer(v => ({ ...v, fromLocation: h.location, currency: h.currency }))}>
+                            <Text style={[styles.chipText, newEmergencyTransfer.fromLocation === h.location && (newEmergencyTransfer.currency||'USD') === h.currency ? styles.chipTextActive : null]}>
+                              {(h.location || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Куда</Text>
+                      <TextInput style={styles.input} value={newEmergencyTransfer.toLocation} onChangeText={(t) => setNewEmergencyTransfer(v => ({ ...v, toLocation: t }))} placeholder="Название вклада-получателя" />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Сумма</Text>
+                      <TextInput style={styles.input} value={newEmergencyTransfer.amount} onChangeText={(t) => setNewEmergencyTransfer(v => ({ ...v, amount: t }))} keyboardType="numeric" placeholder="100" />
+                    </View>
+                  </View>
+                  <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb' }]} onPress={transferEmergencyBetweenHoldings}><Text style={styles.addButtonText}>Перевести</Text></Pressable>
+                </View>
+              )}
+
+              {/* Rename / Merge holdings */}
+              {currentUser && (
+                <View style={[styles.resultCard, { alignItems: 'stretch', marginTop: 8 }]}>
+                  <Text style={styles.resultTitle}>Переименование/слияние вкладов</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Переименовать: выбрать вклад</Text>
+                      <View style={styles.chipsRow}>
+                        {emergencyHoldings.map(h => (
+                          <Pressable key={`rn-em-${h.currency}:${h.location}`}
+                            style={[styles.chip, renameEmergency.sourceLocation === h.location && (renameEmergency.currency||'USD') === h.currency ? styles.chipActive : null]}
+                            onPress={() => setRenameEmergency(v => ({ ...v, sourceLocation: h.location, currency: h.currency }))}>
+                            <Text style={[styles.chipText, renameEmergency.sourceLocation === h.location && (renameEmergency.currency||'USD') === h.currency ? styles.chipTextActive : null]}>
+                              {(h.location || '—')} • {h.currency}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Новое название</Text>
+                      <TextInput style={styles.input} value={renameEmergency.newLocation} onChangeText={(t) => setRenameEmergency(v => ({ ...v, newLocation: t }))} placeholder="Новое имя" />
+                    </View>
+                    <Pressable style={[styles.addButton, { flex: 1 }]} onPress={renameEmergencyHolding}><Text style={styles.addButtonText}>Переименовать</Text></Pressable>
+                  </View>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Слить: из</Text>
+                      <View style={styles.chipsRow}>
+                        {emergencyHoldings.map(h => (
+                          <Pressable key={`mg-em-from-${h.currency}:${h.location}`}
+                            style={[styles.chip, mergeEmergency.fromLocation === h.location && (mergeEmergency.currency||'USD') === h.currency ? styles.chipActive : null]}
+                            onPress={() => setMergeEmergency(v => ({ ...v, fromLocation: h.location, currency: h.currency }))}>
+                            <Text style={[styles.chipText, mergeEmergency.fromLocation === h.location && (mergeEmergency.currency||'USD') === h.currency ? styles.chipTextActive : null]}>
+                              {(h.location || '—')} • {h.currency}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>В</Text>
+                      <TextInput style={styles.input} value={mergeEmergency.toLocation} onChangeText={(t) => setMergeEmergency(v => ({ ...v, toLocation: t }))} placeholder="Имя получателя" />
+                    </View>
+                    <Pressable style={[styles.addButton, { flex: 1 }]} onPress={mergeEmergencyHoldings}><Text style={styles.addButtonText}>Слить</Text></Pressable>
+                  </View>
+                </View>
+              )}
               <View style={styles.inputRow}>
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Месячные расходы ($)</Text>
@@ -1930,6 +2338,23 @@ export default function App() {
               {!currentUser && <Text style={styles.noteText}>Войдите, чтобы управлять долгами</Text>}
               {currentUser && (
                 <>
+                  {/* Debts summary chips */}
+                  {(() => {
+                    const list = currentFinance?.debts || [];
+                    if (!list.length) return null;
+                    return (
+                      <View style={{ marginBottom: 8 }}>
+                        <Text style={styles.filterLabel}>Текущие долги</Text>
+                        <View style={styles.chipsRow}>
+                          {list.map(d => (
+                            <View key={`debtchip-${d.id}`} style={styles.chip}>
+                              <Text style={styles.chipText}>{d.name} • {formatCurrencyCustom(d.amount, d.currency)}</Text>
+                            </View>
+                          ))}
+                        </View>
+                      </View>
+                    );
+                  })()}
                   <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Название</Text>
@@ -1964,6 +2389,26 @@ export default function App() {
                           <Pressable style={[styles.addButton, { flex: 1, alignSelf: 'flex-end' }]} onPress={() => repayDebtPartial(d.id)}><Text style={styles.addButtonText}>Погасить частично</Text></Pressable>
                           <Pressable style={[styles.addButton, { flex: 1, alignSelf: 'flex-end', backgroundColor: '#10b981' }]} onPress={() => repayDebtFull(d.id)}><Text style={styles.addButtonText}>Погасить полностью</Text></Pressable>
                         </View>
+                        {/* Debt history */}
+                        {(() => {
+                          const history = (currentFinance?.debtTx || []).filter(tx => tx.debtId === d.id);
+                          if (history.length === 0) return null;
+                          return (
+                            <View style={{ marginTop: 6 }}>
+                              <Text style={styles.filterLabel}>История</Text>
+                              {history.map(tx => (
+                                <View key={tx.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                  <Text style={styles.tableCell}>
+                                    • {tx.date}: {tx.type === 'add' ? 'Создание' : tx.type === 'repay' ? 'Погашение' : 'Закрытие'} {formatCurrencyCustom(tx.amount, tx.currency)} {tx.note ? `— ${tx.note}` : ''}
+                                  </Text>
+                                  <Pressable style={styles.deleteButtonSmall} onPress={() => deleteDebtTx(tx.id)}>
+                                    <Text style={styles.deleteButtonText}>×</Text>
+                                  </Pressable>
+                                </View>
+                              ))}
+                            </View>
+                          );
+                        })()}
                       </View>
                     </View>
                   ))}
@@ -2000,17 +2445,62 @@ export default function App() {
                       <TextInput style={styles.input} value={newEmergencyTx.currency} onChangeText={(t) => setNewEmergencyTx(v => ({ ...v, currency: t.toUpperCase() }))} placeholder="USD" />
                     </View>
                   </View>
+                  {/* Quick select existing destinations */}
+                  {emergencyHoldings.length > 0 && (
+                    <View style={{ marginBottom: 8 }}>
+                      <Text style={styles.filterLabel}>Выберите вклад</Text>
+                      <View style={styles.chipsRow}>
+                        {emergencyHoldings.map(h => (
+                          <Pressable key={`txpick-${h.currency}:${h.location}`}
+                            style={[styles.chip, (newEmergencyTx.location || '') === h.location && (newEmergencyTx.currency || 'USD') === h.currency ? styles.chipActive : null]}
+                            onPress={() => setNewEmergencyTx(v => ({ ...v, location: h.location, currency: h.currency }))}>
+                            <Text style={[styles.chipText, (newEmergencyTx.location || '') === h.location && (newEmergencyTx.currency || 'USD') === h.currency ? styles.chipTextActive : null]}>
+                              {(h.location || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                      <View style={[styles.inputRow, { marginTop: 8 }]}>
+                        <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} onPress={() => setNewEmergencyTx(v => ({ ...v, type: 'deposit' }))}>
+                          <Text style={styles.addButtonText}>Пополнить выбранный вклад</Text>
+                        </Pressable>
+                        <Pressable style={[styles.addButton, { backgroundColor: '#ef4444', flex: 1 }]} onPress={() => setNewEmergencyTx(v => ({ ...v, type: 'withdraw' }))}>
+                          <Text style={styles.addButtonText}>Списать с выбранного вклада</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
                   <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Где расположено</Text>
-                      <TextInput style={styles.input} value={newEmergencyTx.location} onChangeText={(t) => setNewEmergencyTx(v => ({ ...v, location: t }))} placeholder="Банк, брокер, наличка..." />
+                      <Text style={styles.label}>Где расположено (название вклада)</Text>
+                      <TextInput style={styles.input} value={newEmergencyTx.location} onChangeText={(t) => setNewEmergencyTx(v => ({ ...v, location: t }))} placeholder="Банк, брокер, акция/тикер..." />
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Заметка</Text>
                       <TextInput style={styles.input} value={newEmergencyTx.note} onChangeText={(t) => setNewEmergencyTx(v => ({ ...v, note: t }))} placeholder="Комментарий" />
                     </View>
                   </View>
-                  <Pressable style={styles.addButton} onPress={addEmergencyTransaction}><Text style={styles.addButtonText}>Добавить</Text></Pressable>
+                  <View style={styles.inputRow}>
+                    <Pressable style={[styles.addButton, { flex: 1 }]} onPress={addEmergencyTransaction}><Text style={styles.addButtonText}>Добавить</Text></Pressable>
+                    <Pressable style={[styles.addButton, { flex: 1, backgroundColor: '#0f1520' }]} onPress={() => {
+                      // CSV export for filtered emergency tx
+                      try {
+                        const rows = (currentFinance?.emergencyTx || [])
+                          .filter(tx => emFilter.type === 'All' ? true : tx.type === emFilter.type)
+                          .filter(tx => emFilter.currency === 'All' ? true : (tx.currency || 'USD') === emFilter.currency)
+                          .filter(tx => { const q = (emFilter.q || '').toLowerCase(); return !q || ((tx.location||'').toLowerCase().includes(q) || (tx.note||'').toLowerCase().includes(q)); })
+                          .map(tx => [tx.date, tx.type, tx.amount, tx.currency, (tx.location||''), (tx.note||'')]);
+                        const header = ['date','type','amount','currency','location','note'];
+                        const csv = [header, ...rows].map(r => r.map(v => String(v).replace(/"/g,'""')).map(v => /[,"]/.test(v) ? `"${v}"` : v).join(',')).join('\n');
+                        if (typeof window !== 'undefined') {
+                          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url; a.download = 'emergency_transactions.csv'; a.click(); URL.revokeObjectURL(url);
+                        } else { Alert.alert('Экспорт', 'CSV доступен только в веб-версии'); }
+                      } catch {}
+                    }}><Text style={styles.addButtonText}>Экспорт CSV</Text></Pressable>
+                  </View>
 
                   <View style={styles.tableHeaderRow}>
                     <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Дата</Text>
@@ -2019,13 +2509,53 @@ export default function App() {
                     <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Где</Text>
                     <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Заметка</Text>
                   </View>
-                  {(currentFinance?.emergencyTx || []).map(tx => (
+                  {/* Filters */}
+                  <View style={[styles.inputRow, { marginTop: 8 }] }>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Тип</Text>
+                      <View style={styles.pickerContainer}>
+                        {['All','deposit','withdraw'].map(t => (
+                          <Pressable key={t} style={[styles.pickerOption, emFilter.type === t ? styles.pickerOptionActive : null]} onPress={() => setEmFilter(f => ({ ...f, type: t }))}>
+                            <Text style={[styles.pickerText, emFilter.type === t ? styles.pickerTextActive : null]}>{t}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Валюта</Text>
+                      <View style={styles.pickerContainer}>
+                        {['All','USD','EUR','RUB'].map(c => (
+                          <Pressable key={c} style={[styles.pickerOption, emFilter.currency === c ? styles.pickerOptionActive : null]} onPress={() => setEmFilter(f => ({ ...f, currency: c }))}>
+                            <Text style={[styles.pickerText, emFilter.currency === c ? styles.pickerTextActive : null]}>{c}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Поиск</Text>
+                      <TextInput style={styles.input} value={emFilter.q} onChangeText={(t) => setEmFilter(f => ({ ...f, q: t }))} placeholder="место/заметка" />
+                    </View>
+                  </View>
+                  {(currentFinance?.emergencyTx || [])
+                    .filter(tx => emFilter.type === 'All' ? true : tx.type === emFilter.type)
+                    .filter(tx => emFilter.currency === 'All' ? true : (tx.currency || 'USD') === emFilter.currency)
+                    .filter(tx => {
+                      const q = (emFilter.q || '').toLowerCase();
+                      if (!q) return true;
+                      return ((tx.location||'').toLowerCase().includes(q) || (tx.note||'').toLowerCase().includes(q));
+                    })
+                    .map(tx => (
                     <View key={tx.id} style={styles.tableRow}>
                       <Text style={[styles.tableCell, { flex: 1 }]}>{tx.date}</Text>
                       <Text style={[styles.tableCell, { flex: 1 }]}>{tx.type === 'deposit' ? 'Пополнение' : 'Изъятие'}</Text>
                       <Text style={[styles.tableCell, { flex: 1 }]}>{formatCurrencyCustom(tx.amount, tx.currency)}</Text>
                       <Text style={[styles.tableCell, { flex: 1 }]}>{tx.location || '—'}</Text>
-                      <Text style={[styles.tableCell, { flex: 2 }]}>{tx.note || '—'}</Text>
+                      <View style={[styles.tableCell, { flex: 2, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                        <Text>{tx.note || '—'}</Text>
+                        <Pressable style={styles.deleteButtonSmall} onPress={() => deleteEmergencyTx(tx.id)}>
+                          <Text style={styles.deleteButtonText}>×</Text>
+                        </Pressable>
+                      </View>
                     </View>
                   ))}
                   {(currentFinance?.emergencyTx || []).length === 0 && <Text style={styles.noteText}>Пока нет транзакций</Text>}
@@ -2039,6 +2569,113 @@ export default function App() {
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
               <Text style={styles.cardTitle}>💹 Инвестиционный капитал</Text>
               <Text style={styles.cardDescription}>Баланс: {formatCurrencyCustom(investmentBalance, (currentFinance?.investTx?.[0]?.currency) || 'USD')}</Text>
+              {/* Holdings summary */}
+              {currentUser && (
+                <View style={{ marginBottom: 8 }}>
+                  <Text style={styles.filterLabel}>Ваши направления/вклады</Text>
+                  {investHoldings.length === 0 ? (
+                    <Text style={styles.noteText}>Пока нет направлений</Text>
+                  ) : (
+                    <View style={styles.chipsRow}>
+                      {investHoldings.map(h => (
+                        <Pressable key={`${h.currency}:${h.destination}`}
+                          style={[styles.chip, (newInvestTx.destination || '') === h.destination && (newInvestTx.currency || 'USD') === h.currency ? styles.chipActive : null]}
+                          onPress={() => setNewInvestTx(v => ({ ...v, destination: h.destination, currency: h.currency }))}>
+                          <Text style={[styles.chipText, (newInvestTx.destination || '') === h.destination && (newInvestTx.currency || 'USD') === h.currency ? styles.chipTextActive : null]}>
+                            {(h.destination || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              )}
+              {/* Transfer between destinations */}
+              {currentUser && investHoldings.length >= 1 && (
+                <View style={[styles.resultCard, { alignItems: 'stretch' }]}>
+                  <Text style={styles.resultTitle}>Перевод между направлениями</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Откуда</Text>
+                      <View style={styles.chipsRow}>
+                        {investHoldings.map(h => (
+                          <Pressable key={`invtrf-from-${h.currency}:${h.destination}`}
+                            style={[styles.chip, newInvestTransfer.fromDestination === h.destination && (newInvestTransfer.currency||'USD') === h.currency ? styles.chipActive : null]}
+                            onPress={() => setNewInvestTransfer(v => ({ ...v, fromDestination: h.destination, currency: h.currency }))}>
+                            <Text style={[styles.chipText, newInvestTransfer.fromDestination === h.destination && (newInvestTransfer.currency||'USD') === h.currency ? styles.chipTextActive : null]}>
+                              {(h.destination || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Куда</Text>
+                      <TextInput style={styles.input} value={newInvestTransfer.toDestination} onChangeText={(t) => setNewInvestTransfer(v => ({ ...v, toDestination: t }))} placeholder="Название направления-получателя" />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Сумма</Text>
+                      <TextInput style={styles.input} value={newInvestTransfer.amount} onChangeText={(t) => setNewInvestTransfer(v => ({ ...v, amount: t }))} keyboardType="numeric" placeholder="100" />
+                    </View>
+                  </View>
+                  <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb' }]} onPress={transferInvestBetweenDestinations}><Text style={styles.addButtonText}>Перевести</Text></Pressable>
+                </View>
+              )}
+
+              {/* Rename / Merge destinations */}
+              {currentUser && (
+                <View style={[styles.resultCard, { alignItems: 'stretch', marginTop: 8 }]}>
+                  <Text style={styles.resultTitle}>Переименование/слияние направлений</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Переименовать: выбрать направление</Text>
+                      <View style={styles.chipsRow}>
+                        {investHoldings.map(h => (
+                          <Pressable key={`rn-inv-${h.currency}:${h.destination}`}
+                            style={[styles.chip, renameInvest.sourceDestination === h.destination && (renameInvest.currency||'USD') === h.currency ? styles.chipActive : null]}
+                            onPress={() => setRenameInvest(v => ({ ...v, sourceDestination: h.destination, currency: h.currency }))}>
+                            <Text style={[styles.chipText, renameInvest.sourceDestination === h.destination && (renameInvest.currency||'USD') === h.currency ? styles.chipTextActive : null]}>
+                              {(h.destination || '—')} • {h.currency}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Новое название</Text>
+                      <TextInput style={styles.input} value={renameInvest.newDestination} onChangeText={(t) => setRenameInvest(v => ({ ...v, newDestination: t }))} placeholder="Новое имя" />
+                    </View>
+                    <Pressable style={[styles.addButton, { flex: 1 }]} onPress={renameInvestDestination}><Text style={styles.addButtonText}>Переименовать</Text></Pressable>
+                  </View>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Слить: из</Text>
+                      <View style={styles.chipsRow}>
+                        {investHoldings.map(h => (
+                          <Pressable key={`mg-inv-from-${h.currency}:${h.destination}`}
+                            style={[styles.chip, mergeInvest.fromDestination === h.destination && (mergeInvest.currency||'USD') === h.currency ? styles.chipActive : null]}
+                            onPress={() => setMergeInvest(v => ({ ...v, fromDestination: h.destination, currency: h.currency }))}>
+                            <Text style={[styles.chipText, mergeInvest.fromDestination === h.destination && (mergeInvest.currency||'USD') === h.currency ? styles.chipTextActive : null]}>
+                              {(h.destination || '—')} • {h.currency}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                  </View>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>В</Text>
+                      <TextInput style={styles.input} value={mergeInvest.toDestination} onChangeText={(t) => setMergeInvest(v => ({ ...v, toDestination: t }))} placeholder="Имя получателя" />
+                    </View>
+                    <Pressable style={[styles.addButton, { flex: 1 }]} onPress={mergeInvestDestinations}><Text style={styles.addButtonText}>Слить</Text></Pressable>
+                  </View>
+                </View>
+              )}
               {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять транзакции</Text>}
               {currentUser && (
                 <>
@@ -2062,17 +2699,61 @@ export default function App() {
                       <TextInput style={styles.input} value={newInvestTx.currency} onChangeText={(t) => setNewInvestTx(v => ({ ...v, currency: t.toUpperCase() }))} placeholder="USD" />
                     </View>
                   </View>
+                  {/* Quick select existing destinations */}
+                  {investHoldings.length > 0 && (
+                    <View style={{ marginBottom: 8 }}>
+                      <Text style={styles.filterLabel}>Выберите направление</Text>
+                      <View style={styles.chipsRow}>
+                        {investHoldings.map(h => (
+                          <Pressable key={`invpick-${h.currency}:${h.destination}`}
+                            style={[styles.chip, (newInvestTx.destination || '') === h.destination && (newInvestTx.currency || 'USD') === h.currency ? styles.chipActive : null]}
+                            onPress={() => setNewInvestTx(v => ({ ...v, destination: h.destination, currency: h.currency }))}>
+                            <Text style={[styles.chipText, (newInvestTx.destination || '') === h.destination && (newInvestTx.currency || 'USD') === h.currency ? styles.chipTextActive : null]}>
+                              {(h.destination || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                      <View style={[styles.inputRow, { marginTop: 8 }]}>
+                        <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} onPress={() => setNewInvestTx(v => ({ ...v, type: 'in' }))}>
+                          <Text style={styles.addButtonText}>Пополнить выбранное направление</Text>
+                        </Pressable>
+                        <Pressable style={[styles.addButton, { backgroundColor: '#ef4444', flex: 1 }]} onPress={() => setNewInvestTx(v => ({ ...v, type: 'out' }))}>
+                          <Text style={styles.addButtonText}>Списать с выбранного направления</Text>
+                        </Pressable>
+                      </View>
+                    </View>
+                  )}
                   <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Куда конкретно</Text>
-                      <TextInput style={styles.input} value={newInvestTx.destination} onChangeText={(t) => setNewInvestTx(v => ({ ...v, destination: t }))} placeholder="Счёт брокера, стратегия..." />
+                      <Text style={styles.label}>Куда конкретно (название направления/вклада)</Text>
+                      <TextInput style={styles.input} value={newInvestTx.destination} onChangeText={(t) => setNewInvestTx(v => ({ ...v, destination: t }))} placeholder="Счёт брокера, стратегия, тикер..." />
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Заметка</Text>
                       <TextInput style={styles.input} value={newInvestTx.note} onChangeText={(t) => setNewInvestTx(v => ({ ...v, note: t }))} placeholder="Комментарий" />
                     </View>
                   </View>
-                  <Pressable style={styles.addButton} onPress={addInvestTransaction}><Text style={styles.addButtonText}>Добавить</Text></Pressable>
+                  <View style={styles.inputRow}>
+                    <Pressable style={[styles.addButton, { flex: 1 }]} onPress={addInvestTransaction}><Text style={styles.addButtonText}>Добавить</Text></Pressable>
+                    <Pressable style={[styles.addButton, { flex: 1, backgroundColor: '#0f1520' }]} onPress={() => {
+                      try {
+                        const rows = (currentFinance?.investTx || [])
+                          .filter(tx => invFilter.type === 'All' ? true : tx.type === invFilter.type)
+                          .filter(tx => invFilter.currency === 'All' ? true : (tx.currency || 'USD') === invFilter.currency)
+                          .filter(tx => { const q = (invFilter.q || '').toLowerCase(); return !q || ((tx.destination||'').toLowerCase().includes(q) || (tx.note||'').toLowerCase().includes(q)); })
+                          .map(tx => [tx.date, tx.type, tx.amount, tx.currency, (tx.destination||''), (tx.note||'')]);
+                        const header = ['date','type','amount','currency','destination','note'];
+                        const csv = [header, ...rows].map(r => r.map(v => String(v).replace(/"/g,'""')).map(v => /[,"]/.test(v) ? `"${v}"` : v).join(',')).join('\n');
+                        if (typeof window !== 'undefined') {
+                          const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+                          const url = URL.createObjectURL(blob);
+                          const a = document.createElement('a');
+                          a.href = url; a.download = 'investment_transactions.csv'; a.click(); URL.revokeObjectURL(url);
+                        } else { Alert.alert('Экспорт', 'CSV доступен только в веб-версии'); }
+                      } catch {}
+                    }}><Text style={styles.addButtonText}>Экспорт CSV</Text></Pressable>
+                  </View>
 
                   <View style={styles.tableHeaderRow}>
                     <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Дата</Text>
@@ -2081,13 +2762,53 @@ export default function App() {
                     <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Куда</Text>
                     <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Заметка</Text>
                   </View>
-                  {(currentFinance?.investTx || []).map(tx => (
+                  {/* Filters */}
+                  <View style={[styles.inputRow, { marginTop: 8 }] }>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Тип</Text>
+                      <View style={styles.pickerContainer}>
+                        {['All','in','out'].map(t => (
+                          <Pressable key={t} style={[styles.pickerOption, invFilter.type === t ? styles.pickerOptionActive : null]} onPress={() => setInvFilter(f => ({ ...f, type: t }))}>
+                            <Text style={[styles.pickerText, invFilter.type === t ? styles.pickerTextActive : null]}>{t}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Валюта</Text>
+                      <View style={styles.pickerContainer}>
+                        {['All','USD','EUR','RUB'].map(c => (
+                          <Pressable key={c} style={[styles.pickerOption, invFilter.currency === c ? styles.pickerOptionActive : null]} onPress={() => setInvFilter(f => ({ ...f, currency: c }))}>
+                            <Text style={[styles.pickerText, invFilter.currency === c ? styles.pickerTextActive : null]}>{c}</Text>
+                          </Pressable>
+                        ))}
+                      </View>
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Поиск</Text>
+                      <TextInput style={styles.input} value={invFilter.q} onChangeText={(t) => setInvFilter(f => ({ ...f, q: t }))} placeholder="направление/заметка" />
+                    </View>
+                  </View>
+                  {(currentFinance?.investTx || [])
+                    .filter(tx => invFilter.type === 'All' ? true : tx.type === invFilter.type)
+                    .filter(tx => invFilter.currency === 'All' ? true : (tx.currency || 'USD') === invFilter.currency)
+                    .filter(tx => {
+                      const q = (invFilter.q || '').toLowerCase();
+                      if (!q) return true;
+                      return ((tx.destination||'').toLowerCase().includes(q) || (tx.note||'').toLowerCase().includes(q));
+                    })
+                    .map(tx => (
                     <View key={tx.id} style={styles.tableRow}>
                       <Text style={[styles.tableCell, { flex: 1 }]}>{tx.date}</Text>
                       <Text style={[styles.tableCell, { flex: 1 }]}>{tx.type === 'in' ? 'Ввод' : 'Вывод'}</Text>
                       <Text style={[styles.tableCell, { flex: 1 }]}>{formatCurrencyCustom(tx.amount, tx.currency)}</Text>
                       <Text style={[styles.tableCell, { flex: 2 }]}>{tx.destination || '—'}</Text>
-                      <Text style={[styles.tableCell, { flex: 2 }]}>{tx.note || '—'}</Text>
+                      <View style={[styles.tableCell, { flex: 2, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
+                        <Text>{tx.note || '—'}</Text>
+                        <Pressable style={styles.deleteButtonSmall} onPress={() => deleteInvestTx(tx.id)}>
+                          <Text style={styles.deleteButtonText}>×</Text>
+                        </Pressable>
+                      </View>
                     </View>
                   ))}
                   {(currentFinance?.investTx || []).length === 0 && <Text style={styles.noteText}>Пока нет транзакций</Text>}
@@ -2139,6 +2860,14 @@ export default function App() {
                       </Pressable>
                     ))}
                   </View>
+                  <View style={[styles.inputRow, { marginTop: 8 }]}>
+                    <Pressable style={[styles.addButton, { backgroundColor: '#ef4444', flex: 1 }]} onPress={() => setNewTrade(v => ({ ...v, stopLoss: v.stopLoss || v.price }))}>
+                      <Text style={styles.addButtonText}>Установить Stop Loss</Text>
+                    </Pressable>
+                    <Pressable style={[styles.addButton, { backgroundColor: '#10b981', flex: 1 }]} onPress={() => setNewTrade(v => ({ ...v, takeProfit: v.takeProfit || v.price }))}>
+                      <Text style={styles.addButtonText}>Установить Take Profit</Text>
+                    </Pressable>
+                  </View>
                 </View>
               </View>
               <View style={styles.inputRow}>
@@ -2149,6 +2878,101 @@ export default function App() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Цена</Text>
                   <TextInput style={styles.input} value={newTrade.price} onChangeText={(t) => setNewTrade(v => ({ ...v, price: t }))} keyboardType="numeric" placeholder="60000" />
+                </View>
+              </View>
+              {/* Position size by risk */}
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Счёт ($)</Text>
+                  <TextInput style={styles.input} value={riskCalc.account} onChangeText={(t) => setRiskCalc(v => ({ ...v, account: t }))} keyboardType="numeric" placeholder="10000" />
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Риск (%)</Text>
+                  <TextInput style={styles.input} value={riskCalc.riskPct} onChangeText={(t) => setRiskCalc(v => ({ ...v, riskPct: t }))} keyboardType="numeric" placeholder="1" />
+                </View>
+              </View>
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>SL для расчёта</Text>
+                  <TextInput style={styles.input} value={riskCalc.slPrice} onChangeText={(t) => setRiskCalc(v => ({ ...v, slPrice: t }))} keyboardType="numeric" placeholder="58000" />
+                </View>
+                <Pressable style={[styles.addButton, { flex: 1, alignSelf: 'flex-end' }]} onPress={applyRiskPositionSize}><Text style={styles.addButtonText}>Рассчитать размер</Text></Pressable>
+              </View>
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Stop Loss</Text>
+                  <TextInput style={styles.input} value={newTrade.stopLoss} onChangeText={(t) => setNewTrade(v => ({ ...v, stopLoss: t }))} keyboardType="numeric" placeholder="58000" />
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Take Profit</Text>
+                  <TextInput style={styles.input} value={newTrade.takeProfit} onChangeText={(t) => setNewTrade(v => ({ ...v, takeProfit: t }))} keyboardType="numeric" placeholder="63000" />
+                </View>
+              </View>
+              {/* Quick SL assists */}
+              <View style={styles.inputRow}>
+                <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => {
+                  const priceN = parseNumberSafe(newTrade.price);
+                  if (!Number.isFinite(priceN) || priceN <= 0) { Alert.alert('SL', 'Сначала укажите цену входа'); return; }
+                  const pct = 1; // 1%
+                  const offset = priceN * (pct/100);
+                  const sl = newTrade.side === 'BUY' ? (priceN - offset) : (priceN + offset);
+                  setNewTrade(v => ({ ...v, stopLoss: String(sl.toFixed(2)) }));
+                }}><Text style={styles.addButtonText}>SL -1%</Text></Pressable>
+                <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => {
+                  const priceN = parseNumberSafe(newTrade.price);
+                  if (!Number.isFinite(priceN) || priceN <= 0) { Alert.alert('SL', 'Сначала укажите цену входа'); return; }
+                  const pct = 2; // 2%
+                  const offset = priceN * (pct/100);
+                  const sl = newTrade.side === 'BUY' ? (priceN - offset) : (priceN + offset);
+                  setNewTrade(v => ({ ...v, stopLoss: String(sl.toFixed(2)) }));
+                }}><Text style={styles.addButtonText}>SL -2%</Text></Pressable>
+                <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => {
+                  const priceN = parseNumberSafe(newTrade.price);
+                  if (!Number.isFinite(priceN) || priceN <= 0) { Alert.alert('SL', 'Сначала укажите цену входа'); return; }
+                  const amt = 100; // $100
+                  const sl = newTrade.side === 'BUY' ? (priceN - amt) : (priceN + amt);
+                  setNewTrade(v => ({ ...v, stopLoss: String(sl.toFixed(2)) }));
+                }}><Text style={styles.addButtonText}>SL -$100</Text></Pressable>
+              </View>
+              {/* Auto TP by R:R */}
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Целевой R:R</Text>
+                  <View style={styles.pickerContainer}>
+                    {[ '1', '1.5', '2', '3' ].map(v => (
+                      <Pressable key={v} style={[styles.pickerOption, rrTarget === v ? styles.pickerOptionActive : null]} onPress={() => setRrTarget(v)}>
+                        <Text style={[styles.pickerText, rrTarget === v ? styles.pickerTextActive : null]}>{v}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+                <Pressable style={[styles.addButton, { flex: 1, alignSelf: 'flex-end' }]} onPress={applyAutoTakeProfit}><Text style={styles.addButtonText}>Рассчитать TP</Text></Pressable>
+              </View>
+              {/* Trailing stop config */}
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Трейлинг-стоп</Text>
+                  <View style={styles.pickerContainer}>
+                    {[{k:false,l:'Выкл.'},{k:true,l:'Вкл.'}].map(o => (
+                      <Pressable key={String(o.k)} style={[styles.pickerOption, newTrade.trailingEnabled === o.k ? styles.pickerOptionActive : null]} onPress={() => setNewTrade(v => ({ ...v, trailingEnabled: o.k }))}>
+                        <Text style={[styles.pickerText, newTrade.trailingEnabled === o.k ? styles.pickerTextActive : null]}>{o.l}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Тип</Text>
+                  <View style={styles.pickerContainer}>
+                    {[{k:'percent',l:'% от цены'},{k:'amount',l:'Сумма ($)'}].map(o => (
+                      <Pressable key={o.k} style={[styles.pickerOption, newTrade.trailingType === o.k ? styles.pickerOptionActive : null]} onPress={() => setNewTrade(v => ({ ...v, trailingType: o.k }))}>
+                        <Text style={[styles.pickerText, newTrade.trailingType === o.k ? styles.pickerTextActive : null]}>{o.l}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Значение</Text>
+                  <TextInput style={styles.input} value={newTrade.trailingValue} onChangeText={(t) => setNewTrade(v => ({ ...v, trailingValue: t }))} keyboardType="numeric" placeholder={newTrade.trailingType === 'percent' ? '0.5' : '100'} />
                 </View>
               </View>
               <View style={styles.inputRow}>
@@ -2223,6 +3047,26 @@ export default function App() {
                   </View>
                   <View style={styles.tradeDetails}>
                     <Text style={styles.tradeDetail}>{trade.qty} @ {formatCurrency(trade.price)} • Остаток: {trade.remainingQty ?? trade.qty}</Text>
+                    {(() => {
+                      const sl = trade.stopLoss;
+                      const tp = trade.takeProfit;
+                      if (!sl && !tp) return null;
+                      const isBuy = trade.side === 'BUY';
+                      const riskPerUnit = sl ? (isBuy ? (trade.price - sl) : (sl - trade.price)) : null;
+                      const rewardPerUnit = tp ? (isBuy ? (tp - trade.price) : (trade.price - tp)) : null;
+                      const risk = (riskPerUnit != null && riskPerUnit > 0) ? riskPerUnit * trade.qty : null;
+                      const reward = (rewardPerUnit != null && rewardPerUnit > 0) ? rewardPerUnit * trade.qty : null;
+                      const rr = (risk && reward) ? (reward / risk) : null;
+                      return (
+                        <Text style={styles.tradeDetail}>
+                          {sl ? `SL: ${formatCurrency(sl)}` : ''}
+                          {sl && tp ? ' • ' : ''}
+                          {tp ? `TP: ${formatCurrency(tp)}` : ''}
+                          {(rr && rr > 0) ? ` • R:R ${rr.toFixed(2)}` : ''}
+                          {trade.trailingEnabled ? ` • Trailing ${trade.trailingType === 'percent' ? (trade.trailingValue || 0) + '%' : formatCurrency(trade.trailingValue || 0)}` : ''}
+                        </Text>
+                      );
+                    })()}
                     <Text style={styles.tradeDetail}>{trade.market} • {trade.style} • {trade.date}</Text>
                   </View>
                   {trade.notes ? <Text style={styles.tradeNotes}>{trade.notes}</Text> : null}
