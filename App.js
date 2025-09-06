@@ -1997,8 +1997,13 @@ export default function App() {
       <ScrollView style={styles.content}>
         {/* Brand banner (scrolls with content) */}
         <View style={{ alignItems: 'center', marginBottom: 12 }}>
-          <Image source={require('./assets/investcamp-logo.png')} style={styles.brandLogo} resizeMode="contain" />
+          <Image
+            source={require('./assets/investcamp-logo.png')}
+            style={styles.brandLogo}
+            resizeMode="contain"
+          />
         </View>
+      {/* The rest of the content continues here and the ScrollView is properly closed at the end of the component */}
 
         {/* Tabs (moved below the logo) */}
         <View style={[styles.tabContainer, isDark ? { backgroundColor: '#1b2430' } : null]}>
@@ -2016,7 +2021,7 @@ export default function App() {
         </View>
         
         {tab === 'finance' && (
-          <>
+          <View>
             {/* Finance entry picker */}
             {!financeView && (
               <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
@@ -2601,7 +2606,7 @@ export default function App() {
                 <View style={[styles.resultCard, { alignItems: 'stretch' }]}>
                   <Text style={styles.resultTitle}>Перевод между направлениями</Text>
                   <Pressable style={[styles.addButton, { backgroundColor: '#0f1520', marginTop: 8 }]} onPress={() => setShowInvestAdvanced(v => !v)}><Text style={styles.addButtonText}>{showInvestAdvanced ? 'Скрыть' : 'Показать'}</Text></Pressable>
-                  {!showInvestAdvanced ? null : (
+                  {showInvestAdvanced ? (
                   <View>
                   <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
@@ -2631,16 +2636,16 @@ export default function App() {
                   </View>
                   <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb' }]} onPress={transferInvestBetweenDestinations}><Text style={styles.addButtonText}>Перевести</Text></Pressable>
                   </View>
-                  )}
+                  ) : null}
                 </View>
               )}
 
               {/* Rename / Merge destinations (toggle) */}
-              {currentUser && (
+              {currentUser ? (
                 <View style={[styles.resultCard, { alignItems: 'stretch', marginTop: 8 }]}>
                   <Text style={styles.resultTitle}>Переименование/слияние направлений</Text>
                   <Pressable style={[styles.addButton, { backgroundColor: '#0f1520', marginTop: 8 }]} onPress={() => setShowInvestAdvanced(v => !v)}><Text style={styles.addButtonText}>{showInvestAdvanced ? 'Скрыть' : 'Показать'}</Text></Pressable>
-                  {!showInvestAdvanced ? null : (
+                  {showInvestAdvanced ? (
                   <View>
                   <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
@@ -2687,9 +2692,11 @@ export default function App() {
                       <TextInput style={styles.input} value={mergeInvest.toDestination} onChangeText={(t) => setMergeInvest(v => ({ ...v, toDestination: t }))} placeholder="Имя получателя" />
                     </View>
                     <Pressable style={[styles.addButton, { flex: 1 }]} onPress={mergeInvestDestinations}><Text style={styles.addButtonText}>Слить</Text></Pressable>
-                  </View>)
+                  </View>
+                  </View>
+                  ) : null}
                 </View>
-              )}
+              ) : null}
               {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять транзакции</Text>}
               {currentUser && (
                 <>
@@ -2822,7 +2829,7 @@ export default function App() {
               )}
             </View>
             )}
-          </>
+          </View>
         )}
 
         {tab === 'journal' && (
@@ -3458,8 +3465,8 @@ export default function App() {
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>О себе</Text>
                       <TextInput style={[styles.input, styles.textArea]} value={currentUser.bio} onChangeText={(t) => updateProfile({ bio: t })} multiline numberOfLines={3} />
-                    </View>
-                  </>
+            </View>
+          </>
                 )}
 
                 {profileTab === 'friends' && (
@@ -3758,12 +3765,14 @@ export default function App() {
           </View>
         )}
 
-        
 
-        {/* Lightweight profile viewer */}
-        {!!viewUserId && (
-          <View style={styles.profileModalOverlay}>
-            <View style={[styles.profileModal, isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null]}>
+        
+      </ScrollView>
+
+      {/* Lightweight profile viewer */}
+      {!!viewUserId && (
+        <View style={styles.profileModalOverlay}>
+          <View style={[styles.profileModal, isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null]}>
               {(() => {
                 const u = userById(viewUserId);
                 const isFriend = currentUser && currentUser.friends && currentUser.friends.includes(viewUserId);
@@ -3771,23 +3780,22 @@ export default function App() {
                   <>
                     <Text style={styles.cardTitle}>Профиль @{u.nickname}</Text>
                     <Text style={styles.profileBio}>{u.bio || 'Без описания'}</Text>
-                    <View style={[styles.inputRow, { marginTop: 8 }]}>
-                      {currentUser && viewUserId !== currentUser.id && (
+            <View style={[styles.inputRow, { marginTop: 8 }]}>
+              {currentUser && viewUserId !== currentUser.id && (
                         isFriend ? (
                           <Pressable style={styles.removeFriendBtn} onPress={() => { removeFriend(viewUserId); }}><Text style={styles.removeFriendText}>Удалить из друзей</Text></Pressable>
-                        ) : (
+                ) : (
                           <Pressable style={styles.addFriendBtn} onPress={() => { addFriend(viewUserId); }}><Text style={styles.addFriendText}>Добавить в друзья</Text></Pressable>
-                        )
-                      )}
-                      <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb' }]} onPress={() => setViewUserId(null)}><Text style={styles.addButtonText}>Закрыть</Text></Pressable>
-                  </View>
+                )
+              )}
+              <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb' }]} onPress={() => setViewUserId(null)}><Text style={styles.addButtonText}>Закрыть</Text></Pressable>
+            </View>
                   </>
                 );
               })()}
-                </View>
           </View>
-        )}
-      </ScrollView>
+        </View>
+      )}
     </View>
   );
 }
