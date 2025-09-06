@@ -366,6 +366,10 @@ export default function App() {
   const [newEmergencyTx, setNewEmergencyTx] = useState({ type: 'deposit', amount: '', currency: 'USD', location: '', note: '' });
   // Investment transactions
   const [newInvestTx, setNewInvestTx] = useState({ type: 'in', amount: '', currency: 'USD', destination: '', note: '' });
+  const [showInvestAdvanced, setShowInvestAdvanced] = useState(false);
+  const [showJournalAdvanced, setShowJournalAdvanced] = useState(false);
+  // UI: collapse advanced actions by default
+  const [showFundAdvanced, setShowFundAdvanced] = useState(false);
   // Finance filters
   const [emFilter, setEmFilter] = useState({ type: 'All', currency: 'All', q: '' });
   const [invFilter, setInvFilter] = useState({ type: 'All', currency: 'All', q: '' });
@@ -2223,11 +2227,14 @@ export default function App() {
                   )}
                 </View>
               )}
-              {/* Transfer between holdings */}
+              {/* Transfer between holdings (toggle) */}
               {currentUser && emergencyHoldings.length >= 1 && (
                 <View style={[styles.resultCard, { alignItems: 'stretch' }]}>
                   <Text style={styles.resultTitle}>Перевод между вкладами</Text>
-                  <View style={styles.inputRow}>
+                  <Pressable style={[styles.addButton, { backgroundColor: '#0f1520', marginTop: 8 }]} onPress={() => setShowFundAdvanced(v => !v)}><Text style={styles.addButtonText}>{showFundAdvanced ? 'Скрыть' : 'Показать'}</Text></Pressable>
+                  {showFundAdvanced && (
+                    <>
+                    <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Откуда</Text>
                       <View style={styles.chipsRow}>
@@ -2254,14 +2261,19 @@ export default function App() {
                     </View>
                   </View>
                   <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb' }]} onPress={transferEmergencyBetweenHoldings}><Text style={styles.addButtonText}>Перевести</Text></Pressable>
+                  </>
+                  )}
                 </View>
               )}
 
-              {/* Rename / Merge holdings */}
+              {/* Rename / Merge holdings (toggle) */}
               {currentUser && (
                 <View style={[styles.resultCard, { alignItems: 'stretch', marginTop: 8 }]}>
                   <Text style={styles.resultTitle}>Переименование/слияние вкладов</Text>
-                  <View style={styles.inputRow}>
+                  <Pressable style={[styles.addButton, { backgroundColor: '#0f1520', marginTop: 8 }]} onPress={() => setShowFundAdvanced(v => !v)}><Text style={styles.addButtonText}>{showFundAdvanced ? 'Скрыть' : 'Показать'}</Text></Pressable>
+                  {showFundAdvanced && (
+                    <>
+                    <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Переименовать: выбрать вклад</Text>
                       <View style={styles.chipsRow}>
@@ -2307,6 +2319,8 @@ export default function App() {
                     </View>
                     <Pressable style={[styles.addButton, { flex: 1 }]} onPress={mergeEmergencyHoldings}><Text style={styles.addButtonText}>Слить</Text></Pressable>
                   </View>
+                  </>
+                  )}
                 </View>
               )}
               <View style={styles.inputRow}>
@@ -2445,7 +2459,7 @@ export default function App() {
                       <TextInput style={styles.input} value={newEmergencyTx.currency} onChangeText={(t) => setNewEmergencyTx(v => ({ ...v, currency: t.toUpperCase() }))} placeholder="USD" />
                     </View>
                   </View>
-                  {/* Quick select existing destinations */}
+                  {/* Quick select existing destination (chips only) */}
                   {emergencyHoldings.length > 0 && (
                     <View style={{ marginBottom: 8 }}>
                       <Text style={styles.filterLabel}>Выберите вклад</Text>
@@ -2459,14 +2473,6 @@ export default function App() {
                             </Text>
                           </Pressable>
                         ))}
-                      </View>
-                      <View style={[styles.inputRow, { marginTop: 8 }]}>
-                        <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} onPress={() => setNewEmergencyTx(v => ({ ...v, type: 'deposit' }))}>
-                          <Text style={styles.addButtonText}>Пополнить выбранный вклад</Text>
-                        </Pressable>
-                        <Pressable style={[styles.addButton, { backgroundColor: '#ef4444', flex: 1 }]} onPress={() => setNewEmergencyTx(v => ({ ...v, type: 'withdraw' }))}>
-                          <Text style={styles.addButtonText}>Списать с выбранного вклада</Text>
-                        </Pressable>
                       </View>
                     </View>
                   )}
@@ -2502,13 +2508,6 @@ export default function App() {
                     }}><Text style={styles.addButtonText}>Экспорт CSV</Text></Pressable>
                   </View>
 
-                  <View style={styles.tableHeaderRow}>
-                    <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Дата</Text>
-                    <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Тип</Text>
-                    <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Сумма</Text>
-                    <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Где</Text>
-                    <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Заметка</Text>
-                  </View>
                   {/* Filters */}
                   <View style={[styles.inputRow, { marginTop: 8 }] }>
                     <View style={styles.inputGroup}>
@@ -2535,6 +2534,13 @@ export default function App() {
                       <Text style={styles.label}>Поиск</Text>
                       <TextInput style={styles.input} value={emFilter.q} onChangeText={(t) => setEmFilter(f => ({ ...f, q: t }))} placeholder="место/заметка" />
                     </View>
+                  </View>
+                  <View style={styles.tableHeaderRow}>
+                    <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Дата</Text>
+                    <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Тип</Text>
+                    <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Сумма</Text>
+                    <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Где</Text>
+                    <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Заметка</Text>
                   </View>
                   {(currentFinance?.emergencyTx || [])
                     .filter(tx => emFilter.type === 'All' ? true : tx.type === emFilter.type)
@@ -2590,10 +2596,13 @@ export default function App() {
                   )}
                 </View>
               )}
-              {/* Transfer between destinations */}
+              {/* Transfer between destinations (toggle) */}
               {currentUser && investHoldings.length >= 1 && (
                 <View style={[styles.resultCard, { alignItems: 'stretch' }]}>
                   <Text style={styles.resultTitle}>Перевод между направлениями</Text>
+                  <Pressable style={[styles.addButton, { backgroundColor: '#0f1520', marginTop: 8 }]} onPress={() => setShowInvestAdvanced(v => !v)}><Text style={styles.addButtonText}>{showInvestAdvanced ? 'Скрыть' : 'Показать'}</Text></Pressable>
+                  {!showInvestAdvanced ? null : (
+                  <View>
                   <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Откуда</Text>
@@ -2621,13 +2630,18 @@ export default function App() {
                     </View>
                   </View>
                   <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb' }]} onPress={transferInvestBetweenDestinations}><Text style={styles.addButtonText}>Перевести</Text></Pressable>
+                  </View>
+                  )}
                 </View>
               )}
 
-              {/* Rename / Merge destinations */}
+              {/* Rename / Merge destinations (toggle) */}
               {currentUser && (
                 <View style={[styles.resultCard, { alignItems: 'stretch', marginTop: 8 }]}>
                   <Text style={styles.resultTitle}>Переименование/слияние направлений</Text>
+                  <Pressable style={[styles.addButton, { backgroundColor: '#0f1520', marginTop: 8 }]} onPress={() => setShowInvestAdvanced(v => !v)}><Text style={styles.addButtonText}>{showInvestAdvanced ? 'Скрыть' : 'Показать'}</Text></Pressable>
+                  {!showInvestAdvanced ? null : (
+                  <View>
                   <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Переименовать: выбрать направление</Text>
@@ -2673,7 +2687,7 @@ export default function App() {
                       <TextInput style={styles.input} value={mergeInvest.toDestination} onChangeText={(t) => setMergeInvest(v => ({ ...v, toDestination: t }))} placeholder="Имя получателя" />
                     </View>
                     <Pressable style={[styles.addButton, { flex: 1 }]} onPress={mergeInvestDestinations}><Text style={styles.addButtonText}>Слить</Text></Pressable>
-                  </View>
+                  </View>)
                 </View>
               )}
               {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять транзакции</Text>}
@@ -2699,7 +2713,7 @@ export default function App() {
                       <TextInput style={styles.input} value={newInvestTx.currency} onChangeText={(t) => setNewInvestTx(v => ({ ...v, currency: t.toUpperCase() }))} placeholder="USD" />
                     </View>
                   </View>
-                  {/* Quick select existing destinations */}
+                  {/* Quick select destination: chips only */}
                   {investHoldings.length > 0 && (
                     <View style={{ marginBottom: 8 }}>
                       <Text style={styles.filterLabel}>Выберите направление</Text>
@@ -2713,14 +2727,6 @@ export default function App() {
                             </Text>
                           </Pressable>
                         ))}
-                      </View>
-                      <View style={[styles.inputRow, { marginTop: 8 }]}>
-                        <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} onPress={() => setNewInvestTx(v => ({ ...v, type: 'in' }))}>
-                          <Text style={styles.addButtonText}>Пополнить выбранное направление</Text>
-                        </Pressable>
-                        <Pressable style={[styles.addButton, { backgroundColor: '#ef4444', flex: 1 }]} onPress={() => setNewInvestTx(v => ({ ...v, type: 'out' }))}>
-                          <Text style={styles.addButtonText}>Списать с выбранного направления</Text>
-                        </Pressable>
                       </View>
                     </View>
                   )}
