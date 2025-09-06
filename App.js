@@ -470,6 +470,8 @@ export default function App() {
   const [plannerView, setPlannerView] = useState('month'); // 'month'|'week'|'day'
   const [plannerDate, setPlannerDate] = useState(new Date());
   const [plannerComposeOpen, setPlannerComposeOpen] = useState(false);
+  const [plannerComposeType, setPlannerComposeType] = useState('event'); // 'event'|'workout'
+  const [plannerEditing, setPlannerEditing] = useState(null); // { id: string, type: 'event'|'workout' } | null
 
   const toISODate = (d) => {
     const dt = (d instanceof Date) ? d : new Date(d);
@@ -528,7 +530,74 @@ export default function App() {
   const openComposeForDate = (dateISO) => {
     if (!currentUser) return;
     setNewEvent(v => ({ ...v, date: dateISO }));
+    setPlannerComposeType('event');
+    setPlannerEditing(null);
     setPlannerComposeOpen(true);
+  };
+  const openComposeForEdit = (item) => {
+    if (!currentUser) return;
+    // item: { id, date, time, title, type }
+    setPlannerComposeType(item.type === 'workout' ? 'workout' : 'event');
+    if (item.type === 'event') {
+      setNewEvent(v => ({ ...v, date: item.date, time: item.time || '', title: item.title || '', notes: v.notes || '' }));
+    } else {
+      // workout
+      const w = (workouts || []).find(w => `w_${w.id}` === item.id);
+      setNewEvent(v => ({ ...v, date: item.date, time: item.time || w?.time || '', title: w?.type || item.title || 'Тренировка', notes: w?.notes || '' }));
+    }
+    setPlannerEditing({ id: item.id, type: item.type });
+    setPlannerComposeOpen(true);
+  };
+  const savePlannerCompose = async () => {
+    if (!currentUser) { setPlannerComposeOpen(false); return; }
+    try {
+      if (plannerEditing && plannerEditing.type === 'event') {
+        const idNum = Number((plannerEditing.id || '').split('_')[1]);
+        setEvents(prev => prev.map(ev => ev.id === idNum ? { ...ev, date: newEvent.date, time: newEvent.time, title: newEvent.title, notes: newEvent.notes } : ev));
+      } else if (plannerEditing && plannerEditing.type === 'workout') {
+        const idNum = Number((plannerEditing.id || '').split('_')[1]);
+        setWorkouts(prev => prev.map(w => w.id === idNum ? { ...w, date: newEvent.date, time: newEvent.time, type: newEvent.title || w.type, notes: newEvent.notes } : w));
+      } else {
+        // create new based on chosen type
+        if (plannerComposeType === 'workout') {
+          const newId = (workouts.length ? Math.max(...workouts.map(w => w.id)) + 1 : 1);
+          setWorkouts(prev => ([ ...prev, { id: newId, userId: currentUser.id || 0, date: newEvent.date, time: newEvent.time || '', type: newEvent.title || 'Тренировка', notes: newEvent.notes || '' } ]));
+        } else {
+          addEvent(); // uses newEvent state
+        }
+      }
+      // simple per-event reminder (best-effort)
+      try {
+        const t = (newEvent.time || '00:00');
+        const [hh, mm] = t.split(':').map(Number);
+        const dt = parseISODate(newEvent.date);
+        dt.setHours(hh || 0, mm || 0, 0, 0);
+        const when = dt.getTime();
+        const beforeMs = (newEvent.remindBefore || 0) * 60000;
+        const fireAt = new Date(when - beforeMs);
+        if (Number.isFinite(fireAt.getTime()) && fireAt.getTime() > Date.now()) {
+          await Notifications.scheduleNotificationAsync({
+            content: { title: newEvent.title || 'Событие', body: newEvent.notes || '', sound: null },
+            trigger: fireAt,
+          });
+        }
+      } catch {}
+    } finally {
+      setPlannerComposeOpen(false);
+      setPlannerEditing(null);
+    }
+  };
+  const deletePlannerCompose = () => {
+    if (!plannerEditing) { setPlannerComposeOpen(false); return; }
+    if (plannerEditing.type === 'event') {
+      const idNum = Number((plannerEditing.id || '').split('_')[1]);
+      deleteEvent(idNum);
+    } else if (plannerEditing.type === 'workout') {
+      const idNum = Number((plannerEditing.id || '').split('_')[1]);
+      deleteWorkout(idNum);
+    }
+    setPlannerComposeOpen(false);
+    setPlannerEditing(null);
   };
   // Course schedule import
   const [courseImportText, setCourseImportText] = useState('');
@@ -3221,7 +3290,9 @@ export default function App() {
                         <Pressable key={iso} style={styles.plannerCell} onPress={() => openComposeForDate(iso)}>
                           <Text style={[styles.plannerCellDate, isSameDay(d, new Date()) ? styles.plannerCellToday : null]}>{d.getDate()}</Text>
                           {dayEvents.map(ev => (
-                            <Text key={ev.id} style={styles.plannerEventItem}>{(ev.time || '')} {ev.title}</Text>
+                            <Pressable key={ev.id} onPress={() => openComposeForEdit(ev)}>
+                              <Text style={styles.plannerEventItem}>{(ev.time || '')} {ev.title}</Text>
+                            </Pressable>
                           ))}
                           {unifiedPlannerEvents.filter(e => e.date === iso).length > 3 && (
                             <Text style={styles.plannerMore}>ещё {unifiedPlannerEvents.filter(e => e.date === iso).length - 3}…</Text>
@@ -3236,10 +3307,35 @@ export default function App() {
               </View>
             )}
 
-            {/* Week/Day placeholders (to be expanded) */}
+            {/* Week / Day simple lists */}
             {plannerView !== 'month' && (
               <View style={[styles.card, { padding: 12 }]}>
-                <Text style={styles.noteText}>Режим "{plannerView === 'week' ? 'Неделя' : 'День'}" в разработке</Text>
+                {(() => {
+                  const base = plannerView === 'week' ? startOfMonthMon(plannerDate) : plannerDate;
+                  const days = plannerView === 'week' ? Array.from({ length: 7 }, (_, i) => addDays(base, i)) : [plannerDate];
+                  return (
+                    <View>
+                      {days.map(d => {
+                        const iso = toISODate(d);
+                        const items = unifiedPlannerEvents.filter(e => e.date === iso);
+                        return (
+                          <View key={iso} style={{ marginBottom: 8 }}>
+                            <Text style={styles.plannerCellDate}>{iso}</Text>
+                            {items.length === 0 ? (
+                              <Text style={styles.noteText}>Нет событий</Text>
+                            ) : (
+                              items.map(ev => (
+                                <Pressable key={ev.id} onPress={() => openComposeForEdit(ev)}>
+                                  <Text style={styles.plannerEventItem}>{(ev.time || '')} {ev.title}</Text>
+                  </Pressable>
+                              ))
+                            )}
+                </View>
+                        );
+                      })}
+                    </View>
+                  );
+                })()}
               </View>
             )}
 
@@ -3269,7 +3365,10 @@ export default function App() {
                       <TextInput style={[styles.input, styles.textArea]} value={newEvent.notes} onChangeText={(t) => setNewEvent(v => ({ ...v, notes: t }))} placeholder="Описание..." multiline numberOfLines={3} />
                     </View>
                     <View style={styles.inputRow}>
-                      <Pressable style={[styles.addButton, { flex: 1, backgroundColor: '#1f6feb' }]} onPress={() => { addEvent(); setPlannerComposeOpen(false); }}><Text style={styles.addButtonText}>Сохранить</Text></Pressable>
+                      <Pressable style={[styles.addButton, { flex: 1, backgroundColor: '#1f6feb' }]} onPress={savePlannerCompose}><Text style={styles.addButtonText}>Сохранить</Text></Pressable>
+                      {!!plannerEditing && (
+                        <Pressable style={[styles.addButton, { flex: 1, backgroundColor: '#ef4444' }]} onPress={deletePlannerCompose}><Text style={styles.addButtonText}>Удалить</Text></Pressable>
+                      )}
                       <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setPlannerComposeOpen(false)}><Text style={styles.addButtonText}>Отмена</Text></Pressable>
                     </View>
                   </>
