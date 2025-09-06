@@ -472,12 +472,14 @@ export default function App() {
   const [plannerComposeOpen, setPlannerComposeOpen] = useState(false);
   const [plannerComposeType, setPlannerComposeType] = useState('event'); // 'event'|'workout'
   const [plannerEditing, setPlannerEditing] = useState(null); // { id: string, type: 'event'|'workout' } | null
+  const [plannerShowNews, setPlannerShowNews] = useState(true);
 
   const toISODate = (d) => {
     const dt = (d instanceof Date) ? d : new Date(d);
     if (Number.isNaN(dt.getTime())) return new Date().toISOString().slice(0,10);
     return new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate())).toISOString().slice(0,10);
   };
+  const pad2 = (n) => String(n).padStart(2, '0');
   const parseISODate = (iso) => {
     try {
       const [y,m,day] = (iso || '').split('-').map(Number);
@@ -530,6 +532,13 @@ export default function App() {
   const openComposeForDate = (dateISO) => {
     if (!currentUser) return;
     setNewEvent(v => ({ ...v, date: dateISO }));
+    setPlannerComposeType('event');
+    setPlannerEditing(null);
+    setPlannerComposeOpen(true);
+  };
+  const openComposeForDateTime = (dateISO, timeHHMM) => {
+    if (!currentUser) return;
+    setNewEvent(v => ({ ...v, date: dateISO, time: timeHHMM || '' }));
     setPlannerComposeType('event');
     setPlannerEditing(null);
     setPlannerComposeOpen(true);
@@ -3270,6 +3279,7 @@ export default function App() {
                     <Text style={[styles.pickerText, plannerView === v ? styles.pickerTextActive : null]}>{v === 'month' ? 'Месяц' : v === 'week' ? 'Неделя' : 'День'}</Text>
                   </Pressable>
                 ))}
+                <Pressable style={[styles.addButton, { backgroundColor: plannerShowNews ? '#1f6feb' : '#0f1520' }]} onPress={() => setPlannerShowNews(v => !v)}><Text style={styles.addButtonText}>{plannerShowNews ? 'Скрыть новости' : 'Показать новости'}</Text></Pressable>
                 </View>
               <Text style={[styles.cardTitle, { marginBottom: 0 }]}>{monthLabel(plannerDate)}</Text>
                 </View>
@@ -3311,28 +3321,41 @@ export default function App() {
             {plannerView !== 'month' && (
               <View style={[styles.card, { padding: 12 }]}>
                 {(() => {
-                  const base = plannerView === 'week' ? startOfMonthMon(plannerDate) : plannerDate;
-                  const days = plannerView === 'week' ? Array.from({ length: 7 }, (_, i) => addDays(base, i)) : [plannerDate];
+                  const start = new Date(plannerDate);
+                  start.setHours(0,0,0,0);
+                  const days = plannerView === 'week' ? Array.from({ length: 7 }, (_, i) => addDays(start, i - ((start.getDay()+6)%7))) : [start];
+                  const hours = Array.from({ length: 24 }, (_, h) => h);
                   return (
                     <View>
-                      {days.map(d => {
-                        const iso = toISODate(d);
-                        const items = unifiedPlannerEvents.filter(e => e.date === iso);
-                        return (
-                          <View key={iso} style={{ marginBottom: 8 }}>
-                            <Text style={styles.plannerCellDate}>{iso}</Text>
-                            {items.length === 0 ? (
-                              <Text style={styles.noteText}>Нет событий</Text>
-                            ) : (
-                              items.map(ev => (
-                                <Pressable key={ev.id} onPress={() => openComposeForEdit(ev)}>
-                                  <Text style={styles.plannerEventItem}>{(ev.time || '')} {ev.title}</Text>
-                  </Pressable>
-                              ))
-                            )}
-                </View>
-                        );
-                      })}
+                      <View style={[styles.plannerRow, { marginBottom: 4 }]}>
+                        <View style={{ width: 40 }} />
+                        {days.map(d => (
+                          <View key={`hdr_${d.toDateString()}`} style={[styles.plannerCell, { alignItems: 'center' }]}>
+                            <Text style={styles.plannerCellDate}>{toISODate(d)}</Text>
+                          </View>
+                        ))}
+                      </View>
+                      {hours.map(h => (
+                        <View key={`hr_${h}`} style={styles.plannerRow}>
+                          <View style={{ width: 40 }}>
+                            <Text style={styles.plannerCellDate}>{pad2(h)}:00</Text>
+                          </View>
+                          {days.map(d => {
+                            const iso = toISODate(d);
+                            const hhmm = `${pad2(h)}:00`;
+                            const items = unifiedPlannerEvents.filter(e => e.date === iso && (e.time || '').startsWith(pad2(h)));
+                            return (
+                              <Pressable key={`c_${iso}_${h}`} style={[styles.plannerCell, { minHeight: 40 }]} onPress={() => openComposeForDateTime(iso, hhmm)}>
+                                {items.map(ev => (
+                                  <Pressable key={ev.id} onPress={() => openComposeForEdit(ev)}>
+                                    <Text style={styles.plannerEventItem}>{(ev.time || '')} {ev.title}</Text>
+                                  </Pressable>
+                                ))}
+                              </Pressable>
+                            );
+                          })}
+                        </View>
+                      ))}
                     </View>
                   );
                 })()}
@@ -3377,6 +3400,8 @@ export default function App() {
             )}
 
             {/* News (optional panel inside planner for now) */}
+            {plannerShowNews && (
+            <>
             <Text style={[styles.cardTitle, { marginTop: 8 }]}>Новости (опционально)</Text>
             <View style={styles.card}>
               <Text style={styles.cardDescription}>Данные с TradingEconomics (демо). Фильтр по стране и важности.</Text>
@@ -3423,6 +3448,8 @@ export default function App() {
               </View>
               <Text style={styles.noteText}>Источник: TradingEconomics (guest:guest). Для продакшена используйте собственные ключи/API.</Text>
             </View>
+            </>
+            )}
 
             {/* (old events UI removed in favor of unified planner) */}
           </>
