@@ -466,6 +466,70 @@ export default function App() {
     remindBefore: 15,
     days: { Mon: true, Tue: false, Wed: true, Thu: false, Fri: false, Sat: false, Sun: false },
   });
+  // Planner (Google Calendar–like) unified state
+  const [plannerView, setPlannerView] = useState('month'); // 'month'|'week'|'day'
+  const [plannerDate, setPlannerDate] = useState(new Date());
+  const [plannerComposeOpen, setPlannerComposeOpen] = useState(false);
+
+  const toISODate = (d) => {
+    const dt = (d instanceof Date) ? d : new Date(d);
+    if (Number.isNaN(dt.getTime())) return new Date().toISOString().slice(0,10);
+    return new Date(Date.UTC(dt.getFullYear(), dt.getMonth(), dt.getDate())).toISOString().slice(0,10);
+  };
+  const parseISODate = (iso) => {
+    try {
+      const [y,m,day] = (iso || '').split('-').map(Number);
+      if (!y || !m || !day) return new Date();
+      return new Date(y, m-1, day);
+    } catch {
+      return new Date();
+    }
+  };
+  const startOfMonthMon = (d) => {
+    const dt = new Date(d.getFullYear(), d.getMonth(), 1);
+    const day = (dt.getDay() + 6) % 7; // Monday=0
+    dt.setDate(dt.getDate() - day);
+    return dt;
+  };
+  const addDays = (d, n) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
+  const isSameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  const monthLabel = (d) => {
+    const months = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+    return `${months[d.getMonth()]} ${d.getFullYear()}`;
+  };
+
+  const unifiedPlannerEvents = useMemo(() => {
+    const list = [];
+    // Workouts
+    for (const w of (workouts || [])) {
+      list.push({ id: `w_${w.id}`, date: w.date, time: w.time || '', title: w.type || 'Тренировка', type: 'workout' });
+    }
+    // Events
+    for (const ev of (events || [])) {
+      list.push({ id: `e_${ev.id}`, date: ev.date, time: ev.time || '', title: ev.title || 'Событие', type: 'event' });
+    }
+    // Sort by date then time
+    return list.sort((a,b) => (a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || '')));
+  }, [workouts, events]);
+
+  const goToday = () => setPlannerDate(new Date());
+  const goPrev = () => {
+    const d = new Date(plannerDate);
+    if (plannerView === 'month') d.setMonth(d.getMonth() - 1);
+    else d.setDate(d.getDate() - (plannerView === 'week' ? 7 : 1));
+    setPlannerDate(d);
+  };
+  const goNext = () => {
+    const d = new Date(plannerDate);
+    if (plannerView === 'month') d.setMonth(d.getMonth() + 1);
+    else d.setDate(d.getDate() + (plannerView === 'week' ? 7 : 1));
+    setPlannerDate(d);
+  };
+  const openComposeForDate = (dateISO) => {
+    if (!currentUser) return;
+    setNewEvent(v => ({ ...v, date: dateISO }));
+    setPlannerComposeOpen(true);
+  };
   // Course schedule import
   const [courseImportText, setCourseImportText] = useState('');
 
@@ -2702,7 +2766,7 @@ export default function App() {
                       <TextInput style={styles.input} value={mergeInvest.toDestination} onChangeText={(t) => setMergeInvest(v => ({ ...v, toDestination: t }))} placeholder="Имя получателя" />
                     </View>
                     <Pressable style={[styles.addButton, { flex: 1 }]} onPress={mergeInvestDestinations}><Text style={styles.addButtonText}>Слить</Text></Pressable>
-                  </View>
+                </View>
                   </View>
                   ) : null}
                 </View>
@@ -3125,36 +3189,98 @@ export default function App() {
 
         {tab === 'planner' && (
           <>
-            {/* Calendar entry picker */}
-            {!calendarView && (
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>Куда перейти?</Text>
-                <View style={styles.inputRow}>
-                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setCalendarView('news')}><Text style={styles.addButtonText}>Новости</Text></Pressable>
-                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setCalendarView('workouts')}><Text style={styles.addButtonText}>Тренировки</Text></Pressable>
-                </View>
-                <View style={styles.inputRow}>
-                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setCalendarView('events')}><Text style={styles.addButtonText}>Планер</Text></Pressable>
-                </View>
-              </View>
-            )}
-
-            {calendarView && (
-              <View style={styles.card}>
-                <View style={styles.inputRow}>
-                  <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} onPress={() => setCalendarView(null)}>
-                    <Text style={styles.addButtonText}>← Назад к выбору</Text>
+            {/* Planner toolbar (Google Calendar–like) */}
+            <View style={[styles.card, { paddingBottom: 12 }]}>
+              <View style={[styles.inputRow, { alignItems: 'center' }]}>
+                <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goToday}><Text style={styles.addButtonText}>Сегодня</Text></Pressable>
+                <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goPrev}><Text style={styles.addButtonText}>‹</Text></Pressable>
+                <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goNext}><Text style={styles.addButtonText}>›</Text></Pressable>
+                <View style={{ flex: 1 }} />
+                {['month','week','day'].map(v => (
+                  <Pressable key={v} style={[styles.pickerOption, plannerView === v ? styles.pickerOptionActive : null]} onPress={() => setPlannerView(v)}>
+                    <Text style={[styles.pickerText, plannerView === v ? styles.pickerTextActive : null]}>{v === 'month' ? 'Месяц' : v === 'week' ? 'Неделя' : 'День'}</Text>
                   </Pressable>
+                ))}
                 </View>
+              <Text style={[styles.cardTitle, { marginBottom: 0 }]}>{monthLabel(plannerDate)}</Text>
+                </View>
+
+            {/* Month View */}
+            {plannerView === 'month' && (
+              <View style={[styles.card, { padding: 12 }]}>
+                {(() => {
+                  const start = startOfMonthMon(plannerDate);
+                  const rows = [];
+                  for (let r = 0; r < 6; r++) {
+                    const cells = [];
+                    for (let c = 0; c < 7; c++) {
+                      const d = addDays(start, r * 7 + c);
+                      const iso = toISODate(d);
+                      const dayEvents = unifiedPlannerEvents.filter(e => e.date === iso).slice(0, 3);
+                      cells.push(
+                        <Pressable key={iso} style={styles.plannerCell} onPress={() => openComposeForDate(iso)}>
+                          <Text style={[styles.plannerCellDate, isSameDay(d, new Date()) ? styles.plannerCellToday : null]}>{d.getDate()}</Text>
+                          {dayEvents.map(ev => (
+                            <Text key={ev.id} style={styles.plannerEventItem}>{(ev.time || '')} {ev.title}</Text>
+                          ))}
+                          {unifiedPlannerEvents.filter(e => e.date === iso).length > 3 && (
+                            <Text style={styles.plannerMore}>ещё {unifiedPlannerEvents.filter(e => e.date === iso).length - 3}…</Text>
+                          )}
+                        </Pressable>
+                      );
+                    }
+                    rows.push(<View key={`r${r}`} style={styles.plannerRow}>{cells}</View>);
+                  }
+                  return <View>{rows}</View>;
+                })()}
               </View>
             )}
 
-            {/* News */}
-            {calendarView === 'news' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>📰 Календарь новостей</Text>
-              <Text style={styles.cardDescription}>Данные с TradingEconomics (демо). Фильтр по стране и важности.</Text>
+            {/* Week/Day placeholders (to be expanded) */}
+            {plannerView !== 'month' && (
+              <View style={[styles.card, { padding: 12 }]}>
+                <Text style={styles.noteText}>Режим "{plannerView === 'week' ? 'Неделя' : 'День'}" в разработке</Text>
+              </View>
+            )}
 
+            {/* Compose modal (inline lightweight) */}
+            {plannerComposeOpen && (
+              <View style={[styles.card, { borderColor: '#1f2a36' }]}>
+                <Text style={styles.cardTitle}>Новое событие</Text>
+                {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять события</Text>}
+                {currentUser && (
+                  <>
+                <View style={styles.inputRow}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Дата</Text>
+                        <TextInput style={styles.input} value={newEvent.date} onChangeText={(t) => setNewEvent(v => ({ ...v, date: t }))} placeholder="2025-01-15" />
+                </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Время</Text>
+                        <TextInput style={styles.input} value={newEvent.time} onChangeText={(t) => setNewEvent(v => ({ ...v, time: t }))} placeholder="10:00" />
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Заголовок</Text>
+                        <TextInput style={styles.input} value={newEvent.title} onChangeText={(t) => setNewEvent(v => ({ ...v, title: t }))} placeholder="Событие" />
+                      </View>
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Заметки</Text>
+                      <TextInput style={[styles.input, styles.textArea]} value={newEvent.notes} onChangeText={(t) => setNewEvent(v => ({ ...v, notes: t }))} placeholder="Описание..." multiline numberOfLines={3} />
+                    </View>
+                    <View style={styles.inputRow}>
+                      <Pressable style={[styles.addButton, { flex: 1, backgroundColor: '#1f6feb' }]} onPress={() => { addEvent(); setPlannerComposeOpen(false); }}><Text style={styles.addButtonText}>Сохранить</Text></Pressable>
+                      <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setPlannerComposeOpen(false)}><Text style={styles.addButtonText}>Отмена</Text></Pressable>
+                    </View>
+                  </>
+                )}
+              </View>
+            )}
+
+            {/* News (optional panel inside planner for now) */}
+            <Text style={[styles.cardTitle, { marginTop: 8 }]}>Новости (опционально)</Text>
+            <View style={styles.card}>
+              <Text style={styles.cardDescription}>Данные с TradingEconomics (демо). Фильтр по стране и важности.</Text>
               {/* Filters toolbar */}
               <View style={styles.toolbarRow}>
                 <View style={[styles.inputGroup, { flex: 2 }]}>
@@ -3182,7 +3308,6 @@ export default function App() {
 
               {newsLoading && <Text style={styles.noteText}>Загрузка…</Text>}
               {!!newsError && <Text style={[styles.noteText, { color: '#ef4444' }]}>{newsError}</Text>}
-
               <View style={styles.newsList}>
                 {news.map((item) => (
                   <View key={item.id} style={styles.newsItem}>
@@ -3199,197 +3324,8 @@ export default function App() {
               </View>
               <Text style={styles.noteText}>Источник: TradingEconomics (guest:guest). Для продакшена используйте собственные ключи/API.</Text>
             </View>
-            )}
 
-            {/* Workouts */}
-            {calendarView === 'workouts' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>💪 Дневник тренировок</Text>
-              {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять тренировки</Text>}
-              {/* Recurring generator */}
-              {currentUser && (
-                <View style={{ marginBottom: 8 }}>
-                  <Text style={styles.filterLabel}>Повторяющиеся тренировки</Text>
-                  <View style={styles.inputRow}>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Стартовая дата</Text>
-                      <TextInput style={styles.input} value={recurring.startDate} onChangeText={(t) => setRecurring(v => ({ ...v, startDate: t }))} placeholder="2025-02-01" />
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Недели</Text>
-                      <TextInput style={styles.input} value={String(recurring.weeks)} onChangeText={(t) => setRecurring(v => ({ ...v, weeks: t }))} keyboardType="numeric" placeholder="4" />
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Время</Text>
-                      <TextInput style={styles.input} value={recurring.time} onChangeText={(t) => setRecurring(v => ({ ...v, time: t }))} placeholder="18:00" />
-                    </View>
-                  </View>
-                  <View style={styles.inputRow}>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Дни недели</Text>
-                      <View style={styles.pickerContainer}>
-                        {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(k => (
-                          <Pressable key={k} style={[styles.pickerOption, recurring.days[k] ? styles.pickerOptionActive : null]} onPress={() => setRecurring(v => ({ ...v, days: { ...v.days, [k]: !v.days[k] } }))}>
-                            <Text style={[styles.pickerText, recurring.days[k] ? styles.pickerTextActive : null]}>{k}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                  </View>
-                  <View style={styles.inputRow}>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Тип</Text>
-                      <View style={styles.pickerContainer}>
-                        {['Кардио', 'Силовая', 'Растяжка'].map(type => (
-                          <Pressable key={type} style={[styles.pickerOption, recurring.type === type ? styles.pickerOptionActive : null]} onPress={() => setRecurring(v => ({ ...v, type }))}>
-                            <Text style={[styles.pickerText, recurring.type === type ? styles.pickerTextActive : null]}>{type}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Напоминание (мин)</Text>
-                      <View style={styles.pickerContainer}>
-                        {[15,30,60].map(m => (
-                          <Pressable key={m} style={[styles.pickerOption, recurring.remindBefore === m ? styles.pickerOptionActive : null]} onPress={() => setRecurring(v => ({ ...v, remindBefore: m }))}>
-                            <Text style={[styles.pickerText, recurring.remindBefore === m ? styles.pickerTextActive : null]}>{m}</Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                  </View>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Заметки</Text>
-                    <TextInput style={styles.input} value={recurring.notes} onChangeText={(t) => setRecurring(v => ({ ...v, notes: t }))} placeholder="Комментарий" />
-                  </View>
-                  <Pressable style={styles.addButton} onPress={generateRecurringWorkouts}><Text style={styles.addButtonText}>Создать расписание</Text></Pressable>
-                </View>
-              )}
-              <View style={styles.inputRow}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Дата</Text>
-                  <TextInput style={styles.input} value={newWorkout.date} onChangeText={(t) => setNewWorkout(v => ({ ...v, date: t }))} placeholder="2025-01-15" />
-                </View>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Время</Text>
-                  <TextInput style={styles.input} value={newWorkout.time} onChangeText={(t) => setNewWorkout(v => ({ ...v, time: t }))} placeholder="18:00" />
-                </View>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Тип</Text>
-                  <View style={styles.pickerContainer}>
-                    {['Кардио', 'Силовая', 'Растяжка'].map(type => (
-                      <Pressable key={type} style={[styles.pickerOption, newWorkout.type === type ? styles.pickerOptionActive : null]} onPress={() => setNewWorkout(v => ({ ...v, type }))}>
-                        <Text style={[styles.pickerText, newWorkout.type === type ? styles.pickerTextActive : null]}>{type}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              </View>
-              <View style={styles.inputRow}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Напоминание (мин)</Text>
-                  <View style={styles.pickerContainer}>
-                    {[15,30,60].map(m => (
-                      <Pressable key={m} style={[styles.pickerOption, newWorkout.remindBefore === m ? styles.pickerOptionActive : null]} onPress={() => setNewWorkout(v => ({ ...v, remindBefore: m }))}>
-                        <Text style={[styles.pickerText, newWorkout.remindBefore === m ? styles.pickerTextActive : null]}>{m}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Заметки</Text>
-                <TextInput style={styles.input} value={newWorkout.notes} onChangeText={(t) => setNewWorkout(v => ({ ...v, notes: t }))} placeholder="Спина + бицепс..." />
-              </View>
-              <Pressable style={styles.addButton} onPress={addWorkout}><Text style={styles.addButtonText}>Добавить тренировку</Text></Pressable>
-              <View style={styles.workoutList}>
-                {workouts.map((w) => (
-                  <View key={w.id} style={styles.workoutItem}>
-                    <View style={styles.workoutHeader}>
-                      <Text style={styles.workoutType}>{w.type}</Text>
-                      <Pressable style={styles.deleteButton} onPress={() => deleteWorkout(w.id)}><Text style={styles.deleteButtonText}>×</Text></Pressable>
-                    </View>
-                    <Text style={styles.workoutDate}>{w.date}</Text>
-                    {w.notes ? <Text style={styles.workoutNotes}>{w.notes}</Text> : null}
-                  </View>
-                ))}
-              </View>
-            </View>
-            )}
-
-            {/* Events */}
-            {calendarView === 'events' && (
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>📅 Планер</Text>
-              {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять события</Text>}
-              {currentUser && (
-                <View style={{ marginBottom: 8 }}>
-                  <Text style={styles.filterLabel}>Ежедневное напоминание</Text>
-                  <View style={styles.inputRow}>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Время</Text>
-                      <TextInput style={styles.input} value={plannerPrefs.time} onChangeText={(t) => setPlannerPrefs(p => ({ ...p, time: t }))} placeholder="22:00" />
-                    </View>
-                    {!plannerPrefs.enabled ? (
-                      <Pressable style={[styles.addButton, { flex: 1, alignSelf: 'flex-end', backgroundColor: '#10b981' }]} onPress={schedulePlannerDaily}><Text style={styles.addButtonText}>Включить</Text></Pressable>
-                    ) : (
-                      <Pressable style={[styles.addButton, { flex: 1, alignSelf: 'flex-end', backgroundColor: '#ef4444' }]} onPress={cancelPlannerDaily}><Text style={styles.addButtonText}>Отключить</Text></Pressable>
-                    )}
-                  </View>
-                </View>
-              )}
-              <View style={styles.inputRow}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Дата</Text>
-                  <TextInput style={styles.input} value={newEvent.date} onChangeText={(t) => setNewEvent(v => ({ ...v, date: t }))} placeholder="2025-01-15" />
-                </View>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Время</Text>
-                  <TextInput style={styles.input} value={newEvent.time} onChangeText={(t) => setNewEvent(v => ({ ...v, time: t }))} placeholder="10:00" />
-                </View>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Заголовок</Text>
-                  <TextInput style={styles.input} value={newEvent.title} onChangeText={(t) => setNewEvent(v => ({ ...v, title: t }))} placeholder="Ревизия портфеля" />
-                </View>
-              </View>
-              <View style={styles.inputRow}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Напоминание (мин)</Text>
-                  <View style={styles.pickerContainer}>
-                    {[15,30,60].map(m => (
-                      <Pressable key={m} style={[styles.pickerOption, newEvent.remindBefore === m ? styles.pickerOptionActive : null]} onPress={() => setNewEvent(v => ({ ...v, remindBefore: m }))}>
-                        <Text style={[styles.pickerText, newEvent.remindBefore === m ? styles.pickerTextActive : null]}>{m}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-              </View>
-              <View style={styles.inputGroup}>
-                <Text style={styles.label}>Заметки</Text>
-                <TextInput style={[styles.input, styles.textArea]} value={newEvent.notes} onChangeText={(t) => setNewEvent(v => ({ ...v, notes: t }))} placeholder="Перебалансировка 60/40..." multiline numberOfLines={3} />
-              </View>
-              <Pressable style={styles.addButton} onPress={addEvent}><Text style={styles.addButtonText}>Добавить событие</Text></Pressable>
-              {currentUser && (
-                <View style={{ marginTop: 12 }}>
-                  <Text style={styles.filterLabel}>Импорт расписания курсов (JSON)</Text>
-                  <TextInput style={[styles.input, styles.textArea]} value={courseImportText} onChangeText={setCourseImportText} placeholder='[{"type":"workout","title":"Кардио","date":"2025-02-10","time":"19:00","remindBefore":30}]' multiline numberOfLines={3} />
-                  <Pressable style={[styles.addButton, { marginTop: 8 }]} onPress={importCourseSchedule}><Text style={styles.addButtonText}>Импортировать</Text></Pressable>
-                </View>
-              )}
-              <View style={styles.eventList}>
-                {events.map((ev) => (
-                  <View key={ev.id} style={styles.eventItem}>
-                    <View style={styles.eventHeader}>
-                      <Text style={styles.eventTitle}>{ev.title}</Text>
-                      <Pressable style={styles.deleteButton} onPress={() => deleteEvent(ev.id)}><Text style={styles.deleteButtonText}>×</Text></Pressable>
-                    </View>
-                    <Text style={styles.eventDate}>{ev.date}</Text>
-                    {ev.notes ? <Text style={styles.eventNotes}>{ev.notes}</Text> : null}
-                  </View>
-                ))}
-              </View>
-            </View>
-            )}
+            {/* (old events UI removed in favor of unified planner) */}
           </>
         )}
 
@@ -3832,6 +3768,12 @@ const styles = StyleSheet.create({
   card: { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
   cardTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#e6edf3' },
   cardDescription: { fontSize: 14, color: '#9fb0c0', marginBottom: 16 },
+  plannerRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
+  plannerCell: { flex: 1, minHeight: 90, borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 6, backgroundColor: '#0f1520' },
+  plannerCellDate: { fontSize: 12, color: '#9fb0c0', marginBottom: 4 },
+  plannerCellToday: { color: '#fff', fontWeight: '700' },
+  plannerEventItem: { fontSize: 12, color: '#e6edf3' },
+  plannerMore: { fontSize: 12, color: '#9fb0c0', marginTop: 2 },
   inputRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   inputGroup: { flex: 1 },
   label: { fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' },
