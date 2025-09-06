@@ -510,7 +510,7 @@ export default function App() {
     }
     // Events
     for (const ev of (events || [])) {
-      list.push({ id: `e_${ev.id}`, date: ev.date, time: ev.time || '', title: ev.title || 'Событие', type: 'event' });
+      list.push({ id: `e_${ev.id}`, date: ev.date, time: ev.time || '', endTime: ev.endTime || '', title: ev.title || 'Событие', type: 'event' });
     }
     // Sort by date then time
     return list.sort((a,b) => (a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || '')));
@@ -569,7 +569,7 @@ export default function App() {
     try {
       if (plannerEditing && plannerEditing.type === 'event') {
         const idNum = Number((plannerEditing.id || '').split('_')[1]);
-        setEvents(prev => prev.map(ev => ev.id === idNum ? { ...ev, date: newEvent.date, time: newEvent.time, title: newEvent.title, notes: newEvent.notes } : ev));
+        setEvents(prev => prev.map(ev => ev.id === idNum ? { ...ev, date: newEvent.date, time: newEvent.time, endTime: newEvent.endTime, title: newEvent.title, notes: newEvent.notes } : ev));
       } else if (plannerEditing && plannerEditing.type === 'workout') {
         const idNum = Number((plannerEditing.id || '').split('_')[1]);
         setWorkouts(prev => prev.map(w => w.id === idNum ? { ...w, date: newEvent.date, time: newEvent.time, type: newEvent.title || w.type, notes: newEvent.notes } : w));
@@ -579,7 +579,9 @@ export default function App() {
           const newId = (workouts.length ? Math.max(...workouts.map(w => w.id)) + 1 : 1);
           setWorkouts(prev => ([ ...prev, { id: newId, userId: currentUser.id || 0, date: newEvent.date, time: newEvent.time || '', type: newEvent.title || 'Тренировка', notes: newEvent.notes || '' } ]));
         } else {
-          addEvent(); // uses newEvent state
+          // create event inline instead of relying on old addEvent
+          const newId = (events.length ? Math.max(...events.map(e => e.id)) + 1 : 1);
+          setEvents(prev => ([ ...prev, { id: newId, userId: currentUser.id || 0, date: newEvent.date, time: newEvent.time || '', endTime: newEvent.endTime || '', title: newEvent.title || 'Событие', notes: newEvent.notes || '' } ]));
         }
       }
       // simple per-event reminder (best-effort)
