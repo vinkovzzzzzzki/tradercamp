@@ -1362,62 +1362,61 @@ export default function App() {
       };
       const teUrl = (p) => `https://api.tradingeconomics.com/calendar?${p.toString()}`;
       const corsWrap = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      let res;
-      let lastErr;
       const allSelected = Object.values(importanceFilters || {}).every(Boolean);
-      const attempts = [
-        teUrl(buildParams(primaryCred, true)),
-        teUrl(buildParams(guestCred, true)),
-        teUrl(buildParams(guestCred, false)),
-        teUrl(buildParamsAlt(guestCred, true)),
-        teUrl(buildParamsAlt(guestCred, false)),
-      ].map(u => `${u}${u.includes('?') ? '&' : '?'}_=${Date.now()}`);
-      for (let i = 0; i < attempts.length; i++) {
+      const tryFetch = async (url) => {
         try {
-          res = await fetch(attempts[i], { headers: { 'Accept': 'application/json' } });
-          if (res.ok) break;
-          // try CORS proxy if running on web and CORS blocks
-          const corsRes = await fetch(corsWrap(attempts[i]), { headers: { 'Accept': 'application/json' } });
-          if (corsRes.ok) { res = corsRes; break; }
-          lastErr = new Error(`HTTP ${res.status}`);
-        } catch (e) {
-          // network/CORS – try proxy
-          try {
-            const corsRes = await fetch(corsWrap(attempts[i]), { headers: { 'Accept': 'application/json' } });
-            if (corsRes.ok) { res = corsRes; break; }
-            lastErr = new Error('network/cors');
-          } catch (e2) {
-            lastErr = e2;
+          const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+          if (r.ok) return r;
+        } catch {}
+        try {
+          const r2 = await fetch(corsWrap(url), { headers: { 'Accept': 'application/json' } });
+          if (r2.ok) return r2;
+        } catch {}
+        return null;
+      };
+      const fetchOneWindow = async (startISO, endISO) => {
+        const urls = [
+          teUrl(buildParams(primaryCred, true)),
+          teUrl(buildParams(guestCred, true)),
+          teUrl(buildParams(guestCred, false)),
+          teUrl(buildParamsAlt(guestCred, true)),
+          teUrl(buildParamsAlt(guestCred, false)),
+        ].map(u => u.replace(`d1=${d1}`, `d1=${startISO}`).replace(`d2=${d2}`, `d2=${endISO}`).replace(`start=${d1}`, `start=${startISO}`).replace(`end=${d2}`, `end=${endISO}`))
+         .map(u => `${u}${u.includes('?') ? '&' : '?'}_=${Date.now()}`);
+        for (let i = 0; i < urls.length; i++) {
+          const resp = await tryFetch(urls[i]);
+          if (resp) {
+            const js = await resp.json().catch(async () => { const t = await resp.text(); try { return JSON.parse(t); } catch { return []; } });
+            const arr = Array.isArray(js) ? js : (Array.isArray(js?.calendar) ? js.calendar : []);
+            if (arr && arr.length) return arr;
           }
         }
+        return [];
+      };
+      // Разбиваем окно на куски (по 14 дней), чтобы обойти лимиты гостевого API
+      const totalBack = newsBackDays;
+      const totalFwd = newsForwardDays;
+      const step = 14;
+      const gathered = [];
+      for (let offset = -totalBack; offset < totalFwd; offset += step) {
+        const s = new Date(now.getTime() + 1000*60*60*24*offset);
+        const e = new Date(now.getTime() + 1000*60*60*24*Math.min(totalFwd, offset + step));
+        const sISO = formatDate(s);
+        const eISO = formatDate(e);
+        const chunk = await fetchOneWindow(sISO, eISO);
+        if (chunk && chunk.length) gathered.push(...chunk);
       }
-      if (!res || !res.ok) throw (lastErr || new Error('fetch failed'));
-      let json = await res.json().catch(async () => {
-        // some proxies return text/json
-        const txt = await res.text();
-        try { return JSON.parse(txt); } catch { return []; }
-      });
-      let items = Array.isArray(json) ? json : (Array.isArray(json?.calendar) ? json.calendar : []);
-      // If still empty, try a last-chance high-importance only
-      if (!items || items.length === 0) {
-        const lastParams = new URLSearchParams({ c: guestCred, format: 'json', d1, d2, importance: '3' });
-        const lastUrl = teUrl(lastParams);
-        try {
-          const r2 = await fetch(lastUrl, { headers: { 'Accept': 'application/json' } });
-          if (r2.ok) {
-            json = await r2.json().catch(async () => { const t2 = await r2.text(); try { return JSON.parse(t2); } catch { return []; } });
-            items = Array.isArray(json) ? json : (Array.isArray(json?.calendar) ? json.calendar : []);
-          }
-        } catch {}
-      }
+      let items = gathered;
+      const dedup = new Map();
       const mapped = items.map((it, idx) => {
         const dt = it.Date || it.DateUtc || it.DateISO || it.date;
         const dObj = parseTEDateRaw(dt);
         const dateStr = dObj ? `${dObj.getFullYear()}-${pad2(dObj.getMonth()+1)}-${pad2(dObj.getDate())}` : (it.Date || '').slice(0, 10);
         const timeStr = dObj ? `${pad2(dObj.getHours())}:${pad2(dObj.getMinutes())}` : (it.Time || '').slice(0, 5);
         const level = mapImportanceLabelToLevel(it.Importance || it.importance);
+        const id = `${it.EventId || it.Id || idx}-${dateStr}-${timeStr}-${it.Country || it.CountryName || ''}`;
         return {
-          id: `${it.EventId || it.Id || idx}-${dateStr}`,
+          id,
           date: dateStr,
           time: timeStr,
           country: it.Country || it.CountryName || '—',
@@ -1427,6 +1426,11 @@ export default function App() {
           Forecast: it.Forecast || it.ForecastValue || null,
           importance: level,
         };
+      })
+      .filter(it => {
+        if (dedup.has(it.id)) return false;
+        dedup.set(it.id, true);
+        return true;
       })
       // Respect importance filter only if не все уровни выбраны
       .filter(it => allSelected ? true : !!importanceFilters[it.importance])
