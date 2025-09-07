@@ -1356,11 +1356,12 @@ export default function App() {
       const corsWrap = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
       let res;
       let lastErr;
+      const allSelected = Object.values(importanceFilters || {}).every(Boolean);
       const attempts = [
         teUrl(buildParams(primaryCred, true)),
         teUrl(buildParams(guestCred, true)),
         teUrl(buildParams(guestCred, false)),
-      ];
+      ].map(u => `${u}&_=${Date.now()}`);
       for (let i = 0; i < attempts.length; i++) {
         try {
           res = await fetch(attempts[i], { headers: { 'Accept': 'application/json' } });
@@ -1417,8 +1418,8 @@ export default function App() {
           importance: level,
         };
       })
-      // If filters map unexpectedly empty, don't drop all items
-      .filter(it => Object.keys(importanceFilters || {}).length ? importanceFilters[it.importance] : true)
+      // Respect importance filter only if не все уровни выбраны
+      .filter(it => allSelected ? true : !!importanceFilters[it.importance])
       .sort((a,b) => (a.date === b.date ? (b.time || '').localeCompare(a.time || '') : b.date.localeCompare(a.date)));
       if (mapped.length === 0) {
         // As a last resort, show demo items so UI is not empty
