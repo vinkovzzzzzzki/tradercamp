@@ -446,6 +446,8 @@ export default function App() {
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState('');
   const [newsCountry, setNewsCountry] = useState('US,EU,CN');
+  const [newsBackDays, setNewsBackDays] = useState(7);
+  const [newsForwardDays, setNewsForwardDays] = useState(14);
   const [importanceFilters, setImportanceFilters] = useState({ 1: true, 2: true, 3: true });
   const [workouts, setWorkouts] = useState([
     { id: 1, userId: 1, date: '2025-01-19', type: 'Силовая', notes: 'Спина + бицепс' },
@@ -1320,8 +1322,8 @@ export default function App() {
     setNewsError('');
     try {
       const now = new Date();
-      const d1 = formatDate(new Date(now.getTime() - 1000 * 60 * 60 * 24 * 7)); // 7 дней назад
-      const d2 = formatDate(new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14)); // 14 дней вперёд
+      const d1 = formatDate(new Date(now.getTime() - 1000 * 60 * 60 * 24 * newsBackDays));
+      const d2 = formatDate(new Date(now.getTime() + 1000 * 60 * 60 * 24 * newsForwardDays));
       const countries = normalizeCountries(newsCountry);
       const importance = selectedImportanceList();
       // Use your TE key:secret provided by the user (fallback to guest:guest)
@@ -1420,7 +1422,18 @@ export default function App() {
   useEffect(() => {
     const id = setInterval(refreshNews, 5 * 60 * 1000); // автообновление каждые 5 минут
     return () => clearInterval(id);
-  }, [newsCountry, importanceFilters]);
+  }, [newsCountry, importanceFilters, newsBackDays, newsForwardDays]);
+
+  const expandNewsRange = () => {
+    setNewsBackDays(v => v + 30);
+    setNewsForwardDays(v => v + 30);
+    setTimeout(() => refreshNews(), 0);
+  };
+  const resetNewsRange = () => {
+    setNewsBackDays(7);
+    setNewsForwardDays(14);
+    setTimeout(() => refreshNews(), 0);
+  };
 
   // Community functions
   const uploadPostImages = async (uris) => {
@@ -3493,8 +3506,23 @@ export default function App() {
                     ))}
                   </View>
                 </View>
+                <View style={[styles.inputGroup, { flex: 2 }]}>
+                  <Text style={styles.label}>Диапазон (дней)</Text>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Назад</Text>
+                      <TextInput style={styles.input} value={String(newsBackDays)} onChangeText={(t) => setNewsBackDays(Math.max(0, Number(t)||0))} keyboardType="numeric" />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Вперёд</Text>
+                      <TextInput style={styles.input} value={String(newsForwardDays)} onChangeText={(t) => setNewsForwardDays(Math.max(0, Number(t)||0))} keyboardType="numeric" />
+                    </View>
+                  </View>
+                </View>
                 <View style={[styles.inputGroup, { flex: 1, justifyContent: 'flex-end' }]}>
                   <Pressable style={styles.addButton} onPress={refreshNews}><Text style={styles.addButtonText}>Обновить</Text></Pressable>
+                  <Pressable style={[styles.addButton, { marginTop: 6, backgroundColor: '#0f1520' }]} onPress={expandNewsRange}><Text style={styles.addButtonText}>+30 дней к окну</Text></Pressable>
+                  <Pressable style={[styles.addButton, { marginTop: 6, backgroundColor: '#0f1520' }]} onPress={resetNewsRange}><Text style={styles.addButtonText}>Сброс окна</Text></Pressable>
                 </View>
               </View>
 
@@ -3510,6 +3538,16 @@ export default function App() {
                     </View>
                     <Text style={styles.newsTitle}>{item.title || '—'}</Text>
                     <Text style={styles.newsImportance}>{getImportanceStars(item.importance || 1)}</Text>
+                    {item.Actual || item.Previous || item.Forecast ? (
+                      <Text style={styles.noteText}>
+                        {item.Actual ? `Actual: ${item.Actual}` : ''}
+                        {item.Previous ? `  Prev: ${item.Previous}` : ''}
+                        {item.Forecast ? `  Fcst: ${item.Forecast}` : ''}
+                      </Text>
+                    ) : null}
+                    {item.Category || item.Event || item.Title ? (
+                      <Text style={styles.noteText}>{item.Category || item.Event || item.Title}</Text>
+                    ) : null}
                   </View>
                 ))}
                 {(!newsLoading && news.length === 0) && <Text style={styles.noteText}>Нет событий по выбранным фильтрам</Text>}
