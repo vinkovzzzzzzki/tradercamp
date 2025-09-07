@@ -1383,7 +1383,7 @@ export default function App() {
           teUrl(buildParamsAlt(guestCred, true)),
           teUrl(buildParamsAlt(guestCred, false)),
         ].map(u => u.replace(`d1=${d1}`, `d1=${startISO}`).replace(`d2=${d2}`, `d2=${endISO}`).replace(`start=${d1}`, `start=${startISO}`).replace(`end=${d2}`, `end=${endISO}`))
-         .map(u => `${u}${u.includes('?') ? '&' : '?'}_=${Date.now()}`);
+         .map(u => `${u}${u.includes('?') ? '&' : '?'}_=${Date.now()}${countries ? `&country=${encodeURIComponent(countries)}` : ''}${importance ? `&importance=${encodeURIComponent(importance)}` : ''}`);
         for (let i = 0; i < urls.length; i++) {
           const resp = await tryFetch(urls[i]);
           if (resp) {
@@ -1417,7 +1417,9 @@ export default function App() {
         const level = mapImportanceLabelToLevel(it.Importance || it.importance);
         const countryRaw = it.Country || it.CountryName || '';
         const titleRaw = it.Event || it.Category || it.Title || it.EventName || '';
-        const stableKey = `${it.EventId || it.Id || normalizeString(titleRaw)}|${normalizeString(countryRaw)}|${dateStr}|${timeStr || ''}`;
+        const catRaw = it.Category || '';
+        const idPref = it.EventId || it.Id;
+        const stableKey = idPref ? String(idPref) : `${normalizeString(titleRaw)}|${normalizeString(catRaw)}|${normalizeString(countryRaw)}|${dateStr}|${timeStr || ''}|${normalizeString(it.Link || it.URL || '')}`;
         return {
           id: stableKey,
           date: dateStr,
@@ -1435,8 +1437,8 @@ export default function App() {
         dedup.set(it.id, true);
         return true;
       })
-      // Respect importance filter only if не все уровни выбраны
-      .filter(it => allSelected ? true : !!importanceFilters[it.importance])
+      // Учитываем фильтр важности строго по выбранным уровням
+      .filter(it => !!importanceFilters[it.importance])
       .sort((a,b) => (a.date === b.date ? (b.time || '').localeCompare(a.time || '') : b.date.localeCompare(a.date)));
       if (mapped.length === 0) {
         // As a last resort, show demo items so UI is not empty
