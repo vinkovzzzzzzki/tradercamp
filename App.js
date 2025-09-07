@@ -1342,6 +1342,7 @@ export default function App() {
       const d2 = formatDate(new Date(now.getTime() + 1000 * 60 * 60 * 24 * newsForwardDays));
       const countries = normalizeCountries(newsCountry);
       const importance = selectedImportanceList();
+      const allSelected = (importance || '').split(',').filter(Boolean).length >= 3;
       // Use your TE key:secret provided by the user (fallback to guest:guest)
       const primaryCred = 'e4cd3fef8e944b6:fjav7sp40q39exh';
       const guestCred = 'guest:guest';
@@ -1349,7 +1350,7 @@ export default function App() {
         const p = new URLSearchParams({ c: cred, format: 'json', d1, d2, limit: '1000' });
         if (withFilters) {
           if (countries) p.set('country', countries);
-          if (importance) p.set('importance', importance);
+          if (!allSelected && importance) p.set('importance', importance);
         }
         return p;
       };
@@ -1357,13 +1358,12 @@ export default function App() {
         const p = new URLSearchParams({ c: cred, format: 'json', start: d1, end: d2, limit: '1000' });
         if (withFilters) {
           if (countries) p.set('country', countries); else p.set('country', 'All');
-          if (importance) p.set('importance', importance);
+          if (!allSelected && importance) p.set('importance', importance);
         }
         return p;
       };
       const teUrl = (p) => `https://api.tradingeconomics.com/calendar?${p.toString()}`;
       const corsWrap = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      const allSelected = Object.values(importanceFilters || {}).every(Boolean);
       const tryFetch = async (url) => {
         try {
           const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
@@ -1383,7 +1383,7 @@ export default function App() {
           teUrl(buildParamsAlt(guestCred, true)),
           teUrl(buildParamsAlt(guestCred, false)),
         ].map(u => u.replace(`d1=${d1}`, `d1=${startISO}`).replace(`d2=${d2}`, `d2=${endISO}`).replace(`start=${d1}`, `start=${startISO}`).replace(`end=${d2}`, `end=${endISO}`))
-         .map(u => `${u}${u.includes('?') ? '&' : '?'}_=${Date.now()}${countries ? `&country=${encodeURIComponent(countries)}` : ''}${importance ? `&importance=${encodeURIComponent(importance)}` : ''}`);
+         .map(u => `${u}${u.includes('?') ? '&' : '?'}_=${Date.now()}${countries ? `&country=${encodeURIComponent(countries)}` : ''}${(!allSelected && importance) ? `&importance=${encodeURIComponent(importance)}` : ''}`);
         for (let i = 0; i < urls.length; i++) {
           const resp = await tryFetch(urls[i]);
           if (resp) {
@@ -1441,14 +1441,8 @@ export default function App() {
       .filter(it => !!importanceFilters[it.importance])
       .sort((a,b) => (a.date === b.date ? (b.time || '').localeCompare(a.time || '') : b.date.localeCompare(a.date)));
       if (mapped.length === 0) {
-        // As a last resort, show demo items so UI is not empty
-        const today = new Date().toISOString().slice(0,10);
-        const demo = [
-          { id: `demo1-${today}`, date: today, time: '10:00', country: 'United States', title: 'Demo CPI YoY', importance: 3 },
-          { id: `demo2-${today}`, date: today, time: '12:00', country: 'Euro Area', title: 'Demo GDP QoQ', importance: 2 },
-        ];
-        setNews(demo);
-        setNewsError('Отображаются демо-данные TradingEconomics (API вернуло 0 записей для текущих фильтров/диапазона).');
+        setNews([]);
+        setNewsError('TradingEconomics: API вернуло 0 записей для текущих фильтров/диапазона. Попробуйте другой интервал/страны или используйте свой ключ.');
       } else {
       setNews(mapped);
       }
