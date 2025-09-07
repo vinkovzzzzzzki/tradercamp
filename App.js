@@ -1345,7 +1345,7 @@ export default function App() {
       const primaryCred = 'e4cd3fef8e944b6:fjav7sp40q39exh';
       const guestCred = 'guest:guest';
       const buildParams = (cred, withFilters) => {
-        const p = new URLSearchParams({ c: cred, format: 'json', d1, d2 });
+        const p = new URLSearchParams({ c: cred, format: 'json', d1, d2, limit: '1000' });
         if (withFilters) {
           if (countries) p.set('country', countries);
           if (importance) p.set('importance', importance);
@@ -1416,7 +1416,10 @@ export default function App() {
           Forecast: it.Forecast || it.ForecastValue || null,
           importance: level,
         };
-      }).filter(it => importanceFilters[it.importance]);
+      })
+      // If filters map unexpectedly empty, don't drop all items
+      .filter(it => Object.keys(importanceFilters || {}).length ? importanceFilters[it.importance] : true)
+      .sort((a,b) => (a.date === b.date ? (b.time || '').localeCompare(a.time || '') : b.date.localeCompare(a.date)));
       if (mapped.length === 0) {
         // As a last resort, show demo items so UI is not empty
         const today = new Date().toISOString().slice(0,10);
@@ -3565,6 +3568,9 @@ export default function App() {
                     ) : null}
                     {item.Category || item.Event || item.Title ? (
                       <Text style={styles.noteText}>{item.Category || item.Event || item.Title}</Text>
+                    ) : null}
+                    {item.Link || item.URL ? (
+                      <Text style={styles.noteText}>{item.Link || item.URL}</Text>
                     ) : null}
                   </View>
                 ))}
