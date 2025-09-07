@@ -1324,30 +1324,51 @@ export default function App() {
       const d2 = formatDate(new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14));
       const countries = normalizeCountries(newsCountry);
       const importance = selectedImportanceList();
-      // Use your TE key:secret provided by the user
-      let TE_C = 'e4cd3fef8e944b6:fjav7sp40q39exh';
-      const params = new URLSearchParams({ c: TE_C, format: 'json', d1, d2 });
-      if (countries) params.set('country', countries);
-      if (importance) params.set('importance', importance);
-      const url = `https://api.tradingeconomics.com/calendar?${params.toString()}`;
-      let res = await fetch(url);
-      // If unauthorized/forbidden, retry with guest:guest
-      if (!res.ok && (res.status === 401 || res.status === 403)) {
-        TE_C = 'guest:guest';
-        const p2 = new URLSearchParams({ c: TE_C, format: 'json', d1, d2 });
-        if (countries) p2.set('country', countries);
-        if (importance) p2.set('importance', importance);
-        const url2 = `https://api.tradingeconomics.com/calendar?${p2.toString()}`;
-        res = await fetch(url2);
+      // Use your TE key:secret provided by the user (fallback to guest:guest)
+      const primaryCred = 'e4cd3fef8e944b6:fjav7sp40q39exh';
+      const guestCred = 'guest:guest';
+      const buildParams = (cred, withFilters) => {
+        const p = new URLSearchParams({ c: cred, format: 'json', d1, d2 });
+        if (withFilters) {
+          if (countries) p.set('country', countries);
+          if (importance) p.set('importance', importance);
+        }
+        return p;
+      };
+      const teUrl = (p) => `https://api.tradingeconomics.com/calendar?${p.toString()}`;
+      const corsWrap = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
+      let res;
+      let lastErr;
+      const attempts = [
+        teUrl(buildParams(primaryCred, true)),
+        teUrl(buildParams(guestCred, true)),
+        teUrl(buildParams(guestCred, false)),
+      ];
+      for (let i = 0; i < attempts.length; i++) {
+        try {
+          res = await fetch(attempts[i], { headers: { 'Accept': 'application/json' } });
+          if (res.ok) break;
+          // try CORS proxy if running on web and CORS blocks
+          const corsRes = await fetch(corsWrap(attempts[i]), { headers: { 'Accept': 'application/json' } });
+          if (corsRes.ok) { res = corsRes; break; }
+          lastErr = new Error(`HTTP ${res.status}`);
+        } catch (e) {
+          // network/CORS – try proxy
+          try {
+            const corsRes = await fetch(corsWrap(attempts[i]), { headers: { 'Accept': 'application/json' } });
+            if (corsRes.ok) { res = corsRes; break; }
+            lastErr = new Error('network/cors');
+          } catch (e2) {
+            lastErr = e2;
+          }
+        }
       }
-      // If still not ok, try without optional filters
-      if (!res.ok) {
-        const p3 = new URLSearchParams({ c: TE_C, format: 'json', d1, d2 });
-        const url3 = `https://api.tradingeconomics.com/calendar?${p3.toString()}`;
-        res = await fetch(url3);
-      }
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json();
+      if (!res || !res.ok) throw (lastErr || new Error('fetch failed'));
+      const json = await res.json().catch(async () => {
+        // some proxies return text/json
+        const txt = await res.text();
+        try { return JSON.parse(txt); } catch { return []; }
+      });
       const items = Array.isArray(json) ? json : [];
       const mapped = items.map((it, idx) => {
         const dt = it.Date || it.DateUtc || it.DateISO || it.date;
