@@ -1317,6 +1317,21 @@ export default function App() {
     const n = Number(label);
     return Number.isFinite(n) && n >= 1 && n <= 3 ? n : 1;
   };
+  const parseTEDateRaw = (raw) => {
+    if (!raw && raw !== 0) return null;
+    try {
+      if (typeof raw === 'number') {
+        const ms = raw < 1e12 ? raw * 1000 : raw;
+        return new Date(ms);
+      }
+      const s = String(raw);
+      const m = /\/Date\((\d+)\)\//.exec(s);
+      if (m) return new Date(Number(m[1]));
+      const t = Date.parse(s);
+      if (!Number.isNaN(t)) return new Date(t);
+      return null;
+    } catch { return null; }
+  };
   const refreshNews = async () => {
     setNewsLoading(true);
     setNewsError('');
@@ -1386,16 +1401,19 @@ export default function App() {
       }
       const mapped = items.map((it, idx) => {
         const dt = it.Date || it.DateUtc || it.DateISO || it.date;
-        const dObj = dt ? new Date(dt) : null;
-        const dateStr = dObj ? dObj.toISOString().slice(0, 10) : (it.Date || '').slice(0, 10);
-        const timeStr = dObj ? dObj.toISOString().slice(11, 16) : (it.Time || '').slice(0, 5);
+        const dObj = parseTEDateRaw(dt);
+        const dateStr = dObj ? `${dObj.getFullYear()}-${pad2(dObj.getMonth()+1)}-${pad2(dObj.getDate())}` : (it.Date || '').slice(0, 10);
+        const timeStr = dObj ? `${pad2(dObj.getHours())}:${pad2(dObj.getMinutes())}` : (it.Time || '').slice(0, 5);
         const level = mapImportanceLabelToLevel(it.Importance || it.importance);
         return {
           id: `${it.EventId || it.Id || idx}-${dateStr}`,
           date: dateStr,
           time: timeStr,
           country: it.Country || it.CountryName || '—',
-          title: it.Event || it.Category || it.Title || 'Событие',
+          title: it.Event || it.Category || it.Title || it.EventName || 'Событие',
+          Actual: it.Actual || it.ActualValue || it.ActualPrevious || null,
+          Previous: it.Previous || it.PreviousValue || null,
+          Forecast: it.Forecast || it.ForecastValue || null,
           importance: level,
         };
       }).filter(it => importanceFilters[it.importance]);
@@ -1409,7 +1427,7 @@ export default function App() {
         setNews(demo);
         setNewsError('Отображаются демо-данные TradingEconomics (API вернуло 0 записей для текущих фильтров/диапазона).');
       } else {
-        setNews(mapped);
+      setNews(mapped);
       }
     } catch (e) {
       const msg = (e && e.message) ? `Ошибка загрузки новостей (${e.message}).` : 'Ошибка загрузки новостей.';
@@ -3369,7 +3387,7 @@ export default function App() {
                           {dayEvents.map(ev => (
                             <Pressable key={ev.id} onPress={() => openComposeForEdit(ev)}>
                               <Text style={styles.plannerEventItem}>{(ev.time || '')} {ev.title}</Text>
-                            </Pressable>
+                  </Pressable>
                           ))}
                           {unifiedPlannerEvents.filter(e => e.date === iso).length > 3 && (
                             <Text style={styles.plannerMore}>ещё {unifiedPlannerEvents.filter(e => e.date === iso).length - 3}…</Text>
@@ -3399,14 +3417,14 @@ export default function App() {
                         {days.map(d => (
                           <View key={`hdr_${d.toDateString()}`} style={[styles.plannerCell, { alignItems: 'center' }]}>
                             <Text style={styles.plannerCellDate}>{toISODate(d)}</Text>
-                          </View>
-                        ))}
-                      </View>
+                </View>
+                    ))}
+                  </View>
                       {hours.map(h => (
                         <View key={`hr_${h}`} style={styles.plannerRow}>
                           <View style={{ width: 40 }}>
                             <Text style={styles.plannerCellDate}>{pad2(h)}:00</Text>
-                          </View>
+                </View>
                           {days.map(d => {
                             const iso = toISODate(d);
                             const hhmm = `${pad2(h)}:00`;
@@ -3421,12 +3439,12 @@ export default function App() {
                               </Pressable>
                             );
                           })}
-                        </View>
-                      ))}
-                    </View>
+                  </View>
+                ))}
+              </View>
                   );
                 })()}
-              </View>
+            </View>
             )}
 
             {/* Compose modal (inline lightweight) */}
@@ -3434,50 +3452,50 @@ export default function App() {
               <View style={[styles.card, { borderColor: '#1f2a36' }]}>
                 <Text style={styles.cardTitle}>Новое событие</Text>
                 {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять события</Text>}
-                {currentUser && (
+              {currentUser && (
                   <>
-                <View style={styles.inputRow}>
-                      <View style={styles.inputGroup}>
+                  <View style={styles.inputRow}>
+                    <View style={styles.inputGroup}>
                         <Text style={styles.label}>Дата</Text>
                         <TextInput style={styles.input} value={newEvent.date} onChangeText={(t) => setNewEvent(v => ({ ...v, date: t }))} placeholder="2025-01-15" />
-                </View>
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Время</Text>
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Время</Text>
                         <TextInput style={styles.input} value={newEvent.time} onChangeText={(t) => setNewEvent(v => ({ ...v, time: t }))} placeholder="10:00" />
-                      </View>
-                      <View style={styles.inputGroup}>
+                    </View>
+                    <View style={styles.inputGroup}>
                         <Text style={styles.label}>Окончание</Text>
                         <TextInput style={styles.input} value={newEvent.endTime || ''} onChangeText={(t) => setNewEvent(v => ({ ...v, endTime: t }))} placeholder="11:00" />
                       </View>
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Тип</Text>
-                        <View style={styles.pickerContainer}>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Тип</Text>
+                      <View style={styles.pickerContainer}>
                           {['event','workout'].map(t => (
                             <Pressable key={t} style={[styles.pickerOption, plannerComposeType === t ? styles.pickerOptionActive : null]} onPress={() => setPlannerComposeType(t)}>
                               <Text style={[styles.pickerText, plannerComposeType === t ? styles.pickerTextActive : null]}>{t === 'event' ? 'Событие' : 'Тренировка'}</Text>
-                            </Pressable>
-                          ))}
-                        </View>
-                      </View>
-                      <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Заголовок</Text>
-                        <TextInput style={styles.input} value={newEvent.title} onChangeText={(t) => setNewEvent(v => ({ ...v, title: t }))} placeholder={plannerComposeType === 'event' ? "Событие" : "Тренировка"} />
+                          </Pressable>
+                        ))}
                       </View>
                     </View>
                     <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Заметки</Text>
-                      <TextInput style={[styles.input, styles.textArea]} value={newEvent.notes} onChangeText={(t) => setNewEvent(v => ({ ...v, notes: t }))} placeholder="Описание..." multiline numberOfLines={3} />
+                        <Text style={styles.label}>Заголовок</Text>
+                        <TextInput style={styles.input} value={newEvent.title} onChangeText={(t) => setNewEvent(v => ({ ...v, title: t }))} placeholder={plannerComposeType === 'event' ? "Событие" : "Тренировка"} />
                     </View>
+                  </View>
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Заметки</Text>
+                      <TextInput style={[styles.input, styles.textArea]} value={newEvent.notes} onChangeText={(t) => setNewEvent(v => ({ ...v, notes: t }))} placeholder="Описание..." multiline numberOfLines={3} />
+                  </View>
                     <View style={styles.inputRow}>
                       <Pressable style={[styles.addButton, { flex: 1, backgroundColor: '#1f6feb' }]} onPress={savePlannerCompose}><Text style={styles.addButtonText}>Сохранить</Text></Pressable>
                       {!!plannerEditing && (
                         <Pressable style={[styles.addButton, { flex: 1, backgroundColor: '#ef4444' }]} onPress={deletePlannerCompose}><Text style={styles.addButtonText}>Удалить</Text></Pressable>
                       )}
                       <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setPlannerComposeOpen(false)}><Text style={styles.addButtonText}>Отмена</Text></Pressable>
-                    </View>
+                </View>
                   </>
-                )}
-              </View>
+              )}
+                </View>
             )}
 
             {/* News (optional panel inside planner for now) */}
@@ -3508,23 +3526,23 @@ export default function App() {
                 </View>
                 <View style={[styles.inputGroup, { flex: 2 }]}>
                   <Text style={styles.label}>Диапазон (дней)</Text>
-                  <View style={styles.inputRow}>
-                    <View style={styles.inputGroup}>
+              <View style={styles.inputRow}>
+                <View style={styles.inputGroup}>
                       <Text style={styles.label}>Назад</Text>
                       <TextInput style={styles.input} value={String(newsBackDays)} onChangeText={(t) => setNewsBackDays(Math.max(0, Number(t)||0))} keyboardType="numeric" />
-                    </View>
-                    <View style={styles.inputGroup}>
+              </View>
+              <View style={styles.inputGroup}>
                       <Text style={styles.label}>Вперёд</Text>
                       <TextInput style={styles.input} value={String(newsForwardDays)} onChangeText={(t) => setNewsForwardDays(Math.max(0, Number(t)||0))} keyboardType="numeric" />
+              </View>
                     </View>
                   </View>
-                </View>
                 <View style={[styles.inputGroup, { flex: 1, justifyContent: 'flex-end' }]}>
                   <Pressable style={styles.addButton} onPress={refreshNews}><Text style={styles.addButtonText}>Обновить</Text></Pressable>
                   <Pressable style={[styles.addButton, { marginTop: 6, backgroundColor: '#0f1520' }]} onPress={expandNewsRange}><Text style={styles.addButtonText}>+30 дней к окну</Text></Pressable>
                   <Pressable style={[styles.addButton, { marginTop: 6, backgroundColor: '#0f1520' }]} onPress={resetNewsRange}><Text style={styles.addButtonText}>Сброс окна</Text></Pressable>
-                </View>
               </View>
+            </View>
 
               {newsLoading && <Text style={styles.noteText}>Загрузка…</Text>}
               {!!newsError && <Text style={[styles.noteText, { color: '#ef4444' }]}>{newsError}</Text>}
@@ -3551,9 +3569,9 @@ export default function App() {
                   </View>
                 ))}
                 {(!newsLoading && news.length === 0) && <Text style={styles.noteText}>Нет событий по выбранным фильтрам</Text>}
-              </View>
+                  </View>
               <Text style={styles.noteText}>Источник: TradingEconomics (guest:guest). Для продакшена используйте собственные ключи/API.</Text>
-            </View>
+                </View>
             </>
             )}
 
