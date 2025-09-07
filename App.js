@@ -1332,6 +1332,7 @@ export default function App() {
       return null;
     } catch { return null; }
   };
+  const normalizeString = (s) => (s == null ? '' : String(s)).trim().toLowerCase().replace(/\s+/g, ' ');
   const refreshNews = async () => {
     setNewsLoading(true);
     setNewsError('');
@@ -1414,13 +1415,15 @@ export default function App() {
         const dateStr = dObj ? `${dObj.getFullYear()}-${pad2(dObj.getMonth()+1)}-${pad2(dObj.getDate())}` : (it.Date || '').slice(0, 10);
         const timeStr = dObj ? `${pad2(dObj.getHours())}:${pad2(dObj.getMinutes())}` : (it.Time || '').slice(0, 5);
         const level = mapImportanceLabelToLevel(it.Importance || it.importance);
-        const id = `${it.EventId || it.Id || idx}-${dateStr}-${timeStr}-${it.Country || it.CountryName || ''}`;
+        const countryRaw = it.Country || it.CountryName || '';
+        const titleRaw = it.Event || it.Category || it.Title || it.EventName || '';
+        const stableKey = `${it.EventId || it.Id || normalizeString(titleRaw)}|${normalizeString(countryRaw)}|${dateStr}|${timeStr || ''}`;
         return {
-          id,
+          id: stableKey,
           date: dateStr,
           time: timeStr,
-          country: it.Country || it.CountryName || '—',
-          title: it.Event || it.Category || it.Title || it.EventName || 'Событие',
+          country: countryRaw || '—',
+          title: titleRaw || 'Событие',
           Actual: it.Actual || it.ActualValue || it.ActualPrevious || null,
           Previous: it.Previous || it.PreviousValue || null,
           Forecast: it.Forecast || it.ForecastValue || null,
