@@ -1352,6 +1352,14 @@ export default function App() {
         }
         return p;
       };
+      const buildParamsAlt = (cred, withFilters) => {
+        const p = new URLSearchParams({ c: cred, format: 'json', start: d1, end: d2, limit: '1000' });
+        if (withFilters) {
+          if (countries) p.set('country', countries); else p.set('country', 'All');
+          if (importance) p.set('importance', importance);
+        }
+        return p;
+      };
       const teUrl = (p) => `https://api.tradingeconomics.com/calendar?${p.toString()}`;
       const corsWrap = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
       let res;
@@ -1361,7 +1369,9 @@ export default function App() {
         teUrl(buildParams(primaryCred, true)),
         teUrl(buildParams(guestCred, true)),
         teUrl(buildParams(guestCred, false)),
-      ].map(u => `${u}&_=${Date.now()}`);
+        teUrl(buildParamsAlt(guestCred, true)),
+        teUrl(buildParamsAlt(guestCred, false)),
+      ].map(u => `${u}${u.includes('?') ? '&' : '?'}_=${Date.now()}`);
       for (let i = 0; i < attempts.length; i++) {
         try {
           res = await fetch(attempts[i], { headers: { 'Accept': 'application/json' } });
