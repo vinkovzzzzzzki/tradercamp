@@ -1364,12 +1364,24 @@ export default function App() {
         }
       }
       if (!res || !res.ok) throw (lastErr || new Error('fetch failed'));
-      const json = await res.json().catch(async () => {
+      let json = await res.json().catch(async () => {
         // some proxies return text/json
         const txt = await res.text();
         try { return JSON.parse(txt); } catch { return []; }
       });
-      const items = Array.isArray(json) ? json : (Array.isArray(json?.calendar) ? json.calendar : []);
+      let items = Array.isArray(json) ? json : (Array.isArray(json?.calendar) ? json.calendar : []);
+      // If still empty, try a last-chance high-importance only
+      if (!items || items.length === 0) {
+        const lastParams = new URLSearchParams({ c: guestCred, format: 'json', d1, d2, importance: '3' });
+        const lastUrl = teUrl(lastParams);
+        try {
+          const r2 = await fetch(lastUrl, { headers: { 'Accept': 'application/json' } });
+          if (r2.ok) {
+            json = await r2.json().catch(async () => { const t2 = await r2.text(); try { return JSON.parse(t2); } catch { return []; } });
+            items = Array.isArray(json) ? json : (Array.isArray(json?.calendar) ? json.calendar : []);
+          }
+        } catch {}
+      }
       const mapped = items.map((it, idx) => {
         const dt = it.Date || it.DateUtc || it.DateISO || it.date;
         const dObj = dt ? new Date(dt) : null;
@@ -1385,9 +1397,17 @@ export default function App() {
           importance: level,
         };
       }).filter(it => importanceFilters[it.importance]);
-      setNews(mapped);
       if (mapped.length === 0) {
-        setNewsError('Нет событий от TradingEconomics по текущим фильтрам/датам. Попробуйте расширить диапазон или убрать фильтры.');
+        // As a last resort, show demo items so UI is not empty
+        const today = new Date().toISOString().slice(0,10);
+        const demo = [
+          { id: `demo1-${today}`, date: today, time: '10:00', country: 'United States', title: 'Demo CPI YoY', importance: 3 },
+          { id: `demo2-${today}`, date: today, time: '12:00', country: 'Euro Area', title: 'Demo GDP QoQ', importance: 2 },
+        ];
+        setNews(demo);
+        setNewsError('Отображаются демо-данные TradingEconomics (API вернуло 0 записей для текущих фильтров/диапазона).');
+      } else {
+        setNews(mapped);
       }
     } catch (e) {
       const msg = (e && e.message) ? `Ошибка загрузки новостей (${e.message}).` : 'Ошибка загрузки новостей.';
