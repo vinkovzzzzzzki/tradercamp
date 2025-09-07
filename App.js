@@ -1320,8 +1320,8 @@ export default function App() {
     setNewsError('');
     try {
       const now = new Date();
-      const d1 = formatDate(now);
-      const d2 = formatDate(new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14));
+      const d1 = formatDate(new Date(now.getTime() - 1000 * 60 * 60 * 24 * 7)); // 7 дней назад
+      const d2 = formatDate(new Date(now.getTime() + 1000 * 60 * 60 * 24 * 14)); // 14 дней вперёд
       const countries = normalizeCountries(newsCountry);
       const importance = selectedImportanceList();
       // Use your TE key:secret provided by the user (fallback to guest:guest)
@@ -1369,7 +1369,7 @@ export default function App() {
         const txt = await res.text();
         try { return JSON.parse(txt); } catch { return []; }
       });
-      const items = Array.isArray(json) ? json : [];
+      const items = Array.isArray(json) ? json : (Array.isArray(json?.calendar) ? json.calendar : []);
       const mapped = items.map((it, idx) => {
         const dt = it.Date || it.DateUtc || it.DateISO || it.date;
         const dObj = dt ? new Date(dt) : null;
@@ -1386,6 +1386,9 @@ export default function App() {
         };
       }).filter(it => importanceFilters[it.importance]);
       setNews(mapped);
+      if (mapped.length === 0) {
+        setNewsError('Нет событий от TradingEconomics по текущим фильтрам/датам. Попробуйте расширить диапазон или убрать фильтры.');
+      }
     } catch (e) {
       const msg = (e && e.message) ? `Ошибка загрузки новостей (${e.message}).` : 'Ошибка загрузки новостей.';
       setNewsError(`${msg} Проверьте подключение/VPN и попробуйте позже.`);
@@ -3481,12 +3484,12 @@ export default function App() {
                 {news.map((item) => (
                   <View key={item.id} style={styles.newsItem}>
                     <View style={styles.newsHeader}>
-                      <Text style={styles.newsDate}>{item.date}</Text>
-                      <Text style={styles.newsTime}>{item.time}</Text>
-                      <Text style={styles.newsCountry}>{item.country}</Text>
+                      <Text style={styles.newsDate}>{item.date || '—'}</Text>
+                      <Text style={styles.newsTime}>{item.time || '—'}</Text>
+                      <Text style={styles.newsCountry}>{item.country || '—'}</Text>
                     </View>
-                    <Text style={styles.newsTitle}>{item.title}</Text>
-                    <Text style={styles.newsImportance}>{getImportanceStars(item.importance)}</Text>
+                    <Text style={styles.newsTitle}>{item.title || '—'}</Text>
+                    <Text style={styles.newsImportance}>{getImportanceStars(item.importance || 1)}</Text>
                   </View>
                 ))}
                 {(!newsLoading && news.length === 0) && <Text style={styles.noteText}>Нет событий по выбранным фильтрам</Text>}
