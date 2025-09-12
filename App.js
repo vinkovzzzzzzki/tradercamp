@@ -2718,6 +2718,15 @@ export default function App() {
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Сумма</Text>
                       <TextInput style={styles.input} value={newEmergencyTx.amount} onChangeText={(t) => setNewEmergencyTx(v => ({ ...v, amount: t }))} keyboardType="numeric" placeholder="200" />
+                      {newEmergencyTx.type === 'withdraw' ? (() => {
+                        const sel = (emergencyHoldings || []).find(h => (h.location||'') === (newEmergencyTx.location||'') && (h.currency||'USD') === ((newEmergencyTx.currency||'USD')));
+                        if (!sel || !(sel.amount > 0)) return null;
+                        return (
+                          <Pressable style={[styles.addButton, { backgroundColor: '#0f1520', marginTop: 6 }]} onPress={() => setNewEmergencyTx(v => ({ ...v, amount: String(sel.amount) }))}>
+                            <Text style={styles.addButtonText}>Вставить остаток: {formatCurrencyCustom(sel.amount, sel.currency)}</Text>
+                          </Pressable>
+                        );
+                      })() : null}
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Валюта</Text>
@@ -2747,11 +2756,19 @@ export default function App() {
                       <TextInput style={styles.input} value={newEmergencyTx.location} onChangeText={(t) => setNewEmergencyTx(v => ({ ...v, location: t }))} placeholder="Банк, брокер, акция/тикер..." />
                       {emergencyHoldings.length > 0 && (
                         <View style={styles.pickerContainer}>
-                          {emergencyHoldings.map(h => (
-                            <Pressable key={`drop-em-${h.currency}:${h.location}`} style={[styles.pickerOption, (newEmergencyTx.location||'') === h.location && (newEmergencyTx.currency||'USD') === h.currency ? styles.pickerOptionActive : null]} onPress={() => setNewEmergencyTx(v => ({ ...v, location: h.location, currency: h.currency }))}>
-                              <Text style={[styles.pickerText, (newEmergencyTx.location||'') === h.location && (newEmergencyTx.currency||'USD') === h.currency ? styles.pickerTextActive : null]}>{h.location} • {h.currency}</Text>
-                            </Pressable>
-                          ))}
+                          {emergencyHoldings
+                            .filter(h => !newEmergencyTx.currency || (h.currency || 'USD') === (newEmergencyTx.currency || ''))
+                            .filter(h => {
+                              const q = (newEmergencyTx.location || '').toLowerCase();
+                              if (!q) return true;
+                              return (h.location || '').toLowerCase().includes(q);
+                            })
+                            .slice(0, 8)
+                            .map(h => (
+                              <Pressable key={`drop-em-${h.currency}:${h.location}`} style={[styles.pickerOption, (newEmergencyTx.location||'') === h.location && (newEmergencyTx.currency||'USD') === h.currency ? styles.pickerOptionActive : null]} onPress={() => setNewEmergencyTx(v => ({ ...v, location: h.location, currency: h.currency }))}>
+                                <Text style={[styles.pickerText, (newEmergencyTx.location||'') === h.location && (newEmergencyTx.currency||'USD') === h.currency ? styles.pickerTextActive : null]}>{h.location} • {h.currency}</Text>
+                              </Pressable>
+                            ))}
                         </View>
                       )}
                     </View>
@@ -2983,6 +3000,15 @@ export default function App() {
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Сумма</Text>
                       <TextInput style={styles.input} value={newInvestTx.amount} onChangeText={(t) => setNewInvestTx(v => ({ ...v, amount: t }))} keyboardType="numeric" placeholder="300" />
+                      {newInvestTx.type === 'out' ? (() => {
+                        const sel = (investHoldings || []).find(h => (h.destination||'') === (newInvestTx.destination||'') && (h.currency||'USD') === ((newInvestTx.currency||'USD')));
+                        if (!sel || !(sel.amount > 0)) return null;
+                        return (
+                          <Pressable style={[styles.addButton, { backgroundColor: '#0f1520', marginTop: 6 }]} onPress={() => setNewInvestTx(v => ({ ...v, amount: String(sel.amount) }))}>
+                            <Text style={styles.addButtonText}>Вставить остаток: {formatCurrencyCustom(sel.amount, sel.currency)}</Text>
+                          </Pressable>
+                        );
+                      })() : null}
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Валюта</Text>
@@ -3012,11 +3038,19 @@ export default function App() {
                       <TextInput style={styles.input} value={newInvestTx.destination} onChangeText={(t) => setNewInvestTx(v => ({ ...v, destination: t }))} placeholder="Счёт брокера, стратегия, тикер..." />
                       {investHoldings.length > 0 && (
                         <View style={styles.pickerContainer}>
-                          {investHoldings.map(h => (
-                            <Pressable key={`drop-inv-${h.currency}:${h.destination}`} style={[styles.pickerOption, (newInvestTx.destination||'') === h.destination && (newInvestTx.currency||'USD') === h.currency ? styles.pickerOptionActive : null]} onPress={() => setNewInvestTx(v => ({ ...v, destination: h.destination, currency: h.currency }))}>
-                              <Text style={[styles.pickerText, (newInvestTx.destination||'') === h.destination && (newInvestTx.currency||'USD') === h.currency ? styles.pickerTextActive : null]}>{h.destination} • {h.currency}</Text>
-                            </Pressable>
-                          ))}
+                          {investHoldings
+                            .filter(h => !newInvestTx.currency || (h.currency || 'USD') === (newInvestTx.currency || ''))
+                            .filter(h => {
+                              const q = (newInvestTx.destination || '').toLowerCase();
+                              if (!q) return true;
+                              return (h.destination || '').toLowerCase().includes(q);
+                            })
+                            .slice(0, 8)
+                            .map(h => (
+                              <Pressable key={`drop-inv-${h.currency}:${h.destination}`} style={[styles.pickerOption, (newInvestTx.destination||'') === h.destination && (newInvestTx.currency||'USD') === h.currency ? styles.pickerOptionActive : null]} onPress={() => setNewInvestTx(v => ({ ...v, destination: h.destination, currency: h.currency }))}>
+                                <Text style={[styles.pickerText, (newInvestTx.destination||'') === h.destination && (newInvestTx.currency||'USD') === h.currency ? styles.pickerTextActive : null]}>{h.destination} • {h.currency}</Text>
+                              </Pressable>
+                            ))}
                         </View>
                       )}
                     </View>
