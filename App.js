@@ -1676,9 +1676,11 @@ export default function App() {
       emergencyBase: Number(financeForm.emergencyCashAmount) || 0,
       hasInvestments: !!financeForm.hasInvestments,
       debts: (currentFinance && Array.isArray(currentFinance.debts)) ? currentFinance.debts : [],
+      receivables: (currentFinance && Array.isArray(currentFinance.receivables)) ? currentFinance.receivables : [],
       emergencyTx: (currentFinance && Array.isArray(currentFinance.emergencyTx)) ? currentFinance.emergencyTx : [],
       investTx: (currentFinance && Array.isArray(currentFinance.investTx)) ? currentFinance.investTx : [],
       debtTx: (currentFinance && Array.isArray(currentFinance.debtTx)) ? currentFinance.debtTx : [],
+      receivableTx: (currentFinance && Array.isArray(currentFinance.receivableTx)) ? currentFinance.receivableTx : [],
       notifyEnabled: !!financeForm.notifyEnabled,
       notifIds: currentFinance?.notifIds || [],
     };
@@ -1699,12 +1701,69 @@ export default function App() {
     return [...list].sort((a, b) => (a.amount || 0) - (b.amount || 0));
   }, [currentFinance]);
 
+  const sortedReceivables = useMemo(() => {
+    const list = currentFinance?.receivables || [];
+    return [...list].sort((a, b) => (b.amount || 0) - (a.amount || 0));
+  }, [currentFinance]);
+
   const withFinance = (updater) => {
     if (!currentUser) return;
     setFinanceData(prev => {
-      const cur = prev[currentUser.id] || { debts: [], emergencyTx: [], investTx: [], debtTx: [], incomeDays: [] };
+      const cur = prev[currentUser.id] || { debts: [], receivables: [], emergencyTx: [], investTx: [], debtTx: [], receivableTx: [], incomeDays: [] };
       const next = updater(cur);
       return { ...prev, [currentUser.id]: next };
+    });
+  };
+
+  const [newReceivable, setNewReceivable] = useState({ name: '', amount: '', currency: 'USD' });
+  const [receiveDrafts, setReceiveDrafts] = useState({});
+
+  const addReceivable = () => {
+    if (!currentUser) return Alert.alert('Войдите', 'Авторизуйтесь для добавления');
+    const name = (newReceivable.name || '').trim();
+    const amount = Number(newReceivable.amount) || 0;
+    if (!name || amount <= 0) return Alert.alert('Ошибка', 'Введите название и сумму > 0');
+    withFinance(cur => {
+      const id = (cur.receivables?.length ? Math.max(...cur.receivables.map(d => d.id || 0)) + 1 : 1);
+      const receivables = [...(cur.receivables || []), { id, name, amount, currency: newReceivable.currency || 'USD' }];
+      const tx = { id: Date.now(), date: new Date().toISOString().slice(0,10), receivableId: id, type: 'add', amount, currency: newReceivable.currency || 'USD', note: 'Создание дебиторки' };
+      const receivableTx = [tx, ...(cur.receivableTx || [])];
+      return { ...cur, receivables, receivableTx };
+    });
+    setNewReceivable({ name: '', amount: '', currency: newReceivable.currency || 'USD' });
+  };
+
+  const receiveReceivablePartial = (receivableId) => {
+    const draft = Number(receiveDrafts[receivableId]) || 0;
+    if (draft <= 0) return;
+    withFinance(cur => {
+      const target = (cur.receivables || []).find(d => d.id === receivableId);
+      if (!target) return cur;
+      const newAmount = Math.max(0, (target.amount || 0) - draft);
+      const receivables = (cur.receivables || []).map(d => d.id === receivableId ? { ...d, amount: newAmount } : d).filter(d => (d.amount || 0) > 0);
+      const tx = { id: Date.now(), date: new Date().toISOString().slice(0,10), receivableId, type: 'receive', amount: draft, currency: target.currency || 'USD', note: '' };
+      const receivableTx = [tx, ...(cur.receivableTx || [])];
+      return { ...cur, receivables, receivableTx };
+    });
+    setReceiveDrafts(prev => ({ ...prev, [receivableId]: '' }));
+  };
+
+  const receiveReceivableFull = (receivableId) => {
+    withFinance(cur => {
+      const target = (cur.receivables || []).find(d => d.id === receivableId);
+      const receivables = (cur.receivables || []).filter(d => d.id !== receivableId);
+      const tx = target ? { id: Date.now(), date: new Date().toISOString().slice(0,10), receivableId, type: 'close', amount: target.amount || 0, currency: target.currency || 'USD', note: 'Полное погашение' } : null;
+      const receivableTx = tx ? [tx, ...(cur.receivableTx || [])] : (cur.receivableTx || []);
+      return { ...cur, receivables, receivableTx };
+    });
+  };
+
+  const deleteReceivableTx = (txId) => {
+    if (!currentUser) return;
+    withFinance(cur => {
+      const list = cur.receivableTx || [];
+      const next = list.filter(t => t.id !== txId);
+      return { ...cur, receivableTx: next };
     });
   };
 
@@ -2617,6 +2676,72 @@ export default function App() {
               {!currentUser && <Text style={styles.noteText}>Войдите, чтобы управлять долгами</Text>}
               {currentUser && (
                 <>
+                  {/* Receivables (Дебиторка) */}
+                  <View style={[styles.resultCard, { alignItems: 'stretch', marginBottom: 8 }]}>
+                    <Text style={styles.resultTitle}>Дебиторка (вам должны)</Text>
+                    <View style={styles.inputRow}>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Кто должен</Text>
+                        <TextInput style={styles.input} value={newReceivable.name} onChangeText={(t) => setNewReceivable(v => ({ ...v, name: t }))} placeholder="Имя/описание" />
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Сумма</Text>
+                        <TextInput style={styles.input} value={newReceivable.amount} onChangeText={(t) => setNewReceivable(v => ({ ...v, amount: t }))} keyboardType="numeric" placeholder="300" />
+                      </View>
+                      <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Валюта</Text>
+                        <TextInput style={styles.input} value={newReceivable.currency} onChangeText={(t) => setNewReceivable(v => ({ ...v, currency: t.toUpperCase() }))} placeholder="USD" />
+                      </View>
+                    </View>
+                    <Pressable style={styles.addButton} onPress={addReceivable}><Text style={styles.addButtonText}>Добавить дебиторку</Text></Pressable>
+
+                    {sortedReceivables.length > 0 ? (
+                      <>
+                        <View style={styles.tableHeaderRow}>
+                          <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Кто</Text>
+                          <Text style={[styles.tableHeaderCell, { flex: 1 }]}>Остаток</Text>
+                          <Text style={[styles.tableHeaderCell, { flex: 2 }]}>Действия</Text>
+                        </View>
+                        {sortedReceivables.map(r => (
+                          <View key={r.id} style={styles.tableRow}>
+                            <Text style={[styles.tableCell, { flex: 2 }]}>{r.name}</Text>
+                            <Text style={[styles.tableCell, { flex: 1 }]}>{formatCurrencyCustom(r.amount, r.currency)}</Text>
+                            <View style={[styles.tableCell, { flex: 2 }]}>
+                              <View style={styles.inputRow}>
+                                <View style={styles.inputGroup}>
+                                  <Text style={styles.label}>Сумма</Text>
+                                  <TextInput style={styles.input} value={receiveDrafts[r.id] || ''} onChangeText={(t) => setReceiveDrafts(prev => ({ ...prev, [r.id]: t }))} placeholder="100" keyboardType="numeric" />
+                                </View>
+                                <Pressable style={[styles.addButton, { flex: 1, alignSelf: 'flex-end' }]} onPress={() => receiveReceivablePartial(r.id)}><Text style={styles.addButtonText}>Получено частично</Text></Pressable>
+                                <Pressable style={[styles.addButton, { flex: 1, alignSelf: 'flex-end', backgroundColor: '#10b981' }]} onPress={() => receiveReceivableFull(r.id)}><Text style={styles.addButtonText}>Получено полностью</Text></Pressable>
+                              </View>
+                              {(() => {
+                                const history = (currentFinance?.receivableTx || []).filter(tx => tx.receivableId === r.id);
+                                if (history.length === 0) return null;
+                                return (
+                                  <View style={{ marginTop: 6 }}>
+                                    <Text style={styles.filterLabel}>История</Text>
+                                    {history.map(tx => (
+                                      <View key={tx.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                                        <Text style={styles.tableCell}>
+                                          • {tx.date}: {tx.type === 'add' ? 'Создание' : tx.type === 'receive' ? 'Поступление' : 'Закрытие'} {formatCurrencyCustom(tx.amount, tx.currency)}
+                                        </Text>
+                                        <Pressable style={styles.deleteButtonSmall} onPress={() => deleteReceivableTx(tx.id)}>
+                                          <Text style={styles.deleteButtonText}>×</Text>
+                                        </Pressable>
+                                      </View>
+                                    ))}
+                                  </View>
+                                );
+                              })()}
+                            </View>
+                          </View>
+                        ))}
+                      </>
+                    ) : (
+                      <Text style={styles.noteText}>Пока нет дебиторки</Text>
+                    )}
+                  </View>
                   {/* Debts summary chips */}
                   {(() => {
                     const list = currentFinance?.debts || [];
