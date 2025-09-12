@@ -1821,6 +1821,7 @@ export default function App() {
       .filter(h => (h.amount || 0) > 0)
       .sort((a, b) => (b.amount - a.amount));
   }, [currentFinance]);
+  const [showEmergencyLocationDropdown, setShowEmergencyLocationDropdown] = useState(false);
 
   const investHoldings = useMemo(() => {
     const list = currentFinance?.investTx || [];
@@ -2480,13 +2481,11 @@ export default function App() {
                   ) : (
                     <View style={styles.chipsRow}>
                       {emergencyHoldings.map(h => (
-                        <Pressable key={`${h.currency}:${h.location}`}
-                          style={[styles.chip, (newEmergencyTx.location || '') === h.location && (newEmergencyTx.currency || 'USD') === h.currency ? styles.chipActive : null]}
-                          onPress={() => setNewEmergencyTx(v => ({ ...v, location: h.location, currency: h.currency }))}>
-                          <Text style={[styles.chipText, (newEmergencyTx.location || '') === h.location && (newEmergencyTx.currency || 'USD') === h.currency ? styles.chipTextActive : null]}>
+                        <View key={`${h.currency}:${h.location}`} style={styles.chip}>
+                          <Text style={styles.chipText}>
                             {(h.location || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
                           </Text>
-                        </Pressable>
+                        </View>
                       ))}
                     </View>
                   )}
@@ -2718,59 +2717,61 @@ export default function App() {
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Сумма</Text>
                       <TextInput style={styles.input} value={newEmergencyTx.amount} onChangeText={(t) => setNewEmergencyTx(v => ({ ...v, amount: t }))} keyboardType="numeric" placeholder="200" />
-                      {newEmergencyTx.type === 'withdraw' ? (() => {
-                        const sel = (emergencyHoldings || []).find(h => (h.location||'') === (newEmergencyTx.location||'') && (h.currency||'USD') === ((newEmergencyTx.currency||'USD')));
-                        if (!sel || !(sel.amount > 0)) return null;
-                        return (
-                          <Pressable style={[styles.addButton, { backgroundColor: '#0f1520', marginTop: 6 }]} onPress={() => setNewEmergencyTx(v => ({ ...v, amount: String(sel.amount) }))}>
-                            <Text style={styles.addButtonText}>Вставить остаток: {formatCurrencyCustom(sel.amount, sel.currency)}</Text>
-                          </Pressable>
-                        );
-                      })() : null}
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Валюта</Text>
                       <TextInput style={styles.input} value={newEmergencyTx.currency} onChangeText={(t) => setNewEmergencyTx(v => ({ ...v, currency: t.toUpperCase() }))} placeholder="USD" />
                     </View>
                   </View>
-                  {/* Quick select existing destination (chips only) */}
-                  {emergencyHoldings.length > 0 && (
-                    <View style={{ marginBottom: 8 }}>
-                      <Text style={styles.filterLabel}>Выберите вклад</Text>
-                      <View style={styles.chipsRow}>
-                        {emergencyHoldings.map(h => (
-                          <Pressable key={`txpick-${h.currency}:${h.location}`}
-                            style={[styles.chip, (newEmergencyTx.location || '') === h.location && (newEmergencyTx.currency || 'USD') === h.currency ? styles.chipActive : null]}
-                            onPress={() => setNewEmergencyTx(v => ({ ...v, location: h.location, currency: h.currency }))}>
-                            <Text style={[styles.chipText, (newEmergencyTx.location || '') === h.location && (newEmergencyTx.currency || 'USD') === h.currency ? styles.chipTextActive : null]}>
-                              {(h.location || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
-                            </Text>
-                          </Pressable>
-                        ))}
-                      </View>
-                    </View>
-                  )}
+                  
                   <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Где расположено (название вклада)</Text>
-                      <TextInput style={styles.input} value={newEmergencyTx.location} onChangeText={(t) => setNewEmergencyTx(v => ({ ...v, location: t }))} placeholder="Банк, брокер, акция/тикер..." />
-                      {emergencyHoldings.length > 0 && (
-                        <View style={styles.pickerContainer}>
-                          {emergencyHoldings
-                            .filter(h => !newEmergencyTx.currency || (h.currency || 'USD') === (newEmergencyTx.currency || ''))
-                            .filter(h => {
+                      <View style={styles.dropdownWrapper}>
+                        <TextInput
+                          style={styles.input}
+                          value={newEmergencyTx.location}
+                          onChangeText={(t) => { setNewEmergencyTx(v => ({ ...v, location: t })); setShowEmergencyLocationDropdown(true); }}
+                          onFocus={() => setShowEmergencyLocationDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowEmergencyLocationDropdown(false), 150)}
+                          placeholder="Банк, брокер, акция/тикер..."
+                        />
+                        {showEmergencyLocationDropdown ? (
+                          <View style={styles.dropdown}>
+                            {(() => {
                               const q = (newEmergencyTx.location || '').toLowerCase();
-                              if (!q) return true;
-                              return (h.location || '').toLowerCase().includes(q);
-                            })
-                            .slice(0, 8)
-                            .map(h => (
-                              <Pressable key={`drop-em-${h.currency}:${h.location}`} style={[styles.pickerOption, (newEmergencyTx.location||'') === h.location && (newEmergencyTx.currency||'USD') === h.currency ? styles.pickerOptionActive : null]} onPress={() => setNewEmergencyTx(v => ({ ...v, location: h.location, currency: h.currency }))}>
-                                <Text style={[styles.pickerText, (newEmergencyTx.location||'') === h.location && (newEmergencyTx.currency||'USD') === h.currency ? styles.pickerTextActive : null]}>{h.location} • {h.currency}</Text>
-                              </Pressable>
-                            ))}
-                        </View>
-                      )}
+                              const cur = (newEmergencyTx.currency || 'USD');
+                              const items = emergencyHoldings
+                                .filter(h => (h.currency || 'USD') === cur)
+                                .filter(h => !q || ((h.location || '').toLowerCase().includes(q)));
+                              if (items.length === 0) {
+                                return (
+                                  <Text style={styles.dropdownEmpty}>Нет совпадений</Text>
+                                );
+                              }
+                              return (
+                                <ScrollView style={styles.dropdownScroll}>
+                                  {items.map(h => (
+                                    <Pressable
+                                      key={`em-dd-${h.currency}:${h.location}`}
+                                      style={styles.dropdownItem}
+                                      onPress={() => {
+                                        setNewEmergencyTx(v => ({ ...v, location: h.location, currency: h.currency }));
+                                        setShowEmergencyLocationDropdown(false);
+                                      }}
+                                    >
+                                      <Text style={styles.dropdownItemText}>
+                                        {(h.location || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
+                                      </Text>
+                                    </Pressable>
+                                  ))}
+                                </ScrollView>
+                              );
+                            })()}
+                          </View>
+                        ) : null}
+                      </View>
+                      
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Заметка</Text>
@@ -3000,15 +3001,6 @@ export default function App() {
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Сумма</Text>
                       <TextInput style={styles.input} value={newInvestTx.amount} onChangeText={(t) => setNewInvestTx(v => ({ ...v, amount: t }))} keyboardType="numeric" placeholder="300" />
-                      {newInvestTx.type === 'out' ? (() => {
-                        const sel = (investHoldings || []).find(h => (h.destination||'') === (newInvestTx.destination||'') && (h.currency||'USD') === ((newInvestTx.currency||'USD')));
-                        if (!sel || !(sel.amount > 0)) return null;
-                        return (
-                          <Pressable style={[styles.addButton, { backgroundColor: '#0f1520', marginTop: 6 }]} onPress={() => setNewInvestTx(v => ({ ...v, amount: String(sel.amount) }))}>
-                            <Text style={styles.addButtonText}>Вставить остаток: {formatCurrencyCustom(sel.amount, sel.currency)}</Text>
-                          </Pressable>
-                        );
-                      })() : null}
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Валюта</Text>
@@ -3036,23 +3028,7 @@ export default function App() {
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Куда конкретно (название направления/вклада)</Text>
                       <TextInput style={styles.input} value={newInvestTx.destination} onChangeText={(t) => setNewInvestTx(v => ({ ...v, destination: t }))} placeholder="Счёт брокера, стратегия, тикер..." />
-                      {investHoldings.length > 0 && (
-                        <View style={styles.pickerContainer}>
-                          {investHoldings
-                            .filter(h => !newInvestTx.currency || (h.currency || 'USD') === (newInvestTx.currency || ''))
-                            .filter(h => {
-                              const q = (newInvestTx.destination || '').toLowerCase();
-                              if (!q) return true;
-                              return (h.destination || '').toLowerCase().includes(q);
-                            })
-                            .slice(0, 8)
-                            .map(h => (
-                              <Pressable key={`drop-inv-${h.currency}:${h.destination}`} style={[styles.pickerOption, (newInvestTx.destination||'') === h.destination && (newInvestTx.currency||'USD') === h.currency ? styles.pickerOptionActive : null]} onPress={() => setNewInvestTx(v => ({ ...v, destination: h.destination, currency: h.currency }))}>
-                                <Text style={[styles.pickerText, (newInvestTx.destination||'') === h.destination && (newInvestTx.currency||'USD') === h.currency ? styles.pickerTextActive : null]}>{h.destination} • {h.currency}</Text>
-                              </Pressable>
-                            ))}
-                        </View>
-                      )}
+                      
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Заметка</Text>
@@ -4235,6 +4211,14 @@ const styles = StyleSheet.create({
   // Profile modal
   profileModalOverlay: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center' },
   profileModal: { width: '90%', maxWidth: 500, borderRadius: 12, borderWidth: 1, padding: 16, backgroundColor: '#fff' },
+
+  // Dropdown styles
+  dropdownWrapper: { position: 'relative' },
+  dropdown: { position: 'absolute', top: 48, left: 0, right: 0, maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50 },
+  dropdownScroll: { maxHeight: 200 },
+  dropdownItem: { paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
+  dropdownItemText: { color: '#e6edf3', fontSize: 14 },
+  dropdownEmpty: { color: '#9fb0c0', fontSize: 12, padding: 10 },
 });
 
 
