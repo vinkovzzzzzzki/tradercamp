@@ -1409,6 +1409,10 @@ export default function App() {
       }
       let items = gathered;
       const dedup = new Map();
+      const countryTokens = (normalizeCountries(newsCountry) || '')
+        .split(',')
+        .map(t => normalizeString(t))
+        .filter(Boolean);
       const mapped = items.map((it, idx) => {
         const dt = it.Date || it.DateUtc || it.DateISO || it.date;
         const dObj = parseTEDateRaw(dt);
@@ -1439,6 +1443,8 @@ export default function App() {
       })
       // Учитываем фильтр важности строго по выбранным уровням
       .filter(it => !!importanceFilters[it.importance])
+      // Клиентский фильтр по странам (на случай, если API проигнорировало параметр country)
+      .filter(it => countryTokens.length === 0 ? true : countryTokens.some(tok => normalizeString(it.country).includes(tok)))
       .sort((a,b) => (a.date === b.date ? (b.time || '').localeCompare(a.time || '') : b.date.localeCompare(a.date)));
       if (mapped.length === 0) {
         setNews([]);
@@ -2739,6 +2745,15 @@ export default function App() {
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Где расположено (название вклада)</Text>
                       <TextInput style={styles.input} value={newEmergencyTx.location} onChangeText={(t) => setNewEmergencyTx(v => ({ ...v, location: t }))} placeholder="Банк, брокер, акция/тикер..." />
+                      {emergencyHoldings.length > 0 && (
+                        <View style={styles.pickerContainer}>
+                          {emergencyHoldings.map(h => (
+                            <Pressable key={`drop-em-${h.currency}:${h.location}`} style={[styles.pickerOption, (newEmergencyTx.location||'') === h.location && (newEmergencyTx.currency||'USD') === h.currency ? styles.pickerOptionActive : null]} onPress={() => setNewEmergencyTx(v => ({ ...v, location: h.location, currency: h.currency }))}>
+                              <Text style={[styles.pickerText, (newEmergencyTx.location||'') === h.location && (newEmergencyTx.currency||'USD') === h.currency ? styles.pickerTextActive : null]}>{h.location} • {h.currency}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Заметка</Text>
@@ -2995,6 +3010,15 @@ export default function App() {
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Куда конкретно (название направления/вклада)</Text>
                       <TextInput style={styles.input} value={newInvestTx.destination} onChangeText={(t) => setNewInvestTx(v => ({ ...v, destination: t }))} placeholder="Счёт брокера, стратегия, тикер..." />
+                      {investHoldings.length > 0 && (
+                        <View style={styles.pickerContainer}>
+                          {investHoldings.map(h => (
+                            <Pressable key={`drop-inv-${h.currency}:${h.destination}`} style={[styles.pickerOption, (newInvestTx.destination||'') === h.destination && (newInvestTx.currency||'USD') === h.currency ? styles.pickerOptionActive : null]} onPress={() => setNewInvestTx(v => ({ ...v, destination: h.destination, currency: h.currency }))}>
+                              <Text style={[styles.pickerText, (newInvestTx.destination||'') === h.destination && (newInvestTx.currency||'USD') === h.currency ? styles.pickerTextActive : null]}>{h.destination} • {h.currency}</Text>
+                            </Pressable>
+                          ))}
+                        </View>
+                      )}
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Заметка</Text>
