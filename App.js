@@ -3009,21 +3009,7 @@ export default function App() {
                       <TextInput style={styles.input} value={newInvestTx.currency} onChangeText={(t) => setNewInvestTx(v => ({ ...v, currency: t.toUpperCase() }))} placeholder="USD" />
                     </View>
                   </View>
-                  {/* Quick select destination: read-only chips */}
-                  {investHoldings.length > 0 && (
-                    <View style={{ marginBottom: 8 }}>
-                      <Text style={styles.filterLabel}>Ваши направления</Text>
-                      <View style={styles.chipsRow}>
-                        {investHoldings.map(h => (
-                          <View key={`invhold-${h.currency}:${h.destination}`} style={styles.chip}>
-                            <Text style={styles.chipText}>
-                              {(h.destination || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    </View>
-                  )}
+                  {/* Removed directions chips in Investments as requested */}
                   <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Куда конкретно (название направления/вклада)</Text>
