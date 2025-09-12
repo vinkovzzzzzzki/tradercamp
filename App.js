@@ -3315,14 +3315,7 @@ export default function App() {
                       </Pressable>
                     ))}
                   </View>
-                  <View style={[styles.inputRow, { marginTop: 8 }]}>
-                    <Pressable style={[styles.addButton, { backgroundColor: '#ef4444', flex: 1 }]} onPress={() => setNewTrade(v => ({ ...v, stopLoss: v.stopLoss || v.price }))}>
-                      <Text style={styles.addButtonText}>Установить Stop Loss</Text>
-                    </Pressable>
-                    <Pressable style={[styles.addButton, { backgroundColor: '#10b981', flex: 1 }]} onPress={() => setNewTrade(v => ({ ...v, takeProfit: v.takeProfit || v.price }))}>
-                      <Text style={styles.addButtonText}>Установить Take Profit</Text>
-                    </Pressable>
-                  </View>
+                  
                 </View>
               </View>
               <View style={styles.inputRow}>
@@ -3334,26 +3327,6 @@ export default function App() {
                   <Text style={styles.label}>Цена</Text>
                   <TextInput style={styles.input} value={newTrade.price} onChangeText={(t) => setNewTrade(v => ({ ...v, price: t }))} keyboardType="numeric" placeholder="60000" />
                 </View>
-              </View>
-              {/* Position size by risk */}
-              <View style={styles.inputRow}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Счёт ($)</Text>
-                  <TextInput style={styles.input} value={riskCalc.account} onChangeText={(t) => setRiskCalc(v => ({ ...v, account: t }))} keyboardType="numeric" placeholder="10000" />
-                </View>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Риск (%)</Text>
-                  <TextInput style={styles.input} value={riskCalc.riskPct} onChangeText={(t) => setRiskCalc(v => ({ ...v, riskPct: t }))} keyboardType="numeric" placeholder="1" />
-                </View>
-              </View>
-              <View style={styles.inputRow}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>SL для расчёта</Text>
-                  <TextInput style={styles.input} value={riskCalc.slPrice} onChangeText={(t) => setRiskCalc(v => ({ ...v, slPrice: t }))} keyboardType="numeric" placeholder="58000" />
-                </View>
-                <Pressable style={[styles.addButton, { flex: 1, alignSelf: 'flex-end' }]} onPress={applyRiskPositionSize}><Text style={styles.addButtonText}>Рассчитать размер</Text></Pressable>
-              </View>
-              <View style={styles.inputRow}>
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Stop Loss</Text>
                   <TextInput style={styles.input} value={newTrade.stopLoss} onChangeText={(t) => setNewTrade(v => ({ ...v, stopLoss: t }))} keyboardType="numeric" placeholder="58000" />
@@ -3361,73 +3334,6 @@ export default function App() {
                 <View style={styles.inputGroup}>
                   <Text style={styles.label}>Take Profit</Text>
                   <TextInput style={styles.input} value={newTrade.takeProfit} onChangeText={(t) => setNewTrade(v => ({ ...v, takeProfit: t }))} keyboardType="numeric" placeholder="63000" />
-                </View>
-              </View>
-              {/* Quick SL assists */}
-              <View style={styles.inputRow}>
-                <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => {
-                  const priceN = parseNumberSafe(newTrade.price);
-                  if (!Number.isFinite(priceN) || priceN <= 0) { Alert.alert('SL', 'Сначала укажите цену входа'); return; }
-                  const pct = 1; // 1%
-                  const offset = priceN * (pct/100);
-                  const sl = newTrade.side === 'BUY' ? (priceN - offset) : (priceN + offset);
-                  setNewTrade(v => ({ ...v, stopLoss: String(sl.toFixed(2)) }));
-                }}><Text style={styles.addButtonText}>SL -1%</Text></Pressable>
-                <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => {
-                  const priceN = parseNumberSafe(newTrade.price);
-                  if (!Number.isFinite(priceN) || priceN <= 0) { Alert.alert('SL', 'Сначала укажите цену входа'); return; }
-                  const pct = 2; // 2%
-                  const offset = priceN * (pct/100);
-                  const sl = newTrade.side === 'BUY' ? (priceN - offset) : (priceN + offset);
-                  setNewTrade(v => ({ ...v, stopLoss: String(sl.toFixed(2)) }));
-                }}><Text style={styles.addButtonText}>SL -2%</Text></Pressable>
-                <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => {
-                  const priceN = parseNumberSafe(newTrade.price);
-                  if (!Number.isFinite(priceN) || priceN <= 0) { Alert.alert('SL', 'Сначала укажите цену входа'); return; }
-                  const amt = 100; // $100
-                  const sl = newTrade.side === 'BUY' ? (priceN - amt) : (priceN + amt);
-                  setNewTrade(v => ({ ...v, stopLoss: String(sl.toFixed(2)) }));
-                }}><Text style={styles.addButtonText}>SL -$100</Text></Pressable>
-              </View>
-              {/* Auto TP by R:R */}
-              <View style={styles.inputRow}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Целевой R:R</Text>
-                  <View style={styles.pickerContainer}>
-                    {[ '1', '1.5', '2', '3' ].map(v => (
-                      <Pressable key={v} style={[styles.pickerOption, rrTarget === v ? styles.pickerOptionActive : null]} onPress={() => setRrTarget(v)}>
-                        <Text style={[styles.pickerText, rrTarget === v ? styles.pickerTextActive : null]}>{v}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-                <Pressable style={[styles.addButton, { flex: 1, alignSelf: 'flex-end' }]} onPress={applyAutoTakeProfit}><Text style={styles.addButtonText}>Рассчитать TP</Text></Pressable>
-              </View>
-              {/* Trailing stop config */}
-              <View style={styles.inputRow}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Трейлинг-стоп</Text>
-                  <View style={styles.pickerContainer}>
-                    {[{k:false,l:'Выкл.'},{k:true,l:'Вкл.'}].map(o => (
-                      <Pressable key={String(o.k)} style={[styles.pickerOption, newTrade.trailingEnabled === o.k ? styles.pickerOptionActive : null]} onPress={() => setNewTrade(v => ({ ...v, trailingEnabled: o.k }))}>
-                        <Text style={[styles.pickerText, newTrade.trailingEnabled === o.k ? styles.pickerTextActive : null]}>{o.l}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Тип</Text>
-                  <View style={styles.pickerContainer}>
-                    {[{k:'percent',l:'% от цены'},{k:'amount',l:'Сумма ($)'}].map(o => (
-                      <Pressable key={o.k} style={[styles.pickerOption, newTrade.trailingType === o.k ? styles.pickerOptionActive : null]} onPress={() => setNewTrade(v => ({ ...v, trailingType: o.k }))}>
-                        <Text style={[styles.pickerText, newTrade.trailingType === o.k ? styles.pickerTextActive : null]}>{o.l}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Значение</Text>
-                  <TextInput style={styles.input} value={newTrade.trailingValue} onChangeText={(t) => setNewTrade(v => ({ ...v, trailingValue: t }))} keyboardType="numeric" placeholder={newTrade.trailingType === 'percent' ? '0.5' : '100'} />
                 </View>
               </View>
               <View style={styles.inputRow}>
