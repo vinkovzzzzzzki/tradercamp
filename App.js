@@ -1822,6 +1822,7 @@ export default function App() {
       .sort((a, b) => (b.amount - a.amount));
   }, [currentFinance]);
   const [showEmergencyLocationDropdown, setShowEmergencyLocationDropdown] = useState(false);
+  const [showInvestDestinationDropdown, setShowInvestDestinationDropdown] = useState(false);
 
   const investHoldings = useMemo(() => {
     const list = currentFinance?.investTx || [];
@@ -2770,6 +2771,7 @@ export default function App() {
                             })()}
                           </View>
                         ) : null}
+                        {showEmergencyLocationDropdown ? (<View style={styles.dropdownSpacer} />) : null}
                       </View>
                       
                     </View>
@@ -3007,19 +3009,17 @@ export default function App() {
                       <TextInput style={styles.input} value={newInvestTx.currency} onChangeText={(t) => setNewInvestTx(v => ({ ...v, currency: t.toUpperCase() }))} placeholder="USD" />
                     </View>
                   </View>
-                  {/* Quick select destination: chips only */}
+                  {/* Quick select destination: read-only chips */}
                   {investHoldings.length > 0 && (
                     <View style={{ marginBottom: 8 }}>
-                      <Text style={styles.filterLabel}>Выберите направление</Text>
+                      <Text style={styles.filterLabel}>Ваши направления</Text>
                       <View style={styles.chipsRow}>
                         {investHoldings.map(h => (
-                          <Pressable key={`invpick-${h.currency}:${h.destination}`}
-                            style={[styles.chip, (newInvestTx.destination || '') === h.destination && (newInvestTx.currency || 'USD') === h.currency ? styles.chipActive : null]}
-                            onPress={() => setNewInvestTx(v => ({ ...v, destination: h.destination, currency: h.currency }))}>
-                            <Text style={[styles.chipText, (newInvestTx.destination || '') === h.destination && (newInvestTx.currency || 'USD') === h.currency ? styles.chipTextActive : null]}>
+                          <View key={`invhold-${h.currency}:${h.destination}`} style={styles.chip}>
+                            <Text style={styles.chipText}>
                               {(h.destination || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
                             </Text>
-                          </Pressable>
+                          </View>
                         ))}
                       </View>
                     </View>
@@ -3027,8 +3027,51 @@ export default function App() {
                   <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Куда конкретно (название направления/вклада)</Text>
-                      <TextInput style={styles.input} value={newInvestTx.destination} onChangeText={(t) => setNewInvestTx(v => ({ ...v, destination: t }))} placeholder="Счёт брокера, стратегия, тикер..." />
-                      
+                      <View style={styles.dropdownWrapper}>
+                        <TextInput
+                          style={styles.input}
+                          value={newInvestTx.destination}
+                          onChangeText={(t) => { setNewInvestTx(v => ({ ...v, destination: t })); setShowInvestDestinationDropdown(true); }}
+                          onFocus={() => setShowInvestDestinationDropdown(true)}
+                          onBlur={() => setTimeout(() => setShowInvestDestinationDropdown(false), 150)}
+                          placeholder="Счёт брокера, стратегия, тикер..."
+                        />
+                        {showInvestDestinationDropdown ? (
+                          <View style={styles.dropdown}>
+                            {(() => {
+                              const q = (newInvestTx.destination || '').toLowerCase();
+                              const cur = (newInvestTx.currency || 'USD');
+                              const items = investHoldings
+                                .filter(h => (h.currency || 'USD') === cur)
+                                .filter(h => !q || ((h.destination || '').toLowerCase().includes(q)));
+                              if (items.length === 0) {
+                                return (
+                                  <Text style={styles.dropdownEmpty}>Нет совпадений</Text>
+                                );
+                              }
+                              return (
+                                <ScrollView style={styles.dropdownScroll}>
+                                  {items.map(h => (
+                                    <Pressable
+                                      key={`inv-dd-${h.currency}:${h.destination}`}
+                                      style={styles.dropdownItem}
+                                      onPress={() => {
+                                        setNewInvestTx(v => ({ ...v, destination: h.destination, currency: h.currency }));
+                                        setShowInvestDestinationDropdown(false);
+                                      }}
+                                    >
+                                      <Text style={styles.dropdownItemText}>
+                                        {(h.destination || '—')} • {formatCurrencyCustom(h.amount, h.currency)}
+                                      </Text>
+                                    </Pressable>
+                                  ))}
+                                </ScrollView>
+                              );
+                            })()}
+                          </View>
+                        ) : null}
+                        {showInvestDestinationDropdown ? (<View style={styles.dropdownSpacer} />) : null}
+                      </View>
                     </View>
                     <View style={styles.inputGroup}>
                       <Text style={styles.label}>Заметка</Text>
@@ -4219,6 +4262,7 @@ const styles = StyleSheet.create({
   dropdownItem: { paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
   dropdownItemText: { color: '#e6edf3', fontSize: 14 },
   dropdownEmpty: { color: '#9fb0c0', fontSize: 12, padding: 10 },
+  dropdownSpacer: { height: 210 },
 });
 
 
