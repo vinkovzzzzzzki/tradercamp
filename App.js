@@ -4220,9 +4220,9 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0b0f14' },
-  header: { backgroundColor: '#121820', paddingTop: 50, paddingBottom: 12, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
+  header: { backgroundColor: '#121820', paddingTop: 20, paddingBottom: 8, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
   title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 12, color: '#e6edf3' },
-  brandLogo: { width: 560, height: 240, alignSelf: 'center', marginBottom: 6 },
+  brandLogo: { width: 280, height: 120, alignSelf: 'center', marginBottom: 0 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   stickyTopBar: { position: 'sticky', top: 0, zIndex: 1000, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   tabContainer: { flex: 1, flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4 },
@@ -4312,8 +4312,8 @@ const styles = StyleSheet.create({
   chartToggleText: { fontSize: 12, color: '#9fb0c0' },
   chartToggleTextActive: { color: '#fff', fontWeight: '600' },
   linearChart: { marginBottom: 12 },
-  chartContainer: { height: 120, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', backgroundColor: '#0f1520', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#1f2a36' },
-  chartLine: { width: 30, borderRadius: 4, minHeight: 4 },
+  chartContainer: { height: 120, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', backgroundColor: '#0f1520', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#1f2a36', gap: 8 },
+  chartLine: { width: 40, borderRadius: 4, minHeight: 4 },
   chartLegend: { gap: 6 },
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   legendColor: { width: 12, height: 12, borderRadius: 2 },
