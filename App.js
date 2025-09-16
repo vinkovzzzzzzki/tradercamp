@@ -1,5 +1,5 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, Image, Platform } from 'react-native';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, Image, Platform, Animated, LayoutAnimation, UIManager } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import * as ImagePicker from 'expo-image-picker';
@@ -24,8 +24,17 @@ const storage = {
   },
 };
 
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android') {
+  UIManager.setLayoutAnimationEnabledExperimental && UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
 export default function App() {
   const [tab, setTab] = useState('finance');
+  
+  // Animation refs
+  const tabAnimation = useRef(new Animated.Value(0)).current;
+  const dropdownAnimations = useRef({}).current;
 
   // Auth state
   const [users, setUsers] = useState(() => storage.get('users', [
@@ -373,6 +382,35 @@ export default function App() {
   // Finance filters
   const [emFilter, setEmFilter] = useState({ type: 'All', currency: 'All', q: '' });
   const [invFilter, setInvFilter] = useState({ type: 'All', currency: 'All', q: '' });
+  // Chart visibility toggles
+  const [chartVisibility, setChartVisibility] = useState({ debts: true, cushion: true, investments: true });
+  
+  // Animation functions
+  const animateTabChange = (newTab) => {
+    LayoutAnimation.configureNext({
+      duration: 300,
+      create: { type: 'easeInEaseOut', property: 'opacity' },
+      update: { type: 'easeInEaseOut' },
+      delete: { type: 'easeInEaseOut', property: 'opacity' }
+    });
+    setTab(newTab);
+  };
+  
+  const getDropdownAnimation = (key) => {
+    if (!dropdownAnimations[key]) {
+      dropdownAnimations[key] = new Animated.Value(0);
+    }
+    return dropdownAnimations[key];
+  };
+  
+  const animateDropdown = (key, show) => {
+    const animValue = getDropdownAnimation(key);
+    Animated.timing(animValue, {
+      toValue: show ? 1 : 0,
+      duration: 200,
+      useNativeDriver: true,
+    }).start();
+  };
   // Transfers between holdings
   const [newEmergencyTransfer, setNewEmergencyTransfer] = useState({ fromLocation: '', toLocation: '', currency: 'USD', amount: '' });
   const [newInvestTransfer, setNewInvestTransfer] = useState({ fromDestination: '', toDestination: '', currency: 'USD', amount: '' });
@@ -2206,7 +2244,8 @@ export default function App() {
 
       {/* Header */}
       <View style={[styles.header, isDark ? { backgroundColor: '#121820', borderBottomColor: '#1f2a36' } : null]}>
-        <View style={styles.topBar}>
+        {/* Sticky top bar */}
+        <View style={[styles.stickyTopBar, isDark ? { backgroundColor: '#121820' } : null]}>
           <View style={{ flex: 1 }} />
           <View style={styles.authStatus}>
             <Text style={[styles.authStatusText, isDark ? { color: '#9fb0c0' } : null]}>{currentUser ? `@${currentUser.nickname}` : 'Гость'}</Text>
@@ -2214,6 +2253,14 @@ export default function App() {
               <Pressable style={styles.logoutBtn} onPress={logout}><Text style={styles.logoutText}>Выйти</Text></Pressable>
             )}
           </View>
+        </View>
+        {/* Static logo in header (does not scroll) */}
+        <View style={{ alignItems: 'center', marginTop: 8 }}>
+          <Image
+            source={require('./assets/investcamp-logo.png')}
+            style={styles.brandLogo}
+            resizeMode="contain"
+          />
         </View>
       </View>
 
@@ -2316,15 +2363,7 @@ export default function App() {
 
       {/* Content */}
       <ScrollView style={styles.content}>
-        {/* Brand banner (scrolls with content) */}
-        <View style={{ alignItems: 'center', marginBottom: 12 }}>
-          <Image
-            source={require('./assets/investcamp-logo.png')}
-            style={styles.brandLogo}
-            resizeMode="contain"
-          />
-        </View>
-      {/* The rest of the content continues here and the ScrollView is properly closed at the end of the component */}
+        {/* The rest of the content continues here and the ScrollView is properly closed at the end of the component */}
 
         {/* Tabs (moved below the logo) */}
         <View style={[styles.tabContainer, isDark ? { backgroundColor: '#1b2430' } : null]}>
@@ -2335,9 +2374,21 @@ export default function App() {
             { key: 'community', label: 'Сообщество' },
             { key: 'profile', label: 'Профиль' },
           ].map(({ key, label }) => (
-            <Pressable key={key} style={[styles.tab, tab === key ? styles.activeTab : styles.inactiveTab]} onPress={() => setTab(key)}>
-              <Text style={[styles.tabText, tab === key ? styles.activeTabText : (isDark ? { color: '#9fb0c0' } : styles.inactiveTabText)]}>{label}</Text>
-            </Pressable>
+            <Animated.View key={key} style={{ flex: 1 }}>
+              <Pressable 
+                style={[styles.tab, tab === key ? styles.activeTab : styles.inactiveTab]} 
+                onPress={() => animateTabChange(key)}
+                onPressIn={(e) => {
+                  // Hover effect simulation
+                  e.target.style.transform = 'scale(0.95)';
+                }}
+                onPressOut={(e) => {
+                  e.target.style.transform = 'scale(1)';
+                }}
+              >
+                <Text style={[styles.tabText, tab === key ? styles.activeTabText : (isDark ? { color: '#9fb0c0' } : styles.inactiveTabText)]}>{label}</Text>
+              </Pressable>
+            </Animated.View>
           ))}
         </View>
         
@@ -2372,21 +2423,78 @@ export default function App() {
               <Text style={styles.cardTitle}>📊 Сводный баланс</Text>
               {currentUser ? (
                 <>
+                  {/* Chart visibility toggles */}
+                  <View style={styles.chartToggles}>
+                    <Pressable 
+                      style={[styles.chartToggle, chartVisibility.debts ? styles.chartToggleActive : null]} 
+                      onPress={() => setChartVisibility(v => ({ ...v, debts: !v.debts }))}
+                    >
+                      <Text style={[styles.chartToggleText, chartVisibility.debts ? styles.chartToggleTextActive : null]}>Долги</Text>
+                    </Pressable>
+                    <Pressable 
+                      style={[styles.chartToggle, chartVisibility.cushion ? styles.chartToggleActive : null]} 
+                      onPress={() => setChartVisibility(v => ({ ...v, cushion: !v.cushion }))}
+                    >
+                      <Text style={[styles.chartToggleText, chartVisibility.cushion ? styles.chartToggleTextActive : null]}>Подушка</Text>
+                    </Pressable>
+                    <Pressable 
+                      style={[styles.chartToggle, chartVisibility.investments ? styles.chartToggleActive : null]} 
+                      onPress={() => setChartVisibility(v => ({ ...v, investments: !v.investments }))}
+                    >
+                      <Text style={[styles.chartToggleText, chartVisibility.investments ? styles.chartToggleTextActive : null]}>Инвестиции</Text>
+                    </Pressable>
+                  </View>
+                  
                   {(() => {
                     const totalDebt = (sortedDebts || []).reduce((s, d) => s + (d.amount || 0), 0);
                     const cushion = cashReserve;
                     const invest = investmentBalance;
-                    const maxVal = Math.max(totalDebt, cushion, invest, 1);
-                    const bar = (val, color) => ({ width: `${Math.min(100, (val / maxVal) * 100)}%`, height: 10, backgroundColor: color, borderRadius: 6 });
+                    const visibleValues = [];
+                    if (chartVisibility.debts) visibleValues.push(totalDebt);
+                    if (chartVisibility.cushion) visibleValues.push(cushion);
+                    if (chartVisibility.investments) visibleValues.push(invest);
+                    const maxVal = Math.max(...visibleValues, 1);
+                    
                     const delta = cushion + invest - totalDebt;
                     return (
                       <View>
-                        <View style={styles.barRow}><View style={bar(totalDebt, '#ef4444')} /></View>
-                        <Text style={styles.barLabel}>Долги: {formatCurrencyCustom(totalDebt, (sortedDebts[0]?.currency) || 'USD')}</Text>
-                        <View style={styles.barRow}><View style={bar(cushion, '#3b82f6')} /></View>
-                        <Text style={styles.barLabel}>Подушка: {formatCurrencyCustom(cushion, 'USD')}</Text>
-                        <View style={styles.barRow}><View style={bar(invest, '#10b981')} /></View>
-                        <Text style={styles.barLabel}>Инвестиции: {formatCurrencyCustom(invest, (currentFinance?.investTx?.[0]?.currency) || 'USD')}</Text>
+                        {/* Linear chart representation */}
+                        <View style={styles.linearChart}>
+                          <View style={styles.chartContainer}>
+                            {chartVisibility.debts && (
+                              <View style={[styles.chartLine, { height: `${Math.min(100, (totalDebt / maxVal) * 100)}%`, backgroundColor: '#ef4444' }]} />
+                            )}
+                            {chartVisibility.cushion && (
+                              <View style={[styles.chartLine, { height: `${Math.min(100, (cushion / maxVal) * 100)}%`, backgroundColor: '#3b82f6' }]} />
+                            )}
+                            {chartVisibility.investments && (
+                              <View style={[styles.chartLine, { height: `${Math.min(100, (invest / maxVal) * 100)}%`, backgroundColor: '#10b981' }]} />
+                            )}
+                          </View>
+                        </View>
+                        
+                        {/* Legend */}
+                        <View style={styles.chartLegend}>
+                          {chartVisibility.debts && (
+                            <View style={styles.legendItem}>
+                              <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
+                              <Text style={styles.legendText}>Долги: {formatCurrencyCustom(totalDebt, (sortedDebts[0]?.currency) || 'USD')}</Text>
+                            </View>
+                          )}
+                          {chartVisibility.cushion && (
+                            <View style={styles.legendItem}>
+                              <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
+                              <Text style={styles.legendText}>Подушка: {formatCurrencyCustom(cushion, 'USD')}</Text>
+                            </View>
+                          )}
+                          {chartVisibility.investments && (
+                            <View style={styles.legendItem}>
+                              <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
+                              <Text style={styles.legendText}>Инвестиции: {formatCurrencyCustom(invest, (currentFinance?.investTx?.[0]?.currency) || 'USD')}</Text>
+                            </View>
+                          )}
+                        </View>
+                        
                         <Text style={[styles.resultTitle, { marginTop: 8 }]}>Итоговая дельта: {formatCurrencyCustom(delta, 'USD')}</Text>
                       </View>
                     );
@@ -4116,8 +4224,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 12, color: '#e6edf3' },
   brandLogo: { width: 560, height: 240, alignSelf: 'center', marginBottom: 6 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stickyTopBar: { position: 'sticky', top: 0, zIndex: 1000, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   tabContainer: { flex: 1, flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4 },
-  tab: { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center' },
+  tab: { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center', transition: 'all 0.3s ease' },
   activeTab: { backgroundColor: '#1f6feb' },
   inactiveTab: { backgroundColor: 'transparent' },
   tabText: { fontSize: 12, fontWeight: '600', color: '#9fb0c0' },
@@ -4129,7 +4238,7 @@ const styles = StyleSheet.create({
   logoutText: { color: '#fff', fontWeight: '600' },
 
   content: { flex: 1, padding: 20 },
-  card: { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
+  card: { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3, transition: 'all 0.3s ease' },
   cardTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#e6edf3' },
   cardDescription: { fontSize: 14, color: '#9fb0c0', marginBottom: 16 },
   plannerRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
@@ -4161,7 +4270,7 @@ const styles = StyleSheet.create({
   emergencyTextWarning: { color: '#000' },
   emergencyGoal: { fontSize: 13, color: '#666' },
   emergencyRecommendation: { fontSize: 12, color: '#666', marginTop: 6, fontStyle: 'italic' },
-  addButton: { backgroundColor: '#10b981', borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 8 },
+  addButton: { backgroundColor: '#10b981', borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 8, transition: 'all 0.2s ease' },
   addButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
   filterContainer: { marginBottom: 12 },
   filterGroup: { marginBottom: 10 },
@@ -4195,6 +4304,20 @@ const styles = StyleSheet.create({
   chipActive: { backgroundColor: '#1f6feb' },
   chipText: { fontSize: 12, color: '#9fb0c0' },
   chipTextActive: { color: '#fff', fontWeight: '600' },
+
+  // Chart styles
+  chartToggles: { flexDirection: 'row', gap: 8, marginBottom: 12, flexWrap: 'wrap' },
+  chartToggle: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#1b2430', borderWidth: 1, borderColor: '#1f2a36' },
+  chartToggleActive: { backgroundColor: '#1f6feb', borderColor: '#1f6feb' },
+  chartToggleText: { fontSize: 12, color: '#9fb0c0' },
+  chartToggleTextActive: { color: '#fff', fontWeight: '600' },
+  linearChart: { marginBottom: 12 },
+  chartContainer: { height: 120, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-around', backgroundColor: '#0f1520', borderRadius: 8, padding: 8, borderWidth: 1, borderColor: '#1f2a36' },
+  chartLine: { width: 30, borderRadius: 4, minHeight: 4 },
+  chartLegend: { gap: 6 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  legendColor: { width: 12, height: 12, borderRadius: 2 },
+  legendText: { fontSize: 13, color: '#e6edf3' },
 
   workoutList: { marginTop: 8 },
   workoutItem: { borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 12, marginBottom: 8 },
@@ -4274,9 +4397,9 @@ const styles = StyleSheet.create({
 
   // Dropdown styles
   dropdownWrapper: { position: 'relative' },
-  dropdown: { position: 'absolute', top: 48, left: 0, right: 0, maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50 },
+  dropdown: { position: 'absolute', top: 48, left: 0, right: 0, maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
   dropdownScroll: { maxHeight: 200 },
-  dropdownItem: { paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
+  dropdownItem: { paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1f2a36', transition: 'background-color 0.2s ease' },
   dropdownItemText: { color: '#e6edf3', fontSize: 14 },
   dropdownEmpty: { color: '#9fb0c0', fontSize: 12, padding: 10 },
   dropdownSpacer: { height: 210 },
