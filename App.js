@@ -2255,7 +2255,7 @@ export default function App() {
           </View>
         </View>
         {/* Static logo in header (does not scroll) */}
-        <View style={{ alignItems: 'center', marginTop: 8 }}>
+        <View style={{ alignItems: 'center', marginTop: 4 }}>
           <Image
             source={require('./assets/investcamp-logo.png')}
             style={styles.brandLogo}
@@ -4220,7 +4220,7 @@ export default function App() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0b0f14' },
-  header: { backgroundColor: '#121820', paddingTop: 20, paddingBottom: 8, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
+  header: { backgroundColor: '#121820', paddingTop: 10, paddingBottom: 4, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
   title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 12, color: '#e6edf3' },
   brandLogo: { width: 280, height: 120, alignSelf: 'center', marginBottom: 0 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
