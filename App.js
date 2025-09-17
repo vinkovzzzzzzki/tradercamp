@@ -524,8 +524,6 @@ export default function App() {
     { id: 'education', name: 'Обучение', color: '#ef4444', icon: '📚' },
     { id: 'other', name: 'Другое', color: '#6b7280', icon: '📅' }
   ]);
-  const [quickEventText, setQuickEventText] = useState('');
-  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   const toISODate = (d) => {
     const dt = (d instanceof Date) ? d : new Date(d);
@@ -603,34 +601,6 @@ export default function App() {
     setPlannerComposeOpen(true);
   };
   
-  // Quick event creation
-  const createQuickEvent = () => {
-    if (!currentUser || !quickEventText.trim()) return;
-    
-    const today = new Date();
-    const time = `${pad2(today.getHours())}:${pad2(today.getMinutes())}`;
-    const endTime = `${pad2((today.getHours() + 1) % 24)}:${pad2(today.getMinutes())}`;
-    
-    const newId = events.length ? Math.max(...events.map(e => e.id)) + 1 : 1;
-    const quickEvent = {
-      id: newId,
-      userId: currentUser.id || 0,
-      date: toISODate(today),
-      time: time,
-      endTime: endTime,
-      title: quickEventText.trim(),
-      notes: '',
-      category: 'other',
-      reminders: [15]
-    };
-    
-    setEvents(prev => [...prev, quickEvent]);
-    setQuickEventText('');
-    setShowQuickAdd(false);
-    
-    // Schedule notification
-    scheduleEventReminder(quickEvent);
-  };
   const openComposeForDateTime = (dateISO, timeHHMM) => {
     if (!currentUser) return;
     const t = timeHHMM || '10:00';
@@ -3677,37 +3647,6 @@ export default function App() {
 
         {tab === 'planner' && (
           <>
-            {/* Quick Add Panel */}
-            {currentUser && (
-              <View style={[styles.card, { paddingBottom: 12 }]}>
-                <View style={[styles.inputRow, { alignItems: 'center' }]}>
-                  <Pressable 
-                    style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} 
-                    onPress={() => setShowQuickAdd(!showQuickAdd)}
-                  >
-                    <Text style={styles.addButtonText}>+ Быстрое добавление</Text>
-                  </Pressable>
-                </View>
-                
-                {showQuickAdd && (
-                  <View style={[styles.inputRow, { marginTop: 12 }]}>
-                    <TextInput 
-                      style={[styles.input, { flex: 1 }]} 
-                      value={quickEventText}
-                      onChangeText={setQuickEventText}
-                      placeholder="Введите название события..."
-                      onSubmitEditing={createQuickEvent}
-                    />
-                    <Pressable 
-                      style={[styles.addButton, { backgroundColor: '#10b981', marginLeft: 8 }]} 
-                      onPress={createQuickEvent}
-                    >
-                      <Text style={styles.addButtonText}>Добавить</Text>
-                    </Pressable>
-                  </View>
-                )}
-              </View>
-            )}
 
             {/* Planner toolbar (Google Calendar–like) */}
             <View style={[styles.card, { paddingBottom: 12 }]}>
