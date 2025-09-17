@@ -1,3 +1,4 @@
+// Version 3d05557 - Ultra-compact header design
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, Image, Platform, Animated, LayoutAnimation, UIManager } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
