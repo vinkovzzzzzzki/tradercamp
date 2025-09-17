@@ -2537,7 +2537,7 @@ export default function App() {
                     const delta = cushion + invest - totalDebt;
                     return (
                       <View style={styles.compactVerticalLayout}>
-                        {/* Compact vertical chart */}
+                        {/* Compact vertical chart - fixed width */}
                         <View style={styles.compactVerticalChart}>
                           <View style={styles.compactChartContainer}>
                             {chartVisibility.debts && (
@@ -2552,29 +2552,31 @@ export default function App() {
                           </View>
                         </View>
                         
-                        {/* Legend */}
-                        <View style={styles.compactLegend}>
-                          {chartVisibility.debts && (
-                            <View style={styles.legendItem}>
-                              <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
-                              <Text style={styles.legendText}>Долги: {formatCurrencyCustom(totalDebt, (sortedDebts[0]?.currency) || 'USD')}</Text>
-                            </View>
-                          )}
-                          {chartVisibility.cushion && (
-                            <View style={styles.legendItem}>
-                              <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
-                              <Text style={styles.legendText}>Подушка: {formatCurrencyCustom(cushion, 'USD')}</Text>
-                            </View>
-                          )}
-                          {chartVisibility.investments && (
-                            <View style={styles.legendItem}>
-                              <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
-                              <Text style={styles.legendText}>Инвестиции: {formatCurrencyCustom(invest, (currentFinance?.investTx?.[0]?.currency) || 'USD')}</Text>
-                            </View>
-                          )}
+                        {/* Legend and delta - right side */}
+                        <View style={styles.compactRightSide}>
+                          <View style={styles.compactLegend}>
+                            {chartVisibility.debts && (
+                              <View style={styles.legendItem}>
+                                <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
+                                <Text style={styles.legendText}>Долги: {formatCurrencyCustom(totalDebt, (sortedDebts[0]?.currency) || 'USD')}</Text>
+                              </View>
+                            )}
+                            {chartVisibility.cushion && (
+                              <View style={styles.legendItem}>
+                                <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
+                                <Text style={styles.legendText}>Подушка: {formatCurrencyCustom(cushion, 'USD')}</Text>
+                              </View>
+                            )}
+                            {chartVisibility.investments && (
+                              <View style={styles.legendItem}>
+                                <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
+                                <Text style={styles.legendText}>Инвестиции: {formatCurrencyCustom(invest, (currentFinance?.investTx?.[0]?.currency) || 'USD')}</Text>
+                              </View>
+                            )}
+                          </View>
+                          
+                          <Text style={styles.compactDelta}>Итог: {formatCurrencyCustom(delta, 'USD')}</Text>
                         </View>
-                        
-                        <Text style={styles.compactDelta}>Итог: {formatCurrencyCustom(delta, 'USD')}</Text>
                       </View>
                     );
                   })()}
@@ -4458,10 +4460,11 @@ const styles = StyleSheet.create({
   compactToggleText: { fontSize: 10, color: '#9fb0c0' },
   compactToggleTextActive: { color: '#fff', fontWeight: '600' },
   compactVerticalLayout: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
-  compactVerticalChart: { flex: 0, width: 80 },
-  compactChartContainer: { height: 60, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', backgroundColor: '#0f1520', borderRadius: 6, padding: 6, borderWidth: 1, borderColor: '#1f2a36', gap: 6 },
-  compactChartLine: { width: 20, borderRadius: 3, minHeight: 4 },
-  compactLegend: { flex: 1, gap: 6 },
+  compactVerticalChart: { width: 100, flexShrink: 0 },
+  compactChartContainer: { height: 60, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', backgroundColor: '#0f1520', borderRadius: 6, padding: 6, borderWidth: 1, borderColor: '#1f2a36', gap: 8 },
+  compactChartLine: { width: 24, borderRadius: 3, minHeight: 4 },
+  compactRightSide: { flex: 1, justifyContent: 'space-between' },
+  compactLegend: { gap: 6 },
   compactDelta: { fontSize: 14, color: '#e6edf3', fontWeight: '700', textAlign: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#1f2a36', marginTop: 8 },
 
   workoutList: { marginTop: 8 },
