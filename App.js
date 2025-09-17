@@ -493,7 +493,7 @@ export default function App() {
     { id: 2, userId: 2, date: '2025-01-21', type: 'Кардио', notes: 'Бег 5 км' },
   ]);
   const [events, setEvents] = useState([
-    { id: 1, userId: 1, date: '2025-01-30', title: 'Ревизия портфеля Q1', notes: 'Перебалансировка 60/40' },
+    { id: 1, userId: 1, date: '2025-01-30', time: '10:00', endTime: '11:00', title: 'Ревизия портфеля Q1', notes: 'Перебалансировка 60/40', category: 'finance', reminders: [15, 60] },
   ]);
   // Planner prefs (daily reminder)
   const [plannerPrefs, setPlannerPrefs] = useState(() => storage.get('plannerPrefs', { enabled: false, time: '22:00', notifId: null }));
@@ -514,6 +514,18 @@ export default function App() {
   const [plannerComposeType, setPlannerComposeType] = useState('event'); // 'event'|'workout'
   const [plannerEditing, setPlannerEditing] = useState(null); // { id: string, type: 'event'|'workout' } | null
   const [plannerShowNews, setPlannerShowNews] = useState(true);
+  
+  // Enhanced calendar features
+  const [eventCategories] = useState([
+    { id: 'work', name: 'Работа', color: '#1f6feb', icon: '💼' },
+    { id: 'personal', name: 'Личное', color: '#10b981', icon: '👤' },
+    { id: 'fitness', name: 'Тренировки', color: '#f59e0b', icon: '💪' },
+    { id: 'finance', name: 'Финансы', color: '#8b5cf6', icon: '💰' },
+    { id: 'education', name: 'Обучение', color: '#ef4444', icon: '📚' },
+    { id: 'other', name: 'Другое', color: '#6b7280', icon: '📅' }
+  ]);
+  const [quickEventText, setQuickEventText] = useState('');
+  const [showQuickAdd, setShowQuickAdd] = useState(false);
 
   const toISODate = (d) => {
     const dt = (d instanceof Date) ? d : new Date(d);
@@ -551,7 +563,16 @@ export default function App() {
     }
     // Events
     for (const ev of (events || [])) {
-      list.push({ id: `e_${ev.id}`, date: ev.date, time: ev.time || '', endTime: ev.endTime || '', title: ev.title || 'Событие', type: 'event' });
+      list.push({ 
+        id: `e_${ev.id}`, 
+        date: ev.date, 
+        time: ev.time || '', 
+        endTime: ev.endTime || '', 
+        title: ev.title || 'Событие', 
+        type: 'event',
+        category: ev.category || 'other',
+        reminders: ev.reminders || []
+      });
     }
     // Sort by date then time
     return list.sort((a,b) => (a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || '')));
@@ -576,27 +597,90 @@ export default function App() {
     const t = '10:00';
     const [hh, mm] = t.split(':').map(Number);
     const end = pad2((hh + 1) % 24) + ':' + pad2(mm || 0);
-    setNewEvent(v => ({ ...v, date: dateISO, time: t, endTime: end }));
+    setNewEvent(v => ({ ...v, date: dateISO, time: t, endTime: end, category: 'other', reminders: [15] }));
     setPlannerComposeType('event');
     setPlannerEditing(null);
     setPlannerComposeOpen(true);
+  };
+  
+  // Quick event creation
+  const createQuickEvent = () => {
+    if (!currentUser || !quickEventText.trim()) return;
+    
+    const today = new Date();
+    const time = `${pad2(today.getHours())}:${pad2(today.getMinutes())}`;
+    const endTime = `${pad2((today.getHours() + 1) % 24)}:${pad2(today.getMinutes())}`;
+    
+    const newId = events.length ? Math.max(...events.map(e => e.id)) + 1 : 1;
+    const quickEvent = {
+      id: newId,
+      userId: currentUser.id || 0,
+      date: toISODate(today),
+      time: time,
+      endTime: endTime,
+      title: quickEventText.trim(),
+      notes: '',
+      category: 'other',
+      reminders: [15]
+    };
+    
+    setEvents(prev => [...prev, quickEvent]);
+    setQuickEventText('');
+    setShowQuickAdd(false);
+    
+    // Schedule notification
+    scheduleEventReminder(quickEvent);
   };
   const openComposeForDateTime = (dateISO, timeHHMM) => {
     if (!currentUser) return;
     const t = timeHHMM || '10:00';
     const [hh, mm] = t.split(':').map(Number);
     const end = pad2((hh + 1) % 24) + ':' + pad2(mm || 0);
-    setNewEvent(v => ({ ...v, date: dateISO, time: t, endTime: end }));
+    setNewEvent(v => ({ ...v, date: dateISO, time: t, endTime: end, category: 'other', reminders: [15] }));
     setPlannerComposeType('event');
     setPlannerEditing(null);
     setPlannerComposeOpen(true);
+  };
+  
+  // Schedule event reminders
+  const scheduleEventReminder = async (event) => {
+    if (!event.reminders || event.reminders.length === 0) return;
+    
+    try {
+      const eventDate = new Date(`${event.date}T${event.time || '10:00'}`);
+      
+      for (const minutesBefore of event.reminders) {
+        const reminderTime = new Date(eventDate.getTime() - minutesBefore * 60000);
+        
+        if (reminderTime > new Date()) {
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: 'Напоминание',
+              body: `${event.title} через ${minutesBefore} мин`
+            },
+            trigger: reminderTime
+          });
+        }
+      }
+    } catch (error) {
+      console.log('Failed to schedule reminder:', error);
+    }
   };
   const openComposeForEdit = (item) => {
     if (!currentUser) return;
     // item: { id, date, time, title, type }
     setPlannerComposeType(item.type === 'workout' ? 'workout' : 'event');
     if (item.type === 'event') {
-      setNewEvent(v => ({ ...v, date: item.date, time: item.time || '', title: item.title || '', notes: v.notes || '' }));
+      const event = events.find(e => `e_${e.id}` === item.id);
+      setNewEvent(v => ({ 
+        ...v, 
+        date: item.date, 
+        time: item.time || '', 
+        title: item.title || '', 
+        notes: event?.notes || '',
+        category: event?.category || 'other',
+        reminders: event?.reminders || [15]
+      }));
     } else {
       // workout
       const w = (workouts || []).find(w => `w_${w.id}` === item.id);
@@ -610,7 +694,20 @@ export default function App() {
     try {
       if (plannerEditing && plannerEditing.type === 'event') {
         const idNum = Number((plannerEditing.id || '').split('_')[1]);
-        setEvents(prev => prev.map(ev => ev.id === idNum ? { ...ev, date: newEvent.date, time: newEvent.time, endTime: newEvent.endTime, title: newEvent.title, notes: newEvent.notes } : ev));
+        const updatedEvent = { 
+          ...events.find(ev => ev.id === idNum), 
+          date: newEvent.date, 
+          time: newEvent.time, 
+          endTime: newEvent.endTime, 
+          title: newEvent.title, 
+          notes: newEvent.notes,
+          category: newEvent.category || 'other',
+          reminders: newEvent.reminders || [15]
+        };
+        setEvents(prev => prev.map(ev => ev.id === idNum ? updatedEvent : ev));
+        
+        // Schedule new reminders
+        scheduleEventReminder(updatedEvent);
       } else if (plannerEditing && plannerEditing.type === 'workout') {
         const idNum = Number((plannerEditing.id || '').split('_')[1]);
         setWorkouts(prev => prev.map(w => w.id === idNum ? { ...w, date: newEvent.date, time: newEvent.time, type: newEvent.title || w.type, notes: newEvent.notes } : w));
@@ -622,7 +719,21 @@ export default function App() {
         } else {
           // create event inline instead of relying on old addEvent
           const newId = (events.length ? Math.max(...events.map(e => e.id)) + 1 : 1);
-          setEvents(prev => ([ ...prev, { id: newId, userId: currentUser.id || 0, date: newEvent.date, time: newEvent.time || '', endTime: newEvent.endTime || '', title: newEvent.title || 'Событие', notes: newEvent.notes || '' } ]));
+          const eventData = { 
+            id: newId, 
+            userId: currentUser.id || 0, 
+            date: newEvent.date, 
+            time: newEvent.time || '', 
+            endTime: newEvent.endTime || '', 
+            title: newEvent.title || 'Событие', 
+            notes: newEvent.notes || '',
+            category: newEvent.category || 'other',
+            reminders: newEvent.reminders || [15]
+          };
+          setEvents(prev => ([ ...prev, eventData ]));
+          
+          // Schedule reminders for new event
+          scheduleEventReminder(eventData);
         }
       }
       // simple per-event reminder (best-effort)
@@ -3566,6 +3677,38 @@ export default function App() {
 
         {tab === 'planner' && (
           <>
+            {/* Quick Add Panel */}
+            {currentUser && (
+              <View style={[styles.card, { paddingBottom: 12 }]}>
+                <View style={[styles.inputRow, { alignItems: 'center' }]}>
+                  <Pressable 
+                    style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} 
+                    onPress={() => setShowQuickAdd(!showQuickAdd)}
+                  >
+                    <Text style={styles.addButtonText}>+ Быстрое добавление</Text>
+                  </Pressable>
+                </View>
+                
+                {showQuickAdd && (
+                  <View style={[styles.inputRow, { marginTop: 12 }]}>
+                    <TextInput 
+                      style={[styles.input, { flex: 1 }]} 
+                      value={quickEventText}
+                      onChangeText={setQuickEventText}
+                      placeholder="Введите название события..."
+                      onSubmitEditing={createQuickEvent}
+                    />
+                    <Pressable 
+                      style={[styles.addButton, { backgroundColor: '#10b981', marginLeft: 8 }]} 
+                      onPress={createQuickEvent}
+                    >
+                      <Text style={styles.addButtonText}>Добавить</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            )}
+
             {/* Planner toolbar (Google Calendar–like) */}
             <View style={[styles.card, { paddingBottom: 12 }]}>
               <View style={[styles.inputRow, { alignItems: 'center' }]}>
@@ -3598,11 +3741,18 @@ export default function App() {
                       cells.push(
                         <Pressable key={iso} style={styles.plannerCell} onPress={() => openComposeForDate(iso)}>
                           <Text style={[styles.plannerCellDate, isSameDay(d, new Date()) ? styles.plannerCellToday : null]}>{d.getDate()}</Text>
-                          {dayEvents.map(ev => (
-                            <Pressable key={ev.id} onPress={() => openComposeForEdit(ev)}>
-                              <Text style={styles.plannerEventItem}>{(ev.time || '')} {ev.title}</Text>
-                  </Pressable>
-                          ))}
+                          {dayEvents.map(ev => {
+                            const category = eventCategories.find(c => c.id === ev.category) || eventCategories[5]; // default to 'other'
+                            return (
+                              <Pressable key={ev.id} onPress={() => openComposeForEdit(ev)}>
+                                <View style={[styles.plannerEventItem, { backgroundColor: category.color + '20', borderLeftColor: category.color, borderLeftWidth: 3 }]}>
+                                  <Text style={[styles.plannerEventText, { color: category.color }]}>
+                                    {category.icon} {(ev.time || '')} {ev.title}
+                                  </Text>
+                                </View>
+                              </Pressable>
+                            );
+                          })}
                           {unifiedPlannerEvents.filter(e => e.date === iso).length > 3 && (
                             <Text style={styles.plannerMore}>ещё {unifiedPlannerEvents.filter(e => e.date === iso).length - 3}…</Text>
                           )}
@@ -3664,7 +3814,7 @@ export default function App() {
             {/* Compose modal (inline lightweight) */}
             {plannerComposeOpen && (
               <View style={[styles.card, { borderColor: '#1f2a36' }]}>
-                <Text style={styles.cardTitle}>Новое событие</Text>
+                <Text style={styles.cardTitle}>{plannerEditing ? 'Редактировать событие' : 'Новое событие'}</Text>
                 {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять события</Text>}
               {currentUser && (
                   <>
@@ -3681,21 +3831,55 @@ export default function App() {
                         <Text style={styles.label}>Окончание</Text>
                         <TextInput style={styles.input} value={newEvent.endTime || ''} onChangeText={(t) => setNewEvent(v => ({ ...v, endTime: t }))} placeholder="11:00" />
                       </View>
+                  </View>
+                  
+                  <View style={styles.inputRow}>
                     <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Тип</Text>
+                      <Text style={styles.label}>Категория</Text>
                       <View style={styles.pickerContainer}>
-                          {['event','workout'].map(t => (
-                            <Pressable key={t} style={[styles.pickerOption, plannerComposeType === t ? styles.pickerOptionActive : null]} onPress={() => setPlannerComposeType(t)}>
-                              <Text style={[styles.pickerText, plannerComposeType === t ? styles.pickerTextActive : null]}>{t === 'event' ? 'Событие' : 'Тренировка'}</Text>
+                          {eventCategories.map(cat => (
+                            <Pressable 
+                              key={cat.id} 
+                              style={[styles.pickerOption, newEvent.category === cat.id ? styles.pickerOptionActive : null]} 
+                              onPress={() => setNewEvent(v => ({ ...v, category: cat.id }))}
+                            >
+                              <Text style={[styles.pickerText, newEvent.category === cat.id ? styles.pickerTextActive : null]}>
+                                {cat.icon} {cat.name}
+                              </Text>
                           </Pressable>
                         ))}
                       </View>
                     </View>
-                    <View style={styles.inputGroup}>
+                  </View>
+                  
+                  <View style={styles.inputGroup}>
                         <Text style={styles.label}>Заголовок</Text>
-                        <TextInput style={styles.input} value={newEvent.title} onChangeText={(t) => setNewEvent(v => ({ ...v, title: t }))} placeholder={plannerComposeType === 'event' ? "Событие" : "Тренировка"} />
+                        <TextInput style={styles.input} value={newEvent.title} onChangeText={(t) => setNewEvent(v => ({ ...v, title: t }))} placeholder="Название события" />
+                    </View>
+                    
+                  <View style={styles.inputGroup}>
+                    <Text style={styles.label}>Напоминания (минуты до события)</Text>
+                    <View style={styles.chipsRow}>
+                      {[5, 15, 30, 60, 1440].map(minutes => (
+                        <Pressable 
+                          key={minutes}
+                          style={[styles.chip, (newEvent.reminders || []).includes(minutes) ? styles.chipActive : null]} 
+                          onPress={() => {
+                            const current = newEvent.reminders || [];
+                            const updated = current.includes(minutes) 
+                              ? current.filter(m => m !== minutes)
+                              : [...current, minutes];
+                            setNewEvent(v => ({ ...v, reminders: updated }));
+                          }}
+                        >
+                          <Text style={[styles.chipText, (newEvent.reminders || []).includes(minutes) ? styles.chipTextActive : null]}>
+                            {minutes < 60 ? `${minutes}м` : minutes < 1440 ? `${minutes/60}ч` : '1д'}
+                          </Text>
+                        </Pressable>
+                      ))}
                     </View>
                   </View>
+                  
                   <View style={styles.inputGroup}>
                     <Text style={styles.label}>Заметки</Text>
                       <TextInput style={[styles.input, styles.textArea]} value={newEvent.notes} onChangeText={(t) => setNewEvent(v => ({ ...v, notes: t }))} placeholder="Описание..." multiline numberOfLines={3} />
@@ -4249,7 +4433,8 @@ const styles = StyleSheet.create({
   plannerCell: { flex: 1, minHeight: 90, borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 6, backgroundColor: '#0f1520' },
   plannerCellDate: { fontSize: 12, color: '#9fb0c0', marginBottom: 4 },
   plannerCellToday: { color: '#fff', fontWeight: '700' },
-  plannerEventItem: { fontSize: 12, color: '#e6edf3' },
+  plannerEventItem: { fontSize: 10, marginTop: 2, padding: 4, borderRadius: 4, marginBottom: 2 },
+  plannerEventText: { fontSize: 10, fontWeight: '500' },
   plannerMore: { fontSize: 12, color: '#9fb0c0', marginTop: 2 },
   inputRow: { flexDirection: 'row', gap: 12, marginBottom: 12 },
   inputGroup: { flex: 1 },
