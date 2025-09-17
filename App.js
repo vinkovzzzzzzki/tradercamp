@@ -2248,12 +2248,6 @@ export default function App() {
         {/* Sticky top bar */}
         <View style={[styles.stickyTopBar, isDark ? { backgroundColor: '#121820' } : null]}>
           <View style={{ flex: 1 }} />
-          <View style={styles.authStatus}>
-            <Text style={[styles.authStatusText, isDark ? { color: '#9fb0c0' } : null]}>{currentUser ? `@${currentUser.nickname}` : 'Гость'}</Text>
-            {currentUser && (
-              <Pressable style={styles.logoutBtn} onPress={logout}><Text style={styles.logoutText}>Выйти</Text></Pressable>
-            )}
-          </View>
         </View>
         {/* Static logo in header (does not scroll) */}
         <View style={{ alignItems: 'center', marginTop: 4 }}>
@@ -4024,6 +4018,15 @@ export default function App() {
                             </Pressable>
                           ))}
                         </View>
+                      </View>
+                    </View>
+                    
+                    {/* Logout button */}
+                    <View style={styles.inputRow}>
+                      <View style={styles.inputGroup}>
+                        <Pressable style={styles.logoutBtn} onPress={logout}>
+                          <Text style={styles.logoutText}>Выйти</Text>
+                        </Pressable>
                       </View>
                     </View>
                   </>
