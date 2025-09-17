@@ -2537,23 +2537,8 @@ export default function App() {
                     const delta = cushion + invest - totalDebt;
                     return (
                       <View style={styles.compactVerticalLayout}>
-                        {/* Compact vertical chart - fixed width */}
-                        <View style={styles.compactVerticalChart}>
-                          <View style={styles.compactChartContainer}>
-                            {chartVisibility.debts && (
-                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (totalDebt / maxVal) * 100)}%`, backgroundColor: '#ef4444' }]} />
-                            )}
-                            {chartVisibility.cushion && (
-                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (cushion / maxVal) * 100)}%`, backgroundColor: '#3b82f6' }]} />
-                            )}
-                            {chartVisibility.investments && (
-                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (invest / maxVal) * 100)}%`, backgroundColor: '#10b981' }]} />
-                            )}
-                          </View>
-                        </View>
-                        
-                        {/* Legend and delta - right side */}
-                        <View style={styles.compactRightSide}>
+                        {/* Legend and delta - left side */}
+                        <View style={styles.compactLeftSide}>
                           <View style={styles.compactLegend}>
                             {chartVisibility.debts && (
                               <View style={styles.legendItem}>
@@ -2576,6 +2561,21 @@ export default function App() {
                           </View>
                           
                           <Text style={styles.compactDelta}>Итог: {formatCurrencyCustom(delta, 'USD')}</Text>
+                        </View>
+                        
+                        {/* Compact vertical chart - right side */}
+                        <View style={styles.compactVerticalChart}>
+                          <View style={styles.compactChartContainer}>
+                            {chartVisibility.debts && (
+                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (totalDebt / maxVal) * 100)}%`, backgroundColor: '#ef4444' }]} />
+                            )}
+                            {chartVisibility.cushion && (
+                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (cushion / maxVal) * 100)}%`, backgroundColor: '#3b82f6' }]} />
+                            )}
+                            {chartVisibility.investments && (
+                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (invest / maxVal) * 100)}%`, backgroundColor: '#10b981' }]} />
+                            )}
+                          </View>
                         </View>
                       </View>
                     );
@@ -4463,7 +4463,7 @@ const styles = StyleSheet.create({
   compactVerticalChart: { width: 100, flexShrink: 0 },
   compactChartContainer: { height: 60, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', backgroundColor: '#0f1520', borderRadius: 6, padding: 6, borderWidth: 1, borderColor: '#1f2a36', gap: 8 },
   compactChartLine: { width: 24, borderRadius: 3, minHeight: 4 },
-  compactRightSide: { flex: 1, justifyContent: 'space-between' },
+  compactLeftSide: { flex: 1, justifyContent: 'space-between' },
   compactLegend: { gap: 6 },
   compactDelta: { fontSize: 14, color: '#e6edf3', fontWeight: '700', textAlign: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#1f2a36', marginTop: 8 },
 
