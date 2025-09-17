@@ -2494,7 +2494,7 @@ export default function App() {
               </View>
             )}
 
-            {/* Summary chart (compact) */}
+            {/* Summary chart (compact vertical) */}
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
               <View style={styles.compactSummaryHeader}>
                 <Text style={styles.cardTitle}>📊 Сводный баланс</Text>
@@ -2528,31 +2528,48 @@ export default function App() {
                     const totalDebt = (sortedDebts || []).reduce((s, d) => s + (d.amount || 0), 0);
                     const cushion = cashReserve;
                     const invest = investmentBalance;
-                    const delta = cushion + invest - totalDebt;
+                    const visibleValues = [];
+                    if (chartVisibility.debts) visibleValues.push(totalDebt);
+                    if (chartVisibility.cushion) visibleValues.push(cushion);
+                    if (chartVisibility.investments) visibleValues.push(invest);
+                    const maxVal = Math.max(...visibleValues, 1);
                     
+                    const delta = cushion + invest - totalDebt;
                     return (
-                      <View style={styles.compactSummaryContent}>
-                        {/* Compact horizontal layout */}
-                        <View style={styles.compactChart}>
+                      <View style={styles.compactVerticalLayout}>
+                        {/* Compact vertical chart */}
+                        <View style={styles.compactVerticalChart}>
+                          <View style={styles.compactChartContainer}>
+                            {chartVisibility.debts && (
+                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (totalDebt / maxVal) * 100)}%`, backgroundColor: '#ef4444' }]} />
+                            )}
+                            {chartVisibility.cushion && (
+                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (cushion / maxVal) * 100)}%`, backgroundColor: '#3b82f6' }]} />
+                            )}
+                            {chartVisibility.investments && (
+                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (invest / maxVal) * 100)}%`, backgroundColor: '#10b981' }]} />
+                            )}
+                          </View>
+                        </View>
+                        
+                        {/* Legend */}
+                        <View style={styles.compactLegend}>
                           {chartVisibility.debts && (
-                            <View style={styles.compactChartItem}>
-                              <View style={[styles.compactChartBar, { backgroundColor: '#ef4444', width: `${Math.min(100, (totalDebt / Math.max(totalDebt, cushion, invest, 1)) * 100)}%` }]} />
-                              <Text style={styles.compactChartLabel}>Долги</Text>
-                              <Text style={styles.compactChartValue}>{formatCurrencyCustom(totalDebt, (sortedDebts[0]?.currency) || 'USD')}</Text>
+                            <View style={styles.legendItem}>
+                              <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
+                              <Text style={styles.legendText}>Долги: {formatCurrencyCustom(totalDebt, (sortedDebts[0]?.currency) || 'USD')}</Text>
                             </View>
                           )}
                           {chartVisibility.cushion && (
-                            <View style={styles.compactChartItem}>
-                              <View style={[styles.compactChartBar, { backgroundColor: '#3b82f6', width: `${Math.min(100, (cushion / Math.max(totalDebt, cushion, invest, 1)) * 100)}%` }]} />
-                              <Text style={styles.compactChartLabel}>Подушка</Text>
-                              <Text style={styles.compactChartValue}>{formatCurrencyCustom(cushion, 'USD')}</Text>
+                            <View style={styles.legendItem}>
+                              <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
+                              <Text style={styles.legendText}>Подушка: {formatCurrencyCustom(cushion, 'USD')}</Text>
                             </View>
                           )}
                           {chartVisibility.investments && (
-                            <View style={styles.compactChartItem}>
-                              <View style={[styles.compactChartBar, { backgroundColor: '#10b981', width: `${Math.min(100, (invest / Math.max(totalDebt, cushion, invest, 1)) * 100)}%` }]} />
-                              <Text style={styles.compactChartLabel}>Инвестиции</Text>
-                              <Text style={styles.compactChartValue}>{formatCurrencyCustom(invest, (currentFinance?.investTx?.[0]?.currency) || 'USD')}</Text>
+                            <View style={styles.legendItem}>
+                              <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
+                              <Text style={styles.legendText}>Инвестиции: {formatCurrencyCustom(invest, (currentFinance?.investTx?.[0]?.currency) || 'USD')}</Text>
                             </View>
                           )}
                         </View>
@@ -4440,13 +4457,12 @@ const styles = StyleSheet.create({
   compactToggleActive: { backgroundColor: '#1f6feb', borderColor: '#1f6feb' },
   compactToggleText: { fontSize: 10, color: '#9fb0c0' },
   compactToggleTextActive: { color: '#fff', fontWeight: '600' },
-  compactSummaryContent: { marginTop: 8 },
-  compactChart: { gap: 8, marginBottom: 12 },
-  compactChartItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  compactChartBar: { height: 8, borderRadius: 4, minWidth: 20 },
-  compactChartLabel: { fontSize: 12, color: '#9fb0c0', minWidth: 60 },
-  compactChartValue: { fontSize: 12, color: '#e6edf3', fontWeight: '600', flex: 1, textAlign: 'right' },
-  compactDelta: { fontSize: 14, color: '#e6edf3', fontWeight: '700', textAlign: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#1f2a36' },
+  compactVerticalLayout: { flexDirection: 'row', alignItems: 'flex-start', gap: 16 },
+  compactVerticalChart: { flex: 0, width: 80 },
+  compactChartContainer: { height: 60, flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'center', backgroundColor: '#0f1520', borderRadius: 6, padding: 6, borderWidth: 1, borderColor: '#1f2a36', gap: 6 },
+  compactChartLine: { width: 20, borderRadius: 3, minHeight: 4 },
+  compactLegend: { flex: 1, gap: 6 },
+  compactDelta: { fontSize: 14, color: '#e6edf3', fontWeight: '700', textAlign: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#1f2a36', marginTop: 8 },
 
   workoutList: { marginTop: 8 },
   workoutItem: { borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 12, marginBottom: 8 },
