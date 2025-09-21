@@ -32,19 +32,25 @@ if (Platform.OS === 'android') {
 
 export default function App() {
   const [tab, setTab] = useState('finance');
+  const [openDropdown, setOpenDropdown] = useState(null);
   
   // Animation refs
   const tabAnimation = useRef(new Animated.Value(0)).current;
   const dropdownAnimations = useRef({}).current;
+  const buttonAnimations = useRef({}).current;
+  const hoverTimeout = useRef(null);
+  const isHoveringDropdown = useRef(false);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (hoverTimeout.current) {
+        clearTimeout(hoverTimeout.current);
+      }
+    };
+  }, []);
 
   // Auth state
-  const [users, setUsers] = useState(() => storage.get('users', [
-    { id: 1, nickname: 'Trader_Pro', password: 'demo', bio: 'Crypto & Stocks trader', avatar: '', friends: [2] },
-    { id: 2, nickname: 'StockMaster', password: 'demo', bio: 'Growth & AI plays', avatar: '', friends: [1,3] },
-    { id: 3, nickname: 'DemoUser', password: 'demo', bio: 'Тестовый пользователь: люблю крипту и фитнес', avatar: '', friends: [2] },
-  ]));
-  useEffect(() => storage.set('users', users), [users]);
-  const [currentUserId, setCurrentUserId] = useState(() => storage.get('currentUserId', null));
   // Supabase auth session (email/password)
   const [supaAuth, setSupaAuth] = useState(() => storage.get('supaAuth', null));
   useEffect(() => storage.set('supaAuth', supaAuth), [supaAuth]);
@@ -81,7 +87,6 @@ export default function App() {
     });
   };
   
-  const currentUserLocal = users.find(u => u.id === currentUserId) || null;
   const currentSupaUser = supaAuth && supaAuth.user ? supaAuth.user : null;
   const currentUser = currentSupaUser ? (() => {
     const overlay = supaProfiles[currentSupaUser.id] || {};
@@ -98,48 +103,48 @@ export default function App() {
       links: overlay.links || {},
       location: overlay.location || '',
     };
-  })() : currentUserLocal;
+  })() : null;
 
   const [authMode, setAuthMode] = useState('login'); // 'login' | 'register'
-  const [useSupaAuth, setUseSupaAuth] = useState(false);
-  const [authData, setAuthData] = useState({ nickname: '', password: '' });
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
 
-  const registerUser = () => {
-    const nickname = authData.nickname.trim();
-    const password = authData.password.trim();
-    if (!nickname || !password) {
-      Alert.alert('Ошибка', 'Введите никнейм и пароль');
-      return;
-    }
-    if (users.some(u => u.nickname.toLowerCase() === nickname.toLowerCase())) {
-      Alert.alert('Ошибка', 'Этот ник уже занят');
-      return;
-    }
-    const newUser = { id: users.length ? Math.max(...users.map(u => u.id)) + 1 : 1, nickname, password, bio: '', avatar: '', friends: [] };
-    const nextUsers = [newUser, ...users];
-    setUsers(nextUsers);
-    setCurrentUserId(newUser.id);
-    setAuthData({ nickname: '', password: '' });
-    setAuthMode('login');
+  // Функция для расчета силы пароля
+  const calculatePasswordStrength = (password) => {
+    let strength = 0;
+    if (password.length >= 6) strength += 1;
+    if (password.length >= 8) strength += 1;
+    if (/[a-z]/.test(password)) strength += 1;
+    if (/[A-Z]/.test(password)) strength += 1;
+    if (/\d/.test(password)) strength += 1;
+    if (/[^a-zA-Z0-9]/.test(password)) strength += 1;
+    return strength;
   };
 
-  const loginUser = () => {
-    const nickname = authData.nickname.trim();
-    const password = authData.password.trim();
-    const found = users.find(u => u.nickname.toLowerCase() === nickname.toLowerCase() && u.password === password);
-    if (!found) {
-      Alert.alert('Ошибка', 'Неверный никнейм или пароль');
-      return;
-    }
-    setCurrentUserId(found.id);
-    setAuthData({ nickname: '', password: '' });
-  };
+
 
   const logout = () => {
-    setCurrentUserId(null);
     setSupaAuth(null);
+  };
+
+  // Demo login for testing
+  const demoLogin = () => {
+    const demoUser = {
+      user: {
+        id: 'demo-user-id',
+        email: 'demo@example.com',
+        created_at: new Date().toISOString()
+      },
+      access_token: 'demo-token',
+      refresh_token: 'demo-refresh-token'
+    };
+    setSupaAuth(demoUser);
+    setAuthEmail('');
+    setAuthPassword('');
+    setAuthMode('login');
+    Alert.alert('Демо-вход', 'Вы вошли в демо-режиме!');
   };
 
   // Supabase email/password auth (REST)
@@ -174,7 +179,6 @@ export default function App() {
         return;
       }
       setSupaAuth(json);
-      setCurrentUserId(null);
       setAuthEmail('');
       setAuthPassword('');
       setAuthMode('login');
@@ -185,16 +189,51 @@ export default function App() {
   };
 
   const supaRegister = async () => {
+    if (isLoading) return;
+    
     if (!supaConfigured) {
       Alert.alert('Supabase', 'Заполните URL и Anon Key в профиле');
       return;
     }
     const email = (authEmail || '').trim();
     const password = (authPassword || '').trim();
-    if (!email || !password) {
-      Alert.alert('Ошибка', 'Введите email и пароль');
+    
+    // Валидация email
+    if (!email) {
+      Alert.alert('Ошибка', 'Введите email');
       return;
     }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      Alert.alert('Ошибка', 'Введите корректный email адрес');
+      return;
+    }
+    
+    // Валидация пароля
+    if (!password) {
+      Alert.alert('Ошибка', 'Введите пароль');
+      return;
+    }
+    if (password.length < 6) {
+      Alert.alert('Ошибка', 'Пароль должен содержать минимум 6 символов');
+      return;
+    }
+    if (password.length > 50) {
+      Alert.alert('Ошибка', 'Пароль не должен превышать 50 символов');
+      return;
+    }
+    
+    // Проверка на сложность пароля
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumbers = /\d/.test(password);
+    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+      Alert.alert('Ошибка', 'Пароль должен содержать заглавные и строчные буквы, а также цифры');
+      return;
+    }
+    
+    setIsLoading(true);
+    
     try {
       const res = await fetch(`${supaBase()}/auth/v1/signup`, {
         method: 'POST',
@@ -205,12 +244,17 @@ export default function App() {
       if (!res.ok) {
         const err = json?.error_description || json?.msg || `HTTP ${res.status}`;
         Alert.alert('Регистрация', `Не удалось: ${err}`);
+        setIsLoading(false);
         return;
       }
-      Alert.alert('Регистрация', 'Успешно. Проверьте почту для подтверждения (если требуется).');
+      Alert.alert('Регистрация', 'Успешно! Проверьте почту для подтверждения аккаунта.');
       setAuthMode('login');
+      setAuthEmail('');
+      setAuthPassword('');
+      setIsLoading(false);
     } catch (e) {
       Alert.alert('Регистрация', 'Произошла ошибка при обращении к Supabase');
+      setIsLoading(false);
     }
   };
 
@@ -275,14 +319,7 @@ export default function App() {
       if (ok) { setSecOld(''); setSecNew(''); setSecNew2(''); }
       return;
     }
-    // Local
-    const me = users.find(u => u.id === currentUser.id);
-    if (!me) return;
-    if (me.password !== secOld) return Alert.alert('Ошибка', 'Текущий пароль неверен');
-    const next = users.map(u => u.id === me.id ? { ...u, password: secNew } : u);
-    setUsers(next);
-    setSecOld(''); setSecNew(''); setSecNew2('');
-    Alert.alert('Пароль', 'Пароль обновлён');
+    Alert.alert('Ошибка', 'Функция смены пароля доступна только для Supabase пользователей');
   };
 
   const updateProfile = (patch) => {
@@ -292,11 +329,10 @@ export default function App() {
         ...prev,
         [currentUser.id]: { ...(prev[currentUser.id] || {}), ...patch },
       }));
+      Alert.alert('Готово', 'Профиль обновлён');
     } else {
-      const nextUsers = users.map(u => u.id === currentUser.id ? { ...u, ...patch } : u);
-      setUsers(nextUsers);
+      Alert.alert('Ошибка', 'Функция обновления профиля доступна только для Supabase пользователей');
     }
-    Alert.alert('Готово', 'Профиль обновлён');
   };
   const toggleMarketPref = (m) => {
     if (!currentUser) return;
@@ -314,15 +350,8 @@ export default function App() {
         ...prev,
         [currentUser.id]: { ...(prev[currentUser.id] || {}), friends: [...(currentUser.friends || []), userId] },
       }));
-      // mirror on local user if exists
-      setUsers(prev => prev.map(u => u.id === userId ? { ...u, friends: [...u.friends, currentUser.id] } : u));
     } else {
-      const nextUsers = users.map(u => {
-        if (u.id === currentUser.id) return { ...u, friends: [...u.friends, userId] };
-        if (u.id === userId) return { ...u, friends: [...u.friends, currentUser.id] };
-        return u;
-      });
-      setUsers(nextUsers);
+      Alert.alert('Ошибка', 'Функция добавления друзей доступна только для Supabase пользователей');
     }
   };
 
@@ -333,17 +362,8 @@ export default function App() {
         ...prev,
         [currentUser.id]: { ...(prev[currentUser.id] || {}), friends: (currentUser.friends || []).filter(id => id !== userId) },
       }));
-      setUsers(prev => prev.map(u => {
-        if (u.id === userId) return { ...u, friends: u.friends.filter(id => id !== currentUser.id) };
-        return u;
-      }));
     } else {
-      const nextUsers = users.map(u => {
-        if (u.id === currentUser.id) return { ...u, friends: u.friends.filter(id => id !== userId) };
-        if (u.id === userId) return { ...u, friends: u.friends.filter(id => id !== currentUser.id) };
-        return u;
-      });
-      setUsers(nextUsers);
+      Alert.alert('Ошибка', 'Функция удаления друзей доступна только для Supabase пользователей');
     }
   };
 
@@ -389,12 +409,99 @@ export default function App() {
   // Animation functions
   const animateTabChange = (newTab) => {
     LayoutAnimation.configureNext({
-      duration: 300,
-      create: { type: 'easeInEaseOut', property: 'opacity' },
-      update: { type: 'easeInEaseOut' },
-      delete: { type: 'easeInEaseOut', property: 'opacity' }
+      duration: 400,
+      create: { 
+        type: 'easeInEaseOut', 
+        property: 'opacity',
+        springDamping: 0.8
+      },
+      update: { 
+        type: 'easeInEaseOut',
+        springDamping: 0.8
+      },
+      delete: { 
+        type: 'easeInEaseOut', 
+        property: 'opacity',
+        springDamping: 0.8
+      }
     });
+    
+    // Close any open dropdown and reset its animation
+    if (openDropdown) {
+      animateDropdown(openDropdown, false);
+    }
+    
     setTab(newTab);
+    setOpenDropdown(null); // Close any open dropdown
+  };
+
+  const handleTabClick = (tabKey) => {
+    // Tabs with dropdowns
+    const dropdownTabs = ['finance', 'journal', 'planner'];
+    
+    if (dropdownTabs.includes(tabKey)) {
+      // Just switch to the tab, don't open dropdown automatically
+      animateTabChange(tabKey);
+    } else {
+      // Regular tabs without dropdowns
+      animateTabChange(tabKey);
+    }
+  };
+
+  // Handle hover events for dropdown tabs
+  const handleTabHover = (tabKey) => {
+    const dropdownTabs = ['finance', 'journal', 'planner'];
+    
+    // Clear any pending timeout
+    if (hoverTimeout.current) {
+      clearTimeout(hoverTimeout.current);
+      hoverTimeout.current = null;
+    }
+    
+    // Reset dropdown hover state
+    isHoveringDropdown.current = false;
+    
+    if (dropdownTabs.includes(tabKey) && tab === tabKey) {
+      // Only open dropdown if we're hovering over the current tab
+      setOpenDropdown(tabKey);
+      animateDropdown(tabKey, true);
+    }
+  };
+
+  const handleTabLeave = (tabKey) => {
+    const dropdownTabs = ['finance', 'journal', 'planner'];
+    
+    if (dropdownTabs.includes(tabKey)) {
+      // Only start timeout if not hovering over dropdown
+      if (!isHoveringDropdown.current) {
+        hoverTimeout.current = setTimeout(() => {
+          animateDropdown(tabKey, false);
+          setOpenDropdown(null);
+        }, 500); // 500ms delay
+      }
+    }
+  };
+
+  const handleDropdownHover = (tabKey) => {
+    // Mark that we're hovering over dropdown
+    isHoveringDropdown.current = true;
+    
+    // Clear timeout when hovering over dropdown
+    if (hoverTimeout.current) {
+      clearTimeout(hoverTimeout.current);
+      hoverTimeout.current = null;
+    }
+  };
+
+  const handleDropdownLeave = (tabKey) => {
+    // Mark that we're no longer hovering over dropdown
+    isHoveringDropdown.current = false;
+    
+    // Close dropdown when leaving the dropdown itself
+    hoverTimeout.current = setTimeout(() => {
+      animateDropdown(tabKey, false);
+      setOpenDropdown(null);
+    }, 200); // Short delay when leaving dropdown
   };
   
   const getDropdownAnimation = (key) => {
@@ -406,11 +513,55 @@ export default function App() {
   
   const animateDropdown = (key, show) => {
     const animValue = getDropdownAnimation(key);
-    Animated.timing(animValue, {
+    Animated.spring(animValue, {
       toValue: show ? 1 : 0,
-      duration: 200,
+      duration: 300,
       useNativeDriver: true,
+      tension: 100,
+      friction: 8
     }).start();
+  };
+
+  // Button press animation
+  const getButtonAnimation = (key) => {
+    if (!buttonAnimations[key]) {
+      buttonAnimations[key] = new Animated.Value(1);
+    }
+    return buttonAnimations[key];
+  };
+
+  const animateButtonPress = (key) => {
+    const animValue = getButtonAnimation(key);
+    Animated.sequence([
+      Animated.timing(animValue, {
+        toValue: 0.95,
+        duration: 100,
+        useNativeDriver: true
+      }),
+      Animated.timing(animValue, {
+        toValue: 1,
+        duration: 100,
+        useNativeDriver: true
+      })
+    ]).start();
+  };
+
+  // Card appearance animation
+  const animateCardAppearance = (ref) => {
+    Animated.sequence([
+      Animated.timing(ref, {
+        toValue: 0,
+        duration: 0,
+        useNativeDriver: true
+      }),
+      Animated.spring(ref, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+        tension: 50,
+        friction: 8
+      })
+    ]).start();
   };
   // Transfers between holdings
   const [newEmergencyTransfer, setNewEmergencyTransfer] = useState({ fromLocation: '', toLocation: '', currency: 'USD', amount: '' });
@@ -809,8 +960,12 @@ export default function App() {
   const [friendRequests, setFriendRequests] = useState(() => storage.get('friendRequests', []));
   useEffect(() => storage.set('friendRequests', friendRequests), [friendRequests]);
   const areFriends = (aId, bId) => {
-    const a = (users.find(u => u.id === aId) || {});
-    return Array.isArray(a.friends) && a.friends.includes(bId);
+    if (aId === currentUser?.id) {
+      return Array.isArray(currentUser.friends) && currentUser.friends.includes(bId);
+    }
+    // For other users, we'd need to check their profiles from supaProfiles
+    const userProfile = supaProfiles[aId];
+    return userProfile && Array.isArray(userProfile.friends) && userProfile.friends.includes(bId);
   };
   const requestBetween = (aId, bId) => friendRequests.find(r => (r.from === aId && r.to === bId && r.status === 'pending') || (r.from === bId && r.to === aId && r.status === 'pending'));
   const sendFriendRequest = (toId) => {
@@ -825,7 +980,13 @@ export default function App() {
     const req = friendRequests.find(r => r.id === reqId);
     if (!req) return;
     // add both sides as friends
-    setUsers(prev => prev.map(u => u.id === req.to ? { ...u, friends: [...(u.friends||[]), req.from] } : (u.id === req.from ? { ...u, friends: [...(u.friends||[]), req.to] } : u)));
+    if (currentSupaUser) {
+      setSupaProfiles(prev => ({
+        ...prev,
+        [req.to]: { ...(prev[req.to] || {}), friends: [...(prev[req.to]?.friends || []), req.from] },
+        [req.from]: { ...(prev[req.from] || {}), friends: [...(prev[req.from]?.friends || []), req.to] }
+      }));
+    }
     setFriendRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'accepted' } : r));
   };
   const rejectFriendRequest = (reqId) => setFriendRequests(prev => prev.map(r => r.id === reqId ? { ...r, status: 'rejected' } : r));
@@ -840,8 +1001,9 @@ export default function App() {
   // Friend recommendations
   const getMutualFriendsCount = (otherId) => {
     if (!currentUser) return 0;
-    const my = (users.find(u => u.id === currentUser.id) || { friends: [] }).friends || [];
-    const other = (users.find(u => u.id === otherId) || { friends: [] }).friends || [];
+    const my = currentUser.friends || [];
+    const otherProfile = supaProfiles[otherId];
+    const other = otherProfile?.friends || [];
     const setMy = new Set(my);
     return other.reduce((acc, id) => acc + (setMy.has(id) ? 1 : 0), 0);
   };
@@ -1009,8 +1171,6 @@ export default function App() {
   useEffect(() => { fetchSupaWorkouts(); fetchSupaEvents(); }, [supaConfigured, currentSupaUser]);
 
   // Persist critical slices
-  useEffect(() => storage.set('users', users), [users]);
-  useEffect(() => storage.set('currentUserId', currentUserId), [currentUserId]);
   useEffect(() => storage.set('posts', posts), [posts]);
   useEffect(() => storage.set('financeData', financeData), [financeData]);
   useEffect(() => { fetchSupaPosts(); }, []);
@@ -1766,13 +1926,37 @@ export default function App() {
 
   // Derived helpers
   const userById = (id) => {
-    const local = users.find(u => u.id === id);
-    if (local) return local;
     if (currentUser && currentUser.id === id) return currentUser;
+    const profile = supaProfiles[id];
+    if (profile) {
+      return {
+        id,
+        nickname: profile.nickname || `user_${id.slice(0,4)}`,
+        bio: profile.bio || '',
+        avatar: profile.avatar || '',
+        friends: profile.friends || []
+      };
+    }
     return { nickname: 'Unknown' };
   };
+  
+  // Helper function to get all known users
+  const getAllKnownUsers = () => {
+    const base = [];
+    if (currentSupaUser) {
+      const overlayIds = Object.keys(supaProfiles || {});
+      for (const sid of overlayIds) {
+        const u = supaProfiles[sid];
+        if (u) base.push({ id: sid, nickname: u.nickname || `user_${sid.slice(0,4)}`, bio: u.bio || '', avatar: u.avatar || '', friends: Array.isArray(u.friends) ? u.friends : [] });
+      }
+    }
+    // Ensure uniqueness by id
+    const seen = new Set();
+    return base.filter(u => (u && !seen.has(u.id) && seen.add(u.id)));
+  };
+  
   const friendsOfCurrent = currentUser ? currentUser.friends.map(id => userById(id)) : [];
-  const suggestedUsers = currentUser ? users.filter(u => u.id !== currentUser.id && !currentUser.friends.includes(u.id)) : users;
+  const suggestedUsers = currentUser ? getAllKnownUsers().filter(u => u.id !== currentUser.id && !currentUser.friends.includes(u.id)) : getAllKnownUsers();
 
   // Finance: current profile, computed values and actions
   const currentFinance = useMemo(() => (currentUser ? financeData[currentUser.id] : null), [financeData, currentUser]);
@@ -2293,19 +2477,6 @@ export default function App() {
   };
 
   // Social: search and profile view
-  const getAllKnownUsers = () => {
-    const base = [...users];
-    if (currentSupaUser) {
-      const overlayIds = Object.keys(supaProfiles || {});
-      for (const sid of overlayIds) {
-        const u = supaProfiles[sid];
-        if (u) base.push({ id: sid, nickname: u.nickname || `user_${sid.slice(0,4)}`, bio: u.bio || '', avatar: u.avatar || '', friends: Array.isArray(u.friends) ? u.friends : [] });
-      }
-    }
-    // Ensure uniqueness by id
-    const seen = new Set();
-    return base.filter(u => (u && !seen.has(u.id) && seen.add(u.id)));
-  };
   const runUserSearch = (query) => {
     const q = (query || '').trim().toLowerCase();
     if (!q) { setSearchResults([]); return; }
@@ -2347,88 +2518,61 @@ export default function App() {
 
           <View style={styles.inputRow}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Режим</Text>
-              <View style={styles.pickerContainer}>
-                {[{k:false,l:'Локально'},{k:true,l:'Supabase'}].map(o => (
-                  <Pressable key={String(o.k)} style={[styles.pickerOption, useSupaAuth === o.k ? styles.pickerOptionActive : null]} onPress={() => setUseSupaAuth(o.k)}>
-                    <Text style={[styles.pickerText, useSupaAuth === o.k ? styles.pickerTextActive : null]}>{o.l}</Text>
-                  </Pressable>
-                ))}
-              </View>
+              <Text style={styles.label}>Email</Text>
+              <TextInput style={styles.input} value={authEmail} onChangeText={setAuthEmail} placeholder="email@example.com" autoCapitalize="none" />
             </View>
-          </View>
-
-          {!useSupaAuth ? (
-            <>
-              <View style={styles.inputRow}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Никнейм</Text>
-                  <TextInput style={styles.input} value={authData.nickname} onChangeText={(t) => setAuthData(d => ({ ...d, nickname: t }))} placeholder="nickname" />
-                </View>
-                <Text style={[styles.cardTitle, { marginTop: 12 }]}>Тема</Text>
-                <View style={styles.inputRow}>
-                  <View style={styles.pickerContainer}>
-                    {[{k:'light',l:'Светлая'},{k:'dark',l:'Тёмная'}].map(o => (
-                      <Pressable key={o.k} style={[styles.pickerOption, appTheme === o.k ? styles.pickerOptionActive : null]} onPress={() => setAppTheme(o.k)}>
-                        <Text style={[styles.pickerText, appTheme === o.k ? styles.pickerTextActive : null]}>{o.l}</Text>
-                      </Pressable>
-                    ))}
-                  </View>
-                </View>
-
-                <Text style={[styles.cardTitle, { marginTop: 12 }]}>Безопасность</Text>
-                <View style={styles.inputRow}>
-                  {!currentSupaUser && (
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Текущий пароль</Text>
-                      <TextInput style={[styles.input, isDark ? { backgroundColor: '#0f1520', color: '#e6edf3', borderColor: '#1f2a36' } : null]} value={secOld} onChangeText={setSecOld} placeholder="current" secureTextEntry />
+            <View style={styles.inputGroup}>
+              <Text style={styles.label}>Пароль</Text>
+              <TextInput style={styles.input} value={authPassword} onChangeText={(t) => {
+                setAuthPassword(t);
+                setPasswordStrength(calculatePasswordStrength(t));
+              }} placeholder="минимум 6 символов" secureTextEntry />
+              {authMode === 'register' && (
+                <>
+                  <Text style={styles.helpText}>Пароль должен содержать заглавные и строчные буквы, а также цифры</Text>
+                  {authPassword.length > 0 && (
+                    <View style={styles.passwordStrengthContainer}>
+                      <Text style={styles.passwordStrengthLabel}>Сила пароля:</Text>
+                      <View style={styles.passwordStrengthBar}>
+                        <View style={[
+                          styles.passwordStrengthFill, 
+                          { 
+                            width: `${(passwordStrength / 6) * 100}%`,
+                            backgroundColor: passwordStrength < 3 ? '#ef4444' : passwordStrength < 5 ? '#f59e0b' : '#10b981'
+                          }
+                        ]} />
+                      </View>
+                      <Text style={[
+                        styles.passwordStrengthText,
+                        { color: passwordStrength < 3 ? '#ef4444' : passwordStrength < 5 ? '#f59e0b' : '#10b981' }
+                      ]}>
+                        {passwordStrength < 3 ? 'Слабый' : passwordStrength < 5 ? 'Средний' : 'Сильный'}
+                      </Text>
                     </View>
                   )}
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Новый пароль</Text>
-                    <TextInput style={[styles.input, isDark ? { backgroundColor: '#0f1520', color: '#e6edf3', borderColor: '#1f2a36' } : null]} value={secNew} onChangeText={setSecNew} placeholder="new" secureTextEntry />
-                  </View>
-                  <View style={styles.inputGroup}>
-                    <Text style={styles.label}>Повторите пароль</Text>
-                    <TextInput style={[styles.input, isDark ? { backgroundColor: '#0f1520', color: '#e6edf3', borderColor: '#1f2a36' } : null]} value={secNew2} onChangeText={setSecNew2} placeholder="repeat" secureTextEntry />
-                  </View>
-                </View>
-                <Pressable style={[styles.addButton, { backgroundColor: '#10b981' }]} onPress={changePassword}><Text style={styles.addButtonText}>Сменить пароль</Text></Pressable>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Пароль</Text>
-                  <TextInput style={styles.input} value={authData.password} onChangeText={(t) => setAuthData(d => ({ ...d, password: t }))} placeholder="password" secureTextEntry />
-                </View>
-              </View>
-              {authMode === 'login' ? (
-                <Pressable style={styles.addButton} onPress={loginUser}><Text style={styles.addButtonText}>Войти</Text></Pressable>
-              ) : (
-                <Pressable style={styles.addButton} onPress={registerUser}><Text style={styles.addButtonText}>Зарегистрироваться</Text></Pressable>
+                </>
               )}
+            </View>
+          </View>
+          
+          {authMode === 'login' ? (
+            <>
+              <Pressable style={[styles.addButton, isLoading && styles.addButtonDisabled]} onPress={supaLogin} disabled={isLoading}>
+                <Text style={styles.addButtonText}>{isLoading ? 'Вход...' : 'Войти'}</Text>
+              </Pressable>
+              <Pressable style={[styles.addButton, { backgroundColor: '#6b7280', marginTop: 8 }]} onPress={demoLogin}>
+                <Text style={styles.addButtonText}>Демо-вход (тест)</Text>
+              </Pressable>
+              <Pressable style={styles.switchAuth} onPress={supaRecover}><Text style={styles.switchAuthText}>Забыли пароль?</Text></Pressable>
             </>
           ) : (
-            <>
-              <View style={styles.inputRow}>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Email</Text>
-                  <TextInput style={styles.input} value={authEmail} onChangeText={setAuthEmail} placeholder="email@example.com" autoCapitalize="none" />
-                </View>
-                <View style={styles.inputGroup}>
-                  <Text style={styles.label}>Пароль</Text>
-                  <TextInput style={styles.input} value={authPassword} onChangeText={setAuthPassword} placeholder="password" secureTextEntry />
-                </View>
-              </View>
-              {authMode === 'login' ? (
-                <>
-                  <Pressable style={styles.addButton} onPress={supaLogin}><Text style={styles.addButtonText}>Войти (Supabase)</Text></Pressable>
-                  <Pressable style={styles.switchAuth} onPress={supaRecover}><Text style={styles.switchAuthText}>Забыли пароль?</Text></Pressable>
-                </>
-              ) : (
-                <Pressable style={styles.addButton} onPress={supaRegister}><Text style={styles.addButtonText}>Регистрация (Supabase)</Text></Pressable>
-              )}
-              {!supaConfigured && (
-                <Text style={styles.noteText}>Укажите Supabase URL и Anon Key в профиле</Text>
-              )}
-            </>
+            <Pressable style={[styles.addButton, isLoading && styles.addButtonDisabled]} onPress={supaRegister} disabled={isLoading}>
+              <Text style={styles.addButtonText}>{isLoading ? 'Регистрация...' : 'Зарегистрироваться'}</Text>
+            </Pressable>
+          )}
+          
+          {!supaConfigured && (
+            <Text style={styles.noteText}>Укажите Supabase URL и Anon Key в профиле</Text>
           )}
 
           <Pressable style={styles.switchAuth} onPress={() => setAuthMode(m => m === 'login' ? 'register' : 'login')}>
@@ -2453,7 +2597,9 @@ export default function App() {
             <Animated.View key={key} style={{ flex: 1 }}>
               <Pressable 
                 style={[styles.tab, tab === key ? styles.activeTab : styles.inactiveTab]} 
-                onPress={() => animateTabChange(key)}
+                onPress={() => handleTabClick(key)}
+                onHoverIn={() => handleTabHover(key)}
+                onHoverOut={() => handleTabLeave(key)}
                 onPressIn={(e) => {
                   // Hover effect simulation
                   e.target.style.transform = 'scale(0.95)';
@@ -2468,18 +2614,110 @@ export default function App() {
           ))}
         </View>
         
+        {/* Dropdown menus for tabs */}
+        {openDropdown === 'finance' && (
+          <Animated.View 
+            style={[
+              styles.dropdown, 
+              isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
+              {
+                opacity: getDropdownAnimation('finance'),
+                transform: [{
+                  translateY: getDropdownAnimation('finance').interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0]
+                  })
+                }]
+              }
+            ]}
+            onMouseEnter={() => handleDropdownHover('finance')} // Keep dropdown open when hovering over it
+            onMouseLeave={() => handleDropdownLeave('finance')}
+          >
+            <Pressable style={styles.dropdownItem} onPress={() => { setFinanceView('fund'); setOpenDropdown(null); }}>
+              <Text style={styles.dropdownItemText}>Расчёт подушки безопасности</Text>
+            </Pressable>
+            <Pressable style={styles.dropdownItem} onPress={() => { setFinanceView('invest'); setOpenDropdown(null); }}>
+              <Text style={styles.dropdownItemText}>Инвестиции</Text>
+            </Pressable>
+            <Pressable style={styles.dropdownItem} onPress={() => { setFinanceView('debts'); setOpenDropdown(null); }}>
+              <Text style={styles.dropdownItemText}>Долги</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+        
+        {openDropdown === 'journal' && (
+          <Animated.View 
+            style={[
+              styles.dropdown, 
+              isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
+              {
+                opacity: getDropdownAnimation('journal'),
+                transform: [{
+                  translateY: getDropdownAnimation('journal').interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0]
+                  })
+                }]
+              }
+            ]}
+            onMouseEnter={() => handleDropdownHover('journal')} // Keep dropdown open when hovering over it
+            onMouseLeave={() => handleDropdownLeave('journal')}
+          >
+            <Pressable style={styles.dropdownItem} onPress={() => { setJournalView('new'); setOpenDropdown(null); }}>
+              <Text style={styles.dropdownItemText}>Новая сделка</Text>
+            </Pressable>
+            <Pressable style={styles.dropdownItem} onPress={() => { setJournalView('list'); setOpenDropdown(null); }}>
+              <Text style={styles.dropdownItemText}>Журнал сделок</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+        
+        {openDropdown === 'planner' && (
+          <Animated.View 
+            style={[
+              styles.dropdown, 
+              isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
+              {
+                opacity: getDropdownAnimation('planner'),
+                transform: [{
+                  translateY: getDropdownAnimation('planner').interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0]
+                  })
+                }]
+              }
+            ]}
+            onMouseEnter={() => handleDropdownHover('planner')} // Keep dropdown open when hovering over it
+            onMouseLeave={() => handleDropdownLeave('planner')}
+          >
+            <Pressable style={styles.dropdownItem} onPress={() => { setCalendarView('news'); setOpenDropdown(null); }}>
+              <Text style={styles.dropdownItemText}>Новости</Text>
+            </Pressable>
+            <Pressable style={styles.dropdownItem} onPress={() => { setCalendarView('calendar'); setOpenDropdown(null); }}>
+              <Text style={styles.dropdownItemText}>Календарь</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+        
         {tab === 'finance' && (
           <View>
-            {/* Finance entry picker */}
+            {/* Finance content based on financeView */}
             {!financeView && (
               <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
-                <Text style={styles.cardTitle}>Куда перейти?</Text>
+                <Text style={styles.cardTitle}>🛡️ Подушка безопасности</Text>
+                <Text style={styles.cardDescription}>Главная страница финансов - расчёт подушки безопасности</Text>
                 <View style={styles.inputRow}>
-                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setFinanceView('fund')}><Text style={styles.addButtonText}>Расчёт подушки безопасности</Text></Pressable>
-                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setFinanceView('invest')}><Text style={styles.addButtonText}>Инвестиции</Text></Pressable>
-                </View>
-                <View style={styles.inputRow}>
-                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setFinanceView('debts')}><Text style={styles.addButtonText}>Долги</Text></Pressable>
+                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('finance-main') }] }}>
+                    <Pressable 
+                      style={[styles.addButton, { flex: 1 }]} 
+                      onPress={() => {
+                        animateButtonPress('finance-main');
+                        setFinanceView('fund');
+                      }}
+                    >
+                      <Text style={styles.addButtonText}>Перейти к расчёту</Text>
+                    </Pressable>
+                  </Animated.View>
                 </View>
               </View>
             )}
@@ -2487,9 +2725,17 @@ export default function App() {
             {financeView && (
               <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
                 <View style={styles.inputRow}>
-                  <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} onPress={() => setFinanceView(null)}>
-                    <Text style={styles.addButtonText}>← Назад к выбору</Text>
-                  </Pressable>
+                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('finance-back') }] }}>
+                    <Pressable 
+                      style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} 
+                      onPress={() => {
+                        animateButtonPress('finance-back');
+                        setFinanceView(null);
+                      }}
+                    >
+                      <Text style={styles.addButtonText}>← Назад к выбору</Text>
+                    </Pressable>
+                  </Animated.View>
                 </View>
               </View>
             )}
@@ -3468,10 +3714,20 @@ export default function App() {
             {/* Journal entry picker */}
             {!journalView && (
               <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
-                <Text style={styles.cardTitle}>Куда перейти?</Text>
+                <Text style={styles.cardTitle}>📝 Новая сделка</Text>
+                <Text style={styles.cardDescription}>Главная страница дневника - добавление новой сделки</Text>
                 <View style={styles.inputRow}>
-                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setJournalView('new')}><Text style={styles.addButtonText}>Новая сделка</Text></Pressable>
-                  <Pressable style={[styles.addButton, { flex: 1 }]} onPress={() => setJournalView('list')}><Text style={styles.addButtonText}>Журнал сделок</Text></Pressable>
+                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('journal-main') }] }}>
+                    <Pressable 
+                      style={[styles.addButton, { flex: 1 }]} 
+                      onPress={() => {
+                        animateButtonPress('journal-main');
+                        setJournalView('new');
+                      }}
+                    >
+                      <Text style={styles.addButtonText}>Добавить сделку</Text>
+                    </Pressable>
+                  </Animated.View>
                 </View>
               </View>
             )}
@@ -3479,9 +3735,17 @@ export default function App() {
             {journalView && (
               <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
                 <View style={styles.inputRow}>
-                  <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} onPress={() => setJournalView(null)}>
-                    <Text style={styles.addButtonText}>← Назад к выбору</Text>
-                  </Pressable>
+                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('journal-back') }] }}>
+                    <Pressable 
+                      style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} 
+                      onPress={() => {
+                        animateButtonPress('journal-back');
+                        setJournalView(null);
+                      }}
+                    >
+                      <Text style={styles.addButtonText}>← Назад к выбору</Text>
+                    </Pressable>
+                  </Animated.View>
                 </View>
               </View>
             )}
@@ -3652,26 +3916,68 @@ export default function App() {
 
         {tab === 'planner' && (
           <>
+            {/* Planner main page */}
+            {!calendarView && (
+              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
+                <Text style={styles.cardTitle}>📰 Новости</Text>
+                <Text style={styles.cardDescription}>Главная страница планера - просмотр новостей</Text>
+                <View style={styles.inputRow}>
+                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('planner-main') }] }}>
+                    <Pressable 
+                      style={[styles.addButton, { flex: 1 }]} 
+                      onPress={() => {
+                        animateButtonPress('planner-main');
+                        setCalendarView('news');
+                      }}
+                    >
+                      <Text style={styles.addButtonText}>Просмотреть новости</Text>
+                    </Pressable>
+                  </Animated.View>
+                </View>
+              </View>
+            )}
 
-            {/* Planner toolbar (Google Calendar–like) */}
-            <View style={[styles.card, { paddingBottom: 12 }]}>
-              <View style={[styles.inputRow, { alignItems: 'center' }]}>
-                <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goToday}><Text style={styles.addButtonText}>Сегодня</Text></Pressable>
-                <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goPrev}><Text style={styles.addButtonText}>‹</Text></Pressable>
-                <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goNext}><Text style={styles.addButtonText}>›</Text></Pressable>
-                <View style={{ flex: 1 }} />
-                {['month','week','day'].map(v => (
-                  <Pressable key={v} style={[styles.pickerOption, plannerView === v ? styles.pickerOptionActive : null]} onPress={() => setPlannerView(v)}>
-                    <Text style={[styles.pickerText, plannerView === v ? styles.pickerTextActive : null]}>{v === 'month' ? 'Месяц' : v === 'week' ? 'Неделя' : 'День'}</Text>
-                  </Pressable>
-                ))}
-                <Pressable style={[styles.addButton, { backgroundColor: plannerShowNews ? '#1f6feb' : '#0f1520' }]} onPress={() => setPlannerShowNews(v => !v)}><Text style={styles.addButtonText}>{plannerShowNews ? 'Скрыть новости' : 'Показать новости'}</Text></Pressable>
+            {calendarView && (
+              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
+                <View style={styles.inputRow}>
+                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('planner-back') }] }}>
+                    <Pressable 
+                      style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} 
+                      onPress={() => {
+                        animateButtonPress('planner-back');
+                        setCalendarView(null);
+                      }}
+                    >
+                      <Text style={styles.addButtonText}>← Назад к главной</Text>
+                    </Pressable>
+                  </Animated.View>
                 </View>
-              <Text style={[styles.cardTitle, { marginBottom: 0 }]}>{monthLabel(plannerDate)}</Text>
-                </View>
+              </View>
+            )}
+
+            {/* Calendar content - only show when calendarView is 'calendar' */}
+            {calendarView === 'calendar' && (
+              <>
+                {/* Planner toolbar (Google Calendar–like) */}
+                <View style={[styles.card, { paddingBottom: 12 }]}>
+                  <View style={[styles.inputRow, { alignItems: 'center' }]}>
+                    <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goToday}><Text style={styles.addButtonText}>Сегодня</Text></Pressable>
+                    <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goPrev}><Text style={styles.addButtonText}>‹</Text></Pressable>
+                    <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goNext}><Text style={styles.addButtonText}>›</Text></Pressable>
+                    <View style={{ flex: 1 }} />
+                    {['month','week','day'].map(v => (
+                      <Pressable key={v} style={[styles.pickerOption, plannerView === v ? styles.pickerOptionActive : null]} onPress={() => setPlannerView(v)}>
+                        <Text style={[styles.pickerText, plannerView === v ? styles.pickerTextActive : null]}>{v === 'month' ? 'Месяц' : v === 'week' ? 'Неделя' : 'День'}</Text>
+                      </Pressable>
+                    ))}
+                    </View>
+                  <Text style={[styles.cardTitle, { marginBottom: 0 }]}>{monthLabel(plannerDate)}</Text>
+                    </View>
+              </>
+            )}
 
             {/* Month View */}
-            {plannerView === 'month' && (
+            {calendarView === 'calendar' && plannerView === 'month' && (
               <View style={[styles.card, { padding: 12 }]}>
                 {(() => {
                   const start = startOfMonthMon(plannerDate);
@@ -3711,7 +4017,7 @@ export default function App() {
             )}
 
             {/* Week / Day simple lists */}
-            {plannerView !== 'month' && (
+            {calendarView === 'calendar' && plannerView !== 'month' && (
               <View style={[styles.card, { padding: 12 }]}>
                 {(() => {
                   const start = new Date(plannerDate);
@@ -3756,7 +4062,7 @@ export default function App() {
             )}
 
             {/* Compose modal (inline lightweight) */}
-            {plannerComposeOpen && (
+            {calendarView === 'calendar' && plannerComposeOpen && (
               <View style={[styles.card, { borderColor: '#1f2a36' }]}>
                 <Text style={styles.cardTitle}>{plannerEditing ? 'Редактировать событие' : 'Новое событие'}</Text>
                 {!currentUser && <Text style={styles.noteText}>Войдите, чтобы добавлять события</Text>}
@@ -3840,8 +4146,8 @@ export default function App() {
                 </View>
             )}
 
-            {/* News (optional panel inside planner for now) */}
-            {plannerShowNews && (
+            {/* News content - only show when calendarView is 'news' */}
+            {calendarView === 'news' && (
             <>
             <Text style={[styles.cardTitle, { marginTop: 8 }]}>Новости (опционально)</Text>
             <View style={styles.card}>
@@ -4356,9 +4662,9 @@ const styles = StyleSheet.create({
   title: { fontSize: 24, fontWeight: 'bold', textAlign: 'center', marginBottom: 12, color: '#e6edf3' },
   brandLogo: { width: 280, height: 120, alignSelf: 'center', marginBottom: 0 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  stickyTopBar: { position: 'sticky', top: 0, zIndex: 1000, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
+  stickyTopBar: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
   tabContainer: { flex: 1, flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4 },
-  tab: { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center', transition: 'all 0.3s ease' },
+  tab: { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center' },
   activeTab: { backgroundColor: '#1f6feb' },
   inactiveTab: { backgroundColor: 'transparent' },
   tabText: { fontSize: 12, fontWeight: '600', color: '#9fb0c0' },
@@ -4370,7 +4676,7 @@ const styles = StyleSheet.create({
   logoutText: { color: '#fff', fontWeight: '600' },
 
   content: { flex: 1, padding: 20 },
-  card: { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3, transition: 'all 0.3s ease' },
+  card: { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
   cardTitle: { fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#e6edf3' },
   cardDescription: { fontSize: 14, color: '#9fb0c0', marginBottom: 16 },
   plannerRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
@@ -4403,8 +4709,15 @@ const styles = StyleSheet.create({
   emergencyTextWarning: { color: '#000' },
   emergencyGoal: { fontSize: 13, color: '#666' },
   emergencyRecommendation: { fontSize: 12, color: '#666', marginTop: 6, fontStyle: 'italic' },
-  addButton: { backgroundColor: '#10b981', borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 8, transition: 'all 0.2s ease' },
+  addButton: { backgroundColor: '#10b981', borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 8 },
+  addButtonDisabled: { backgroundColor: '#9ca3af', opacity: 0.6 },
   addButtonText: { color: '#fff', fontSize: 15, fontWeight: '600' },
+  helpText: { fontSize: 12, color: '#6b7280', marginTop: 4, fontStyle: 'italic' },
+  passwordStrengthContainer: { marginTop: 8 },
+  passwordStrengthLabel: { fontSize: 12, color: '#6b7280', marginBottom: 4 },
+  passwordStrengthBar: { height: 4, backgroundColor: '#e5e7eb', borderRadius: 2, overflow: 'hidden' },
+  passwordStrengthFill: { height: '100%', borderRadius: 2 },
+  passwordStrengthText: { fontSize: 11, fontWeight: '600', marginTop: 4 },
   filterContainer: { marginBottom: 12 },
   filterGroup: { marginBottom: 10 },
   filterLabel: { fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#9fb0c0' },
@@ -4547,7 +4860,7 @@ const styles = StyleSheet.create({
   dropdownWrapper: { position: 'relative' },
   dropdown: { position: 'absolute', top: 48, left: 0, right: 0, maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
   dropdownScroll: { maxHeight: 200 },
-  dropdownItem: { paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1f2a36', transition: 'background-color 0.2s ease' },
+  dropdownItem: { paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
   dropdownItemText: { color: '#e6edf3', fontSize: 14 },
   dropdownEmpty: { color: '#9fb0c0', fontSize: 12, padding: 10 },
   dropdownSpacer: { height: 210 },
