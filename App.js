@@ -1000,14 +1000,19 @@ export default function App() {
     const history = [];
     const now = new Date();
     
-    // Generate 30 days of data
+    // Generate 30 days of data with more variation
     for (let i = 29; i >= 0; i--) {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
-      const baseAmount = 3000 + Math.random() * 2000; // Random between 3000-5000
+      
+      // Generate more varied amounts including negative values
+      const baseAmount = 5000;
+      const variation = (Math.random() - 0.5) * 6000; // ±3000 variation
+      const amount = baseAmount + variation; // Can go negative
+      
       history.push({
         date: date.toISOString().split('T')[0],
-        amount: Math.round(baseAmount),
+        amount: Math.round(amount),
         timestamp: date.getTime()
       });
     }
@@ -1125,6 +1130,23 @@ export default function App() {
     const totalDebt = (sortedDebts || []).reduce((s, d) => s + (d.amount || 0), 0);
     const invest = investmentBalance;
     
+    // Calculate all data points
+    const cushionData = chartData.map(item => item.amount);
+    const totalData = chartData.map(item => item.amount + invest - totalDebt);
+    
+    // Find min and max values across all data
+    const allValues = [...cushionData, ...totalData];
+    const minValue = Math.min(...allValues);
+    const maxValue = Math.max(...allValues);
+    
+    // Calculate dynamic Y-axis range
+    const range = maxValue - minValue;
+    const padding = Math.max(range * 0.1, Math.abs(maxValue) * 0.05, 100); // At least 100 units padding
+    
+    // Ensure we start from 0 or below if we have negative values
+    const yMin = Math.min(0, minValue - padding);
+    const yMax = maxValue + padding;
+    
     return {
       labels: chartData.map(item => {
         const date = new Date(item.date);
@@ -1138,16 +1160,20 @@ export default function App() {
       }),
       datasets: [
         {
-          data: chartData.map(item => item.amount), // Cushion
+          data: cushionData, // Cushion
           color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
           strokeWidth: 3
         },
         {
-          data: chartData.map(item => item.amount + invest - totalDebt), // Total balance
+          data: totalData, // Total balance
           color: (opacity = 1) => `rgba(168, 85, 247, ${opacity})`,
           strokeWidth: 3
         }
-      ]
+      ],
+      // Custom Y-axis configuration
+      yAxisMin: yMin,
+      yAxisMax: yMax,
+      yAxisSuffix: ' USD'
     };
   };
 
@@ -3002,10 +3028,15 @@ export default function App() {
                               propsForDots: {
                                 r: "3",
                                 strokeWidth: "2"
-                              }
+                              },
+                              // Custom Y-axis configuration for dynamic scaling
+                              yAxisMin: getComprehensiveChartData().yAxisMin,
+                              yAxisMax: getComprehensiveChartData().yAxisMax,
+                              yAxisSuffix: getComprehensiveChartData().yAxisSuffix
                             }}
                             bezier
                             style={styles.lineChart}
+                            fromZero={false}
                           />
                         </View>
                         
