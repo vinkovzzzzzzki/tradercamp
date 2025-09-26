@@ -40,6 +40,7 @@ export default function App() {
   const buttonAnimations = useRef({}).current;
   const hoverTimeout = useRef(null);
   const isHoveringDropdown = useRef(false);
+  const isHoveringTab = useRef(false);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -436,12 +437,16 @@ export default function App() {
   };
 
   const handleTabClick = (tabKey) => {
-    // Tabs with dropdowns
-    const dropdownTabs = ['finance', 'journal', 'planner'];
-    
-    if (dropdownTabs.includes(tabKey)) {
-      // Just switch to the tab, don't open dropdown automatically
+    // Tabs with dropdowns - set default views
+    if (tabKey === 'finance') {
       animateTabChange(tabKey);
+      setFinanceView('fund'); // Default to Safety Cushion page
+    } else if (tabKey === 'journal') {
+      animateTabChange(tabKey);
+      setJournalView('new'); // Default to New Trade page
+    } else if (tabKey === 'planner') {
+      animateTabChange(tabKey);
+      setCalendarView('news'); // Default to News page
     } else {
       // Regular tabs without dropdowns
       animateTabChange(tabKey);
@@ -458,11 +463,12 @@ export default function App() {
       hoverTimeout.current = null;
     }
     
-    // Reset dropdown hover state
+    // Mark that we're hovering over tab
+    isHoveringTab.current = true;
     isHoveringDropdown.current = false;
     
-    if (dropdownTabs.includes(tabKey) && tab === tabKey) {
-      // Only open dropdown if we're hovering over the current tab
+    if (dropdownTabs.includes(tabKey)) {
+      // Open dropdown for any dropdown tab, regardless of current active tab
       setOpenDropdown(tabKey);
       animateDropdown(tabKey, true);
     }
@@ -472,13 +478,17 @@ export default function App() {
     const dropdownTabs = ['finance', 'journal', 'planner'];
     
     if (dropdownTabs.includes(tabKey)) {
-      // Only start timeout if not hovering over dropdown
-      if (!isHoveringDropdown.current) {
-        hoverTimeout.current = setTimeout(() => {
+      // Mark that we're no longer hovering over tab
+      isHoveringTab.current = false;
+      
+      // Add a delay to prevent rapid open/close when moving cursor from bottom
+      hoverTimeout.current = setTimeout(() => {
+        // Only close if we're not hovering over either tab or dropdown
+        if (!isHoveringTab.current && !isHoveringDropdown.current) {
           animateDropdown(tabKey, false);
           setOpenDropdown(null);
-        }, 500); // 500ms delay
-      }
+        }
+      }, 250); // Optimized delay for better responsiveness
     }
   };
 
@@ -499,9 +509,12 @@ export default function App() {
     
     // Close dropdown when leaving the dropdown itself
     hoverTimeout.current = setTimeout(() => {
-      animateDropdown(tabKey, false);
-      setOpenDropdown(null);
-    }, 200); // Short delay when leaving dropdown
+      // Only close if we're not hovering over either tab or dropdown
+      if (!isHoveringTab.current && !isHoveringDropdown.current) {
+        animateDropdown(tabKey, false);
+        setOpenDropdown(null);
+      }
+    }, 300); // Optimized delay for better stability
   };
   
   const getDropdownAnimation = (key) => {
@@ -2702,43 +2715,7 @@ export default function App() {
         {tab === 'finance' && (
           <View>
             {/* Finance content based on financeView */}
-            {!financeView && (
-              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
-                <Text style={styles.cardTitle}>🛡️ Подушка безопасности</Text>
-                <Text style={styles.cardDescription}>Главная страница финансов - расчёт подушки безопасности</Text>
-                <View style={styles.inputRow}>
-                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('finance-main') }] }}>
-                    <Pressable 
-                      style={[styles.addButton, { flex: 1 }]} 
-                      onPress={() => {
-                        animateButtonPress('finance-main');
-                        setFinanceView('fund');
-                      }}
-                    >
-                      <Text style={styles.addButtonText}>Перейти к расчёту</Text>
-                    </Pressable>
-                  </Animated.View>
-                </View>
-              </View>
-            )}
 
-            {financeView && (
-              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
-                <View style={styles.inputRow}>
-                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('finance-back') }] }}>
-                    <Pressable 
-                      style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} 
-                      onPress={() => {
-                        animateButtonPress('finance-back');
-                        setFinanceView(null);
-                      }}
-                    >
-                      <Text style={styles.addButtonText}>← Назад к выбору</Text>
-                    </Pressable>
-                  </Animated.View>
-                </View>
-              </View>
-            )}
 
             {/* Summary chart (compact vertical) */}
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
@@ -3712,43 +3689,7 @@ export default function App() {
         {tab === 'journal' && (
           <>
             {/* Journal entry picker */}
-            {!journalView && (
-              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
-                <Text style={styles.cardTitle}>📝 Новая сделка</Text>
-                <Text style={styles.cardDescription}>Главная страница дневника - добавление новой сделки</Text>
-                <View style={styles.inputRow}>
-                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('journal-main') }] }}>
-                    <Pressable 
-                      style={[styles.addButton, { flex: 1 }]} 
-                      onPress={() => {
-                        animateButtonPress('journal-main');
-                        setJournalView('new');
-                      }}
-                    >
-                      <Text style={styles.addButtonText}>Добавить сделку</Text>
-                    </Pressable>
-                  </Animated.View>
-                </View>
-              </View>
-            )}
 
-            {journalView && (
-              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
-                <View style={styles.inputRow}>
-                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('journal-back') }] }}>
-                    <Pressable 
-                      style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} 
-                      onPress={() => {
-                        animateButtonPress('journal-back');
-                        setJournalView(null);
-                      }}
-                    >
-                      <Text style={styles.addButtonText}>← Назад к выбору</Text>
-                    </Pressable>
-                  </Animated.View>
-                </View>
-              </View>
-            )}
 
             {journalView === 'new' && (
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
@@ -3917,43 +3858,7 @@ export default function App() {
         {tab === 'planner' && (
           <>
             {/* Planner main page */}
-            {!calendarView && (
-              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
-                <Text style={styles.cardTitle}>📰 Новости</Text>
-                <Text style={styles.cardDescription}>Главная страница планера - просмотр новостей</Text>
-                <View style={styles.inputRow}>
-                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('planner-main') }] }}>
-                    <Pressable 
-                      style={[styles.addButton, { flex: 1 }]} 
-                      onPress={() => {
-                        animateButtonPress('planner-main');
-                        setCalendarView('news');
-                      }}
-                    >
-                      <Text style={styles.addButtonText}>Просмотреть новости</Text>
-                    </Pressable>
-                  </Animated.View>
-                </View>
-              </View>
-            )}
 
-            {calendarView && (
-              <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
-                <View style={styles.inputRow}>
-                  <Animated.View style={{ flex: 1, transform: [{ scale: getButtonAnimation('planner-back') }] }}>
-                    <Pressable 
-                      style={[styles.addButton, { backgroundColor: '#1f6feb', flex: 1 }]} 
-                      onPress={() => {
-                        animateButtonPress('planner-back');
-                        setCalendarView(null);
-                      }}
-                    >
-                      <Text style={styles.addButtonText}>← Назад к главной</Text>
-                    </Pressable>
-                  </Animated.View>
-                </View>
-              </View>
-            )}
 
             {/* Calendar content - only show when calendarView is 'calendar' */}
             {calendarView === 'calendar' && (
