@@ -3121,20 +3121,6 @@ export default function App() {
                           </View>
                         </View>
                         
-                        {/* Fixed values info */}
-                        <View style={styles.fixedValuesInfo}>
-                          <Text style={styles.fixedValuesTitle}>Постоянные значения</Text>
-                          <View style={styles.fixedValuesGrid}>
-                            <View style={styles.fixedValueItem}>
-                              <View style={[styles.fixedValueColor, { backgroundColor: '#ef4444' }]} />
-                              <Text style={styles.fixedValueText}>Долги: {formatCurrencyCustom((sortedDebts || []).reduce((s, d) => s + (d.amount || 0), 0), 'USD')}</Text>
-                            </View>
-                            <View style={styles.fixedValueItem}>
-                              <View style={[styles.fixedValueColor, { backgroundColor: '#10b981' }]} />
-                              <Text style={styles.fixedValueText}>Инвестиции: {formatCurrencyCustom(investmentBalance, 'USD')}</Text>
-                            </View>
-                          </View>
-                        </View>
                         
                         {/* Statistics */}
                         {getChartStatistics() && (
@@ -5071,12 +5057,6 @@ const styles = StyleSheet.create({
   legendColor: { width: 12, height: 12, borderRadius: 2 },
   legendText: { fontSize: 12, color: '#9fb0c0', fontWeight: '500' },
   
-  fixedValuesInfo: { marginBottom: 16, paddingHorizontal: 20 },
-  fixedValuesTitle: { fontSize: 13, color: '#e6edf3', fontWeight: '600', marginBottom: 8, textAlign: 'center' },
-  fixedValuesGrid: { flexDirection: 'row', justifyContent: 'space-around', gap: 16 },
-  fixedValueItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#1b2430', borderRadius: 8, borderWidth: 1, borderColor: '#1f2a36' },
-  fixedValueColor: { width: 10, height: 10, borderRadius: 2 },
-  fixedValueText: { fontSize: 11, color: '#9fb0c0', fontWeight: '500' },
   
   chartStatistics: { marginBottom: 16, paddingHorizontal: 20 },
   statisticsTitle: { fontSize: 14, color: '#e6edf3', fontWeight: '600', marginBottom: 12, textAlign: 'center' },
