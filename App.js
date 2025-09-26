@@ -1,10 +1,11 @@
 // Version 3d05557 - Ultra-compact header design
 import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, Image, Platform, Animated, LayoutAnimation, UIManager } from 'react-native';
+import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, Image, Platform, Animated, LayoutAnimation, UIManager, Dimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { LineChart } from 'react-native-chart-kit';
 
 // Simple local storage helpers (web-only persistence)
 const storage = {
@@ -986,10 +987,137 @@ export default function App() {
   const [financeView, setFinanceView] = useState(null); // 'fund' | 'invest' | 'debts'
   const [journalView, setJournalView] = useState(null); // 'new' | 'list'
   const [calendarView, setCalendarView] = useState(null); // 'news' | 'workouts' | 'events'
+  
+  // Chart data and time period for cushion tracking
+  const [chartTimePeriod, setChartTimePeriod] = useState('days'); // 'days' | 'weeks' | 'months'
+  const [cushionHistory, setCushionHistory] = useState(() => {
+    const saved = storage.get('cushionHistory', []);
+    return saved.length > 0 ? saved : generateInitialHistory();
+  });
+  
+  // Generate initial history data for demo
+  function generateInitialHistory() {
+    const history = [];
+    const now = new Date();
+    
+    // Generate 30 days of data
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      const baseAmount = 3000 + Math.random() * 2000; // Random between 3000-5000
+      history.push({
+        date: date.toISOString().split('T')[0],
+        amount: Math.round(baseAmount),
+        timestamp: date.getTime()
+      });
+    }
+    
+    storage.set('cushionHistory', history);
+    return history;
+  }
 
   // Friend requests (local)
   const [friendRequests, setFriendRequests] = useState(() => storage.get('friendRequests', []));
   useEffect(() => storage.set('friendRequests', friendRequests), [friendRequests]);
+  
+  // Save cushion history to storage
+  useEffect(() => storage.set('cushionHistory', cushionHistory), [cushionHistory]);
+  
+  // Auto-update cushion history when cashReserve changes
+  useEffect(() => {
+    if (currentUser && cashReserve > 0) {
+      addCushionDataPoint(cashReserve);
+    }
+  }, [cashReserve, currentUser]);
+  
+  // Add new data point to cushion history
+  const addCushionDataPoint = (amount) => {
+    const today = new Date().toISOString().split('T')[0];
+    const existingIndex = cushionHistory.findIndex(item => item.date === today);
+    
+    if (existingIndex >= 0) {
+      // Update existing entry
+      const updatedHistory = [...cushionHistory];
+      updatedHistory[existingIndex] = {
+        ...updatedHistory[existingIndex],
+        amount: amount,
+        timestamp: Date.now()
+      };
+      setCushionHistory(updatedHistory);
+    } else {
+      // Add new entry
+      setCushionHistory(prev => [...prev, {
+        date: today,
+        amount: amount,
+        timestamp: Date.now()
+      }]);
+    }
+  };
+  
+  // Get chart data based on time period
+  const getChartData = () => {
+    const now = new Date();
+    let filteredData = [...cushionHistory];
+    
+    switch (chartTimePeriod) {
+      case 'days':
+        // Show last 30 days
+        const thirtyDaysAgo = new Date(now);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        filteredData = cushionHistory.filter(item => 
+          new Date(item.date) >= thirtyDaysAgo
+        );
+        break;
+      case 'weeks':
+        // Show last 12 weeks, group by week
+        const twelveWeeksAgo = new Date(now);
+        twelveWeeksAgo.setDate(twelveWeeksAgo.getDate() - 84);
+        filteredData = cushionHistory.filter(item => 
+          new Date(item.date) >= twelveWeeksAgo
+        );
+        // Group by week and take average
+        const weeklyData = {};
+        filteredData.forEach(item => {
+          const weekStart = new Date(item.date);
+          weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+          const weekKey = weekStart.toISOString().split('T')[0];
+          if (!weeklyData[weekKey]) {
+            weeklyData[weekKey] = { amounts: [], date: weekKey };
+          }
+          weeklyData[weekKey].amounts.push(item.amount);
+        });
+        filteredData = Object.values(weeklyData).map(week => ({
+          date: week.date,
+          amount: Math.round(week.amounts.reduce((a, b) => a + b, 0) / week.amounts.length),
+          timestamp: new Date(week.date).getTime()
+        }));
+        break;
+      case 'months':
+        // Show last 12 months, group by month
+        const twelveMonthsAgo = new Date(now);
+        twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+        filteredData = cushionHistory.filter(item => 
+          new Date(item.date) >= twelveMonthsAgo
+        );
+        // Group by month and take average
+        const monthlyData = {};
+        filteredData.forEach(item => {
+          const monthKey = item.date.substring(0, 7); // YYYY-MM
+          if (!monthlyData[monthKey]) {
+            monthlyData[monthKey] = { amounts: [], date: monthKey + '-01' };
+          }
+          monthlyData[monthKey].amounts.push(item.amount);
+        });
+        filteredData = Object.values(monthlyData).map(month => ({
+          date: month.date,
+          amount: Math.round(month.amounts.reduce((a, b) => a + b, 0) / month.amounts.length),
+          timestamp: new Date(month.date).getTime()
+        }));
+        break;
+    }
+    
+    return filteredData.sort((a, b) => a.timestamp - b.timestamp);
+  };
   const areFriends = (aId, bId) => {
     if (aId === currentUser?.id) {
       return Array.isArray(currentUser.friends) && currentUser.friends.includes(bId);
@@ -2777,24 +2905,75 @@ export default function App() {
                     
                     const delta = cushion + invest - totalDebt;
                     return (
-                      <View style={styles.compactVerticalLayout}>
-                        {/* Compact vertical chart - left side */}
-                        <View style={styles.compactVerticalChart}>
-                          <View style={styles.compactChartContainer}>
-                            {chartVisibility.debts && (
-                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (totalDebt / maxVal) * 100)}%`, backgroundColor: '#ef4444' }]} />
-                            )}
-                            {chartVisibility.cushion && (
-                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (cushion / maxVal) * 100)}%`, backgroundColor: '#3b82f6' }]} />
-                            )}
-                            {chartVisibility.investments && (
-                              <View style={[styles.compactChartLine, { height: `${Math.min(100, (invest / maxVal) * 100)}%`, backgroundColor: '#10b981' }]} />
-                            )}
-                          </View>
+                      <View style={styles.chartContainer}>
+                        {/* Time period selector */}
+                        <View style={styles.timePeriodSelector}>
+                          {['days', 'weeks', 'months'].map(period => (
+                            <Pressable
+                              key={period}
+                              style={[
+                                styles.timePeriodButton,
+                                chartTimePeriod === period ? styles.timePeriodButtonActive : null
+                              ]}
+                              onPress={() => setChartTimePeriod(period)}
+                            >
+                              <Text style={[
+                                styles.timePeriodText,
+                                chartTimePeriod === period ? styles.timePeriodTextActive : null
+                              ]}>
+                                {period === 'days' ? 'Дни' : period === 'weeks' ? 'Недели' : 'Месяцы'}
+                              </Text>
+                            </Pressable>
+                          ))}
                         </View>
                         
-                        {/* Legend and delta - right side */}
-                        <View style={styles.compactLeftSide}>
+                        {/* Line chart for cushion tracking */}
+                        {chartVisibility.cushion && (
+                          <View style={styles.lineChartContainer}>
+                            <LineChart
+                              data={{
+                                labels: getChartData().map(item => {
+                                  const date = new Date(item.date);
+                                  if (chartTimePeriod === 'days') {
+                                    return date.getDate().toString();
+                                  } else if (chartTimePeriod === 'weeks') {
+                                    return `Нед ${Math.ceil(date.getDate() / 7)}`;
+                                  } else {
+                                    return date.toLocaleDateString('ru', { month: 'short' });
+                                  }
+                                }),
+                                datasets: [{
+                                  data: getChartData().map(item => item.amount),
+                                  color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`, // Blue color
+                                  strokeWidth: 3
+                                }]
+                              }}
+                              width={Dimensions.get('window').width - 60}
+                              height={200}
+                              chartConfig={{
+                                backgroundColor: isDark ? '#121820' : '#ffffff',
+                                backgroundGradientFrom: isDark ? '#121820' : '#ffffff',
+                                backgroundGradientTo: isDark ? '#121820' : '#ffffff',
+                                decimalPlaces: 0,
+                                color: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                                labelColor: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                                style: {
+                                  borderRadius: 16
+                                },
+                                propsForDots: {
+                                  r: "4",
+                                  strokeWidth: "2",
+                                  stroke: "#3b82f6"
+                                }
+                              }}
+                              bezier
+                              style={styles.lineChart}
+                            />
+                          </View>
+                        )}
+                        
+                        {/* Current values summary */}
+                        <View style={styles.currentValuesSummary}>
                           <View style={styles.compactLegend}>
                             {chartVisibility.debts && (
                               <View style={styles.legendItem}>
@@ -4702,6 +4881,17 @@ const styles = StyleSheet.create({
   compactLeftSide: { flex: 1, justifyContent: 'space-between', minWidth: 0 },
   compactLegend: { gap: 4 },
   compactDelta: { fontSize: 14, color: '#e6edf3', fontWeight: '700', textAlign: 'center', paddingTop: 8, borderTopWidth: 1, borderTopColor: '#1f2a36', marginTop: 8 },
+  
+  // New line chart styles
+  chartContainer: { maxWidth: 500, alignSelf: 'center', width: '100%' },
+  timePeriodSelector: { flexDirection: 'row', justifyContent: 'center', gap: 8, marginBottom: 16 },
+  timePeriodButton: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 16, backgroundColor: '#1b2430', borderWidth: 1, borderColor: '#1f2a36' },
+  timePeriodButtonActive: { backgroundColor: '#1f6feb', borderColor: '#1f6feb' },
+  timePeriodText: { fontSize: 12, color: '#9fb0c0', fontWeight: '500' },
+  timePeriodTextActive: { color: '#fff', fontWeight: '600' },
+  lineChartContainer: { marginBottom: 16, alignItems: 'center' },
+  lineChart: { borderRadius: 16 },
+  currentValuesSummary: { marginTop: 16 },
 
   workoutList: { marginTop: 8 },
   workoutItem: { borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 12, marginBottom: 8 },
