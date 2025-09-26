@@ -406,7 +406,7 @@ export default function App() {
   const [emFilter, setEmFilter] = useState({ type: 'All', currency: 'All', q: '' });
   const [invFilter, setInvFilter] = useState({ type: 'All', currency: 'All', q: '' });
   // Chart visibility toggles
-  const [chartVisibility, setChartVisibility] = useState({ cushion: true, investments: true, total: true });
+  const [chartVisibility, setChartVisibility] = useState({ cushion: true, investments: true, debts: true, total: true });
   
   // Animation functions
   const animateTabChange = (newTab) => {
@@ -1139,6 +1139,7 @@ export default function App() {
     // Calculate all data points
     const cushionData = chartData.map(item => item.amount);
     const investmentData = chartData.map(() => invest); // Constant investment line
+    const debtsData = chartData.map(() => totalDebt); // Constant debts line
     const totalData = chartData.map(item => item.amount + invest - totalDebt);
     
     // Build datasets based on visibility settings
@@ -1161,6 +1162,15 @@ export default function App() {
         strokeWidth: 2
       });
       allValues.push(...investmentData);
+    }
+    
+    if (chartVisibility.debts) {
+      datasets.push({
+        data: debtsData,
+        color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+        strokeWidth: 2
+      });
+      allValues.push(...debtsData);
     }
     
     if (chartVisibility.total) {
@@ -2990,6 +3000,12 @@ export default function App() {
                       <Text style={[styles.compactToggleText, chartVisibility.investments ? styles.compactToggleTextActive : null]}>Инвестиции</Text>
                     </Pressable>
                     <Pressable 
+                      style={[styles.compactToggle, chartVisibility.debts ? styles.compactToggleActive : null]} 
+                      onPress={() => setChartVisibility(v => ({ ...v, debts: !v.debts }))}
+                    >
+                      <Text style={[styles.compactToggleText, chartVisibility.debts ? styles.compactToggleTextActive : null]}>Долги</Text>
+                    </Pressable>
+                    <Pressable 
                       style={[styles.compactToggle, chartVisibility.total ? styles.compactToggleActive : null]} 
                       onPress={() => setChartVisibility(v => ({ ...v, total: !v.total }))}
                     >
@@ -3010,6 +3026,7 @@ export default function App() {
                     const visibleValues = [];
                     if (chartVisibility.cushion) visibleValues.push(cushion);
                     if (chartVisibility.investments) visibleValues.push(invest);
+                    if (chartVisibility.debts) visibleValues.push(totalDebt);
                     if (chartVisibility.total) visibleValues.push(delta);
                     const maxVal = Math.max(...visibleValues, 1);
                     return (
@@ -3088,14 +3105,20 @@ export default function App() {
                               </View>
                             )}
                           </View>
-                          {chartVisibility.total && (
-                            <View style={styles.legendRow}>
+                          <View style={styles.legendRow}>
+                            {chartVisibility.debts && (
+                              <View style={styles.legendItem}>
+                                <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
+                                <Text style={styles.legendText}>Долги</Text>
+                              </View>
+                            )}
+                            {chartVisibility.total && (
                               <View style={styles.legendItem}>
                                 <View style={[styles.legendColor, { backgroundColor: '#a855f7' }]} />
                                 <Text style={styles.legendText}>Итоговый баланс</Text>
                               </View>
-                            </View>
-                          )}
+                            )}
+                          </View>
                         </View>
                         
                         {/* Fixed values info */}
