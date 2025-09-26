@@ -1143,16 +1143,6 @@ export default function App() {
           strokeWidth: 3
         },
         {
-          data: chartData.map(() => totalDebt), // Debts (constant line)
-          color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
-          strokeWidth: 2
-        },
-        {
-          data: chartData.map(() => invest), // Investments (constant line)
-          color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
-          strokeWidth: 2
-        },
-        {
           data: chartData.map(item => item.amount + invest - totalDebt), // Total balance
           color: (opacity = 1) => `rgba(168, 85, 247, ${opacity})`,
           strokeWidth: 3
@@ -3024,21 +3014,26 @@ export default function App() {
                           <View style={styles.legendRow}>
                             <View style={styles.legendItem}>
                               <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
-                              <Text style={styles.legendText}>Подушка</Text>
-                            </View>
-                            <View style={styles.legendItem}>
-                              <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
-                              <Text style={styles.legendText}>Долги</Text>
-                            </View>
-                          </View>
-                          <View style={styles.legendRow}>
-                            <View style={styles.legendItem}>
-                              <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
-                              <Text style={styles.legendText}>Инвестиции</Text>
+                              <Text style={styles.legendText}>Подушка безопасности</Text>
                             </View>
                             <View style={styles.legendItem}>
                               <View style={[styles.legendColor, { backgroundColor: '#a855f7' }]} />
-                              <Text style={styles.legendText}>Итог</Text>
+                              <Text style={styles.legendText}>Итоговый баланс</Text>
+                            </View>
+                          </View>
+                        </View>
+                        
+                        {/* Fixed values info */}
+                        <View style={styles.fixedValuesInfo}>
+                          <Text style={styles.fixedValuesTitle}>Постоянные значения</Text>
+                          <View style={styles.fixedValuesGrid}>
+                            <View style={styles.fixedValueItem}>
+                              <View style={[styles.fixedValueColor, { backgroundColor: '#ef4444' }]} />
+                              <Text style={styles.fixedValueText}>Долги: {formatCurrencyCustom((sortedDebts || []).reduce((s, d) => s + (d.amount || 0), 0), 'USD')}</Text>
+                            </View>
+                            <View style={styles.fixedValueItem}>
+                              <View style={[styles.fixedValueColor, { backgroundColor: '#10b981' }]} />
+                              <Text style={styles.fixedValueText}>Инвестиции: {formatCurrencyCustom(investmentBalance, 'USD')}</Text>
                             </View>
                           </View>
                         </View>
@@ -3046,7 +3041,7 @@ export default function App() {
                         {/* Statistics */}
                         {getChartStatistics() && (
                           <View style={styles.chartStatistics}>
-                            <Text style={styles.statisticsTitle}>Статистика за период</Text>
+                            <Text style={styles.statisticsTitle}>Статистика подушки безопасности</Text>
                             <View style={styles.statisticsGrid}>
                               <View style={styles.statisticItem}>
                                 <Text style={styles.statisticLabel}>Изменение</Text>
@@ -5002,6 +4997,13 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   legendColor: { width: 12, height: 12, borderRadius: 2 },
   legendText: { fontSize: 12, color: '#9fb0c0', fontWeight: '500' },
+  
+  fixedValuesInfo: { marginBottom: 16, paddingHorizontal: 20 },
+  fixedValuesTitle: { fontSize: 13, color: '#e6edf3', fontWeight: '600', marginBottom: 8, textAlign: 'center' },
+  fixedValuesGrid: { flexDirection: 'row', justifyContent: 'space-around', gap: 16 },
+  fixedValueItem: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: 6, paddingHorizontal: 12, backgroundColor: '#1b2430', borderRadius: 8, borderWidth: 1, borderColor: '#1f2a36' },
+  fixedValueColor: { width: 10, height: 10, borderRadius: 2 },
+  fixedValueText: { fontSize: 11, color: '#9fb0c0', fontWeight: '500' },
   
   chartStatistics: { marginBottom: 16, paddingHorizontal: 20 },
   statisticsTitle: { fontSize: 14, color: '#e6edf3', fontWeight: '600', marginBottom: 12, textAlign: 'center' },
