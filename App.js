@@ -406,7 +406,7 @@ export default function App() {
   const [emFilter, setEmFilter] = useState({ type: 'All', currency: 'All', q: '' });
   const [invFilter, setInvFilter] = useState({ type: 'All', currency: 'All', q: '' });
   // Chart visibility toggles
-  const [chartVisibility, setChartVisibility] = useState({ debts: true, cushion: true, investments: true });
+  const [chartVisibility, setChartVisibility] = useState({ cushion: true, investments: true, total: true });
   
   // Animation functions
   const animateTabChange = (newTab) => {
@@ -1132,10 +1132,41 @@ export default function App() {
     
     // Calculate all data points
     const cushionData = chartData.map(item => item.amount);
+    const investmentData = chartData.map(() => invest); // Constant investment line
     const totalData = chartData.map(item => item.amount + invest - totalDebt);
     
-    // Find min and max values across all data
-    const allValues = [...cushionData, ...totalData];
+    // Build datasets based on visibility settings
+    const datasets = [];
+    const allValues = [];
+    
+    if (chartVisibility.cushion) {
+      datasets.push({
+        data: cushionData,
+        color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+        strokeWidth: 3
+      });
+      allValues.push(...cushionData);
+    }
+    
+    if (chartVisibility.investments) {
+      datasets.push({
+        data: investmentData,
+        color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
+        strokeWidth: 2
+      });
+      allValues.push(...investmentData);
+    }
+    
+    if (chartVisibility.total) {
+      datasets.push({
+        data: totalData,
+        color: (opacity = 1) => `rgba(168, 85, 247, ${opacity})`,
+        strokeWidth: 3
+      });
+      allValues.push(...totalData);
+    }
+    
+    // Find min and max values across visible data
     const minValue = Math.min(...allValues);
     const maxValue = Math.max(...allValues);
     
@@ -1158,18 +1189,7 @@ export default function App() {
           return date.toLocaleDateString('ru', { month: 'short', year: '2-digit' });
         }
       }),
-      datasets: [
-        {
-          data: cushionData, // Cushion
-          color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-          strokeWidth: 3
-        },
-        {
-          data: totalData, // Total balance
-          color: (opacity = 1) => `rgba(168, 85, 247, ${opacity})`,
-          strokeWidth: 3
-        }
-      ],
+      datasets,
       // Custom Y-axis configuration
       yAxisMin: yMin,
       yAxisMax: yMax,
@@ -2952,12 +2972,6 @@ export default function App() {
                 {currentUser && (
                   <View style={styles.compactToggles}>
                     <Pressable 
-                      style={[styles.compactToggle, chartVisibility.debts ? styles.compactToggleActive : null]} 
-                      onPress={() => setChartVisibility(v => ({ ...v, debts: !v.debts }))}
-                    >
-                      <Text style={[styles.compactToggleText, chartVisibility.debts ? styles.compactToggleTextActive : null]}>Долги</Text>
-                    </Pressable>
-                    <Pressable 
                       style={[styles.compactToggle, chartVisibility.cushion ? styles.compactToggleActive : null]} 
                       onPress={() => setChartVisibility(v => ({ ...v, cushion: !v.cushion }))}
                     >
@@ -2969,6 +2983,12 @@ export default function App() {
                     >
                       <Text style={[styles.compactToggleText, chartVisibility.investments ? styles.compactToggleTextActive : null]}>Инвестиции</Text>
                     </Pressable>
+                    <Pressable 
+                      style={[styles.compactToggle, chartVisibility.total ? styles.compactToggleActive : null]} 
+                      onPress={() => setChartVisibility(v => ({ ...v, total: !v.total }))}
+                    >
+                      <Text style={[styles.compactToggleText, chartVisibility.total ? styles.compactToggleTextActive : null]}>Итог</Text>
+                    </Pressable>
                   </View>
                 )}
               </View>
@@ -2979,13 +2999,13 @@ export default function App() {
                     const totalDebt = (sortedDebts || []).reduce((s, d) => s + (d.amount || 0), 0);
                     const cushion = cashReserve;
                     const invest = investmentBalance;
+                    const delta = cushion + invest - totalDebt;
+                    
                     const visibleValues = [];
-                    if (chartVisibility.debts) visibleValues.push(totalDebt);
                     if (chartVisibility.cushion) visibleValues.push(cushion);
                     if (chartVisibility.investments) visibleValues.push(invest);
+                    if (chartVisibility.total) visibleValues.push(delta);
                     const maxVal = Math.max(...visibleValues, 1);
-                    
-                    const delta = cushion + invest - totalDebt;
                     return (
                       <View style={styles.chartContainer}>
                         {/* Time period selector */}
@@ -3043,15 +3063,27 @@ export default function App() {
                         {/* Chart legend */}
                         <View style={styles.chartLegend}>
                           <View style={styles.legendRow}>
-                            <View style={styles.legendItem}>
-                              <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
-                              <Text style={styles.legendText}>Подушка безопасности</Text>
-                            </View>
-                            <View style={styles.legendItem}>
-                              <View style={[styles.legendColor, { backgroundColor: '#a855f7' }]} />
-                              <Text style={styles.legendText}>Итоговый баланс</Text>
-                            </View>
+                            {chartVisibility.cushion && (
+                              <View style={styles.legendItem}>
+                                <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
+                                <Text style={styles.legendText}>Подушка безопасности</Text>
+                              </View>
+                            )}
+                            {chartVisibility.investments && (
+                              <View style={styles.legendItem}>
+                                <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
+                                <Text style={styles.legendText}>Инвестиции</Text>
+                              </View>
+                            )}
                           </View>
+                          {chartVisibility.total && (
+                            <View style={styles.legendRow}>
+                              <View style={styles.legendItem}>
+                                <View style={[styles.legendColor, { backgroundColor: '#a855f7' }]} />
+                                <Text style={styles.legendText}>Итоговый баланс</Text>
+                              </View>
+                            </View>
+                          )}
                         </View>
                         
                         {/* Fixed values info */}
@@ -3101,31 +3133,6 @@ export default function App() {
                           </View>
                         )}
                         
-                        {/* Current values summary */}
-                        <View style={styles.currentValuesSummary}>
-                          <View style={styles.compactLegend}>
-                            {chartVisibility.debts && (
-                              <View style={styles.legendItem}>
-                                <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
-                                <Text style={styles.legendText}>Долги: {formatCurrencyCustom(totalDebt, (sortedDebts[0]?.currency) || 'USD')}</Text>
-                              </View>
-                            )}
-                            {chartVisibility.cushion && (
-                              <View style={styles.legendItem}>
-                                <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
-                                <Text style={styles.legendText}>Подушка: {formatCurrencyCustom(cushion, 'USD')}</Text>
-                              </View>
-                            )}
-                            {chartVisibility.investments && (
-                              <View style={styles.legendItem}>
-                                <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
-                                <Text style={styles.legendText}>Инвестиции: {formatCurrencyCustom(invest, (currentFinance?.investTx?.[0]?.currency) || 'USD')}</Text>
-                              </View>
-                            )}
-                          </View>
-                          
-                          <Text style={styles.compactDelta}>Итог: {formatCurrencyCustom(delta, 'USD')}</Text>
-                        </View>
                       </View>
                     );
                   })()}
