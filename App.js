@@ -453,6 +453,24 @@ export default function App() {
     }
   };
 
+  // Handle dropdown item clicks - switch to tab and open specific view
+  const handleDropdownItemClick = (tabKey, viewKey) => {
+    // First switch to the target tab
+    animateTabChange(tabKey);
+    
+    // Then set the specific view
+    if (tabKey === 'finance') {
+      setFinanceView(viewKey);
+    } else if (tabKey === 'journal') {
+      setJournalView(viewKey);
+    } else if (tabKey === 'planner') {
+      setCalendarView(viewKey);
+    }
+    
+    // Close the dropdown
+    setOpenDropdown(null);
+  };
+
   // Handle hover events for dropdown tabs
   const handleTabHover = (tabKey) => {
     const dropdownTabs = ['finance', 'journal', 'planner'];
@@ -2646,13 +2664,13 @@ export default function App() {
             onMouseEnter={() => handleDropdownHover('finance')} // Keep dropdown open when hovering over it
             onMouseLeave={() => handleDropdownLeave('finance')}
           >
-            <Pressable style={styles.dropdownItem} onPress={() => { setFinanceView('fund'); setOpenDropdown(null); }}>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'fund')}>
               <Text style={styles.dropdownItemText}>Расчёт подушки безопасности</Text>
             </Pressable>
-            <Pressable style={styles.dropdownItem} onPress={() => { setFinanceView('invest'); setOpenDropdown(null); }}>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'invest')}>
               <Text style={styles.dropdownItemText}>Инвестиции</Text>
             </Pressable>
-            <Pressable style={styles.dropdownItem} onPress={() => { setFinanceView('debts'); setOpenDropdown(null); }}>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'debts')}>
               <Text style={styles.dropdownItemText}>Долги</Text>
             </Pressable>
           </Animated.View>
@@ -2676,10 +2694,10 @@ export default function App() {
             onMouseEnter={() => handleDropdownHover('journal')} // Keep dropdown open when hovering over it
             onMouseLeave={() => handleDropdownLeave('journal')}
           >
-            <Pressable style={styles.dropdownItem} onPress={() => { setJournalView('new'); setOpenDropdown(null); }}>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('journal', 'new')}>
               <Text style={styles.dropdownItemText}>Новая сделка</Text>
             </Pressable>
-            <Pressable style={styles.dropdownItem} onPress={() => { setJournalView('list'); setOpenDropdown(null); }}>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('journal', 'list')}>
               <Text style={styles.dropdownItemText}>Журнал сделок</Text>
             </Pressable>
           </Animated.View>
@@ -2703,10 +2721,10 @@ export default function App() {
             onMouseEnter={() => handleDropdownHover('planner')} // Keep dropdown open when hovering over it
             onMouseLeave={() => handleDropdownLeave('planner')}
           >
-            <Pressable style={styles.dropdownItem} onPress={() => { setCalendarView('news'); setOpenDropdown(null); }}>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('planner', 'news')}>
               <Text style={styles.dropdownItemText}>Новости</Text>
             </Pressable>
-            <Pressable style={styles.dropdownItem} onPress={() => { setCalendarView('calendar'); setOpenDropdown(null); }}>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('planner', 'calendar')}>
               <Text style={styles.dropdownItemText}>Календарь</Text>
             </Pressable>
           </Animated.View>
