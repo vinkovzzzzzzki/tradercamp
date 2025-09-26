@@ -1005,10 +1005,10 @@ export default function App() {
       const date = new Date(now);
       date.setDate(date.getDate() - i);
       
-      // Generate more varied amounts including negative values
-      const baseAmount = 5000;
-      const variation = (Math.random() - 0.5) * 6000; // ±3000 variation
-      const amount = baseAmount + variation; // Can go negative
+      // Generate more varied amounts with better range
+      const baseAmount = 3000;
+      const variation = (Math.random() - 0.5) * 4000; // ±2000 variation
+      const amount = Math.max(500, baseAmount + variation); // Minimum 500, can go up to 7000
       
       history.push({
         date: date.toISOString().split('T')[0],
@@ -1057,6 +1057,12 @@ export default function App() {
         timestamp: Date.now()
       }]);
     }
+  };
+
+  // Reset cushion history with new test data
+  const resetCushionHistory = () => {
+    const newHistory = generateInitialHistory();
+    setCushionHistory(newHistory);
   };
   
   // Get chart data based on time period with all metrics
@@ -1170,12 +1176,12 @@ export default function App() {
     const minValue = Math.min(...allValues);
     const maxValue = Math.max(...allValues);
     
-    // Calculate dynamic Y-axis range
+    // Calculate dynamic Y-axis range with better padding
     const range = maxValue - minValue;
-    const padding = Math.max(range * 0.1, Math.abs(maxValue) * 0.05, 100); // At least 100 units padding
+    const padding = Math.max(range * 0.15, Math.abs(maxValue) * 0.1, 200); // Increased padding
     
-    // Ensure we start from 0 or below if we have negative values
-    const yMin = Math.min(0, minValue - padding);
+    // Ensure we start well below the minimum value for better readability
+    const yMin = Math.min(0, minValue - padding * 1.5); // Extra space below
     const yMax = maxValue + padding;
     
     return {
@@ -3027,6 +3033,12 @@ export default function App() {
                               </Text>
                             </Pressable>
                           ))}
+                          <Pressable
+                            style={[styles.timePeriodButton, { backgroundColor: '#ef4444', borderColor: '#ef4444' }]}
+                            onPress={resetCushionHistory}
+                          >
+                            <Text style={[styles.timePeriodText, { color: '#fff' }]}>Сброс</Text>
+                          </Pressable>
                         </View>
                         
                         {/* Comprehensive line chart with all metrics */}
