@@ -1054,7 +1054,7 @@ export default function App() {
     }
   };
   
-  // Get chart data based on time period
+  // Get chart data based on time period with all metrics
   const getChartData = () => {
     const now = new Date();
     let filteredData = [...cushionHistory];
@@ -1117,6 +1117,72 @@ export default function App() {
     }
     
     return filteredData.sort((a, b) => a.timestamp - b.timestamp);
+  };
+
+  // Get comprehensive chart data with all metrics
+  const getComprehensiveChartData = () => {
+    const chartData = getChartData();
+    const totalDebt = (sortedDebts || []).reduce((s, d) => s + (d.amount || 0), 0);
+    const invest = investmentBalance;
+    
+    return {
+      labels: chartData.map(item => {
+        const date = new Date(item.date);
+        if (chartTimePeriod === 'days') {
+          return `${date.getDate()}/${date.getMonth() + 1}`;
+        } else if (chartTimePeriod === 'weeks') {
+          return `Нед ${Math.ceil(date.getDate() / 7)}`;
+        } else {
+          return date.toLocaleDateString('ru', { month: 'short', year: '2-digit' });
+        }
+      }),
+      datasets: [
+        {
+          data: chartData.map(item => item.amount), // Cushion
+          color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+          strokeWidth: 3
+        },
+        {
+          data: chartData.map(() => totalDebt), // Debts (constant line)
+          color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+          strokeWidth: 2
+        },
+        {
+          data: chartData.map(() => invest), // Investments (constant line)
+          color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
+          strokeWidth: 2
+        },
+        {
+          data: chartData.map(item => item.amount + invest - totalDebt), // Total balance
+          color: (opacity = 1) => `rgba(168, 85, 247, ${opacity})`,
+          strokeWidth: 3
+        }
+      ]
+    };
+  };
+
+  // Calculate statistics for the current period
+  const getChartStatistics = () => {
+    const chartData = getChartData();
+    if (chartData.length === 0) return null;
+    
+    const amounts = chartData.map(item => item.amount);
+    const firstAmount = amounts[0];
+    const lastAmount = amounts[amounts.length - 1];
+    const average = amounts.reduce((a, b) => a + b, 0) / amounts.length;
+    const min = Math.min(...amounts);
+    const max = Math.max(...amounts);
+    const change = lastAmount - firstAmount;
+    const changePercent = firstAmount > 0 ? ((change / firstAmount) * 100) : 0;
+    
+    return {
+      change,
+      changePercent,
+      average: Math.round(average),
+      min,
+      max,
+      trend: change > 0 ? 'up' : change < 0 ? 'down' : 'stable'
+    };
   };
   const areFriends = (aId, bId) => {
     if (aId === currentUser?.id) {
@@ -2927,48 +2993,85 @@ export default function App() {
                           ))}
                         </View>
                         
-                        {/* Line chart for cushion tracking */}
-                        {chartVisibility.cushion && (
-                          <View style={styles.lineChartContainer}>
-                            <LineChart
-                              data={{
-                                labels: getChartData().map(item => {
-                                  const date = new Date(item.date);
-                                  if (chartTimePeriod === 'days') {
-                                    return date.getDate().toString();
-                                  } else if (chartTimePeriod === 'weeks') {
-                                    return `Нед ${Math.ceil(date.getDate() / 7)}`;
-                                  } else {
-                                    return date.toLocaleDateString('ru', { month: 'short' });
-                                  }
-                                }),
-                                datasets: [{
-                                  data: getChartData().map(item => item.amount),
-                                  color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`, // Blue color
-                                  strokeWidth: 3
-                                }]
-                              }}
-                              width={Dimensions.get('window').width - 60}
-                              height={200}
-                              chartConfig={{
-                                backgroundColor: isDark ? '#121820' : '#ffffff',
-                                backgroundGradientFrom: isDark ? '#121820' : '#ffffff',
-                                backgroundGradientTo: isDark ? '#121820' : '#ffffff',
-                                decimalPlaces: 0,
-                                color: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-                                labelColor: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-                                style: {
-                                  borderRadius: 16
-                                },
-                                propsForDots: {
-                                  r: "4",
-                                  strokeWidth: "2",
-                                  stroke: "#3b82f6"
-                                }
-                              }}
-                              bezier
-                              style={styles.lineChart}
-                            />
+                        {/* Comprehensive line chart with all metrics */}
+                        <View style={styles.lineChartContainer}>
+                          <LineChart
+                            data={getComprehensiveChartData()}
+                            width={Dimensions.get('window').width - 60}
+                            height={220}
+                            chartConfig={{
+                              backgroundColor: isDark ? '#121820' : '#ffffff',
+                              backgroundGradientFrom: isDark ? '#121820' : '#ffffff',
+                              backgroundGradientTo: isDark ? '#121820' : '#ffffff',
+                              decimalPlaces: 0,
+                              color: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                              labelColor: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                              style: {
+                                borderRadius: 16
+                              },
+                              propsForDots: {
+                                r: "3",
+                                strokeWidth: "2"
+                              }
+                            }}
+                            bezier
+                            style={styles.lineChart}
+                          />
+                        </View>
+                        
+                        {/* Chart legend */}
+                        <View style={styles.chartLegend}>
+                          <View style={styles.legendRow}>
+                            <View style={styles.legendItem}>
+                              <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
+                              <Text style={styles.legendText}>Подушка</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                              <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
+                              <Text style={styles.legendText}>Долги</Text>
+                            </View>
+                          </View>
+                          <View style={styles.legendRow}>
+                            <View style={styles.legendItem}>
+                              <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
+                              <Text style={styles.legendText}>Инвестиции</Text>
+                            </View>
+                            <View style={styles.legendItem}>
+                              <View style={[styles.legendColor, { backgroundColor: '#a855f7' }]} />
+                              <Text style={styles.legendText}>Итог</Text>
+                            </View>
+                          </View>
+                        </View>
+                        
+                        {/* Statistics */}
+                        {getChartStatistics() && (
+                          <View style={styles.chartStatistics}>
+                            <Text style={styles.statisticsTitle}>Статистика за период</Text>
+                            <View style={styles.statisticsGrid}>
+                              <View style={styles.statisticItem}>
+                                <Text style={styles.statisticLabel}>Изменение</Text>
+                                <Text style={[
+                                  styles.statisticValue,
+                                  { color: getChartStatistics().trend === 'up' ? '#10b981' : 
+                                           getChartStatistics().trend === 'down' ? '#ef4444' : '#9fb0c0' }
+                                ]}>
+                                  {getChartStatistics().change > 0 ? '+' : ''}{formatCurrencyCustom(getChartStatistics().change, 'USD')}
+                                  {' '}({getChartStatistics().changePercent > 0 ? '+' : ''}{getChartStatistics().changePercent.toFixed(1)}%)
+                                </Text>
+                              </View>
+                              <View style={styles.statisticItem}>
+                                <Text style={styles.statisticLabel}>Среднее</Text>
+                                <Text style={styles.statisticValue}>{formatCurrencyCustom(getChartStatistics().average, 'USD')}</Text>
+                              </View>
+                              <View style={styles.statisticItem}>
+                                <Text style={styles.statisticLabel}>Мин</Text>
+                                <Text style={styles.statisticValue}>{formatCurrencyCustom(getChartStatistics().min, 'USD')}</Text>
+                              </View>
+                              <View style={styles.statisticItem}>
+                                <Text style={styles.statisticLabel}>Макс</Text>
+                                <Text style={styles.statisticValue}>{formatCurrencyCustom(getChartStatistics().max, 'USD')}</Text>
+                              </View>
+                            </View>
                           </View>
                         )}
                         
@@ -4892,6 +4995,20 @@ const styles = StyleSheet.create({
   lineChartContainer: { marginBottom: 16, alignItems: 'center' },
   lineChart: { borderRadius: 16 },
   currentValuesSummary: { marginTop: 16 },
+  
+  // Chart legend and statistics styles
+  chartLegend: { marginBottom: 16, paddingHorizontal: 20 },
+  legendRow: { flexDirection: 'row', justifyContent: 'space-around', marginBottom: 8 },
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendColor: { width: 12, height: 12, borderRadius: 2 },
+  legendText: { fontSize: 12, color: '#9fb0c0', fontWeight: '500' },
+  
+  chartStatistics: { marginBottom: 16, paddingHorizontal: 20 },
+  statisticsTitle: { fontSize: 14, color: '#e6edf3', fontWeight: '600', marginBottom: 12, textAlign: 'center' },
+  statisticsGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 12 },
+  statisticItem: { flex: 1, minWidth: '45%', alignItems: 'center', paddingVertical: 8, paddingHorizontal: 12, backgroundColor: '#1b2430', borderRadius: 8, borderWidth: 1, borderColor: '#1f2a36' },
+  statisticLabel: { fontSize: 11, color: '#9fb0c0', marginBottom: 4, textAlign: 'center' },
+  statisticValue: { fontSize: 13, color: '#e6edf3', fontWeight: '600', textAlign: 'center' },
 
   workoutList: { marginTop: 8 },
   workoutItem: { borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 12, marginBottom: 8 },
