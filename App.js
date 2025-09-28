@@ -5209,6 +5209,49 @@ export default function App() {
                       </View>
                     </View>
                     
+                    {/* Supabase Configuration */}
+                    <Text style={[styles.cardTitle, { marginTop: 12 }]}>🔧 Настройки Supabase</Text>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Project URL</Text>
+                      <TextInput 
+                        style={styles.input} 
+                        value={supa.url} 
+                        onChangeText={(t) => setSupa(prev => ({ ...prev, url: t }))} 
+                        placeholder="https://your-project.supabase.co" 
+                      />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Anon Key</Text>
+                      <TextInput 
+                        style={styles.input} 
+                        value={supa.anonKey} 
+                        onChangeText={(t) => setSupa(prev => ({ ...prev, anonKey: t }))} 
+                        placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
+                        secureTextEntry={true}
+                      />
+                    </View>
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.label}>Storage Bucket</Text>
+                      <TextInput 
+                        style={styles.input} 
+                        value={supa.bucket} 
+                        onChangeText={(t) => setSupa(prev => ({ ...prev, bucket: t }))} 
+                        placeholder="public" 
+                      />
+                    </View>
+                    {supaConfigured && (
+                      <View style={[styles.resultCard, { backgroundColor: '#1a2f1a', borderColor: '#10b981' }]}>
+                        <Text style={[styles.resultTitle, { color: '#10b981' }]}>✅ Supabase настроен</Text>
+                        <Text style={styles.noteText}>База данных подключена и готова к работе</Text>
+                      </View>
+                    )}
+                    {!supaConfigured && (
+                      <View style={[styles.resultCard, { backgroundColor: '#2f1a1a', borderColor: '#ef4444' }]}>
+                        <Text style={[styles.resultTitle, { color: '#ef4444' }]}>❌ Supabase не настроен</Text>
+                        <Text style={styles.noteText}>Заполните URL и Anon Key для подключения к базе данных</Text>
+                      </View>
+                    )}
+                    
                     {/* Logout button */}
                     <View style={styles.inputRow}>
                       <View style={styles.inputGroup}>
