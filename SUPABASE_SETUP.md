@@ -11,27 +11,19 @@
    - **Project URL** (например: `https://abcdefgh.supabase.co`)
    - **anon public key** (длинная строка начинающаяся с `eyJ...`)
 
-### 2. Обновите конфигурацию в App.js
+### 2. Конфигурация уже настроена ✅
 
-Найдите в файле `App.js` строки:
+Конфигурация Supabase уже настроена в `App.js`:
 
 ```javascript
 const SUPABASE_CONFIG = {
-  url: 'https://your-project.supabase.co', // ЗАМЕНИТЕ НА ВАШ URL
-  anonKey: 'your-anon-key-here', // ЗАМЕНИТЕ НА ВАШ КЛЮЧ
+  url: 'https://ncfiwejrpozzbftkkdjx.supabase.co',
+  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZml3ZWpycG96emJmdGtrZGp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxMzU3MjYsImV4cCI6MjA3MTcxMTcyNn0.IQ_w-WhlK9wy3GkYmTJ7bvN6HsamVkYT6aQWlyWA5sw',
   bucket: 'public'
 };
 ```
 
-Замените на ваши данные:
-
-```javascript
-const SUPABASE_CONFIG = {
-  url: 'https://abcdefgh.supabase.co', // ВАШ URL
-  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', // ВАШ КЛЮЧ
-  bucket: 'public'
-};
-```
+**Готово!** Никаких дополнительных настроек не требуется.
 
 ### 3. Выполните SQL схему
 

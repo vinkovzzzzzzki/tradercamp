@@ -1596,13 +1596,13 @@ export default function App() {
 
   // Backend (Supabase REST) config - встроенная конфигурация
   const SUPABASE_CONFIG = {
-    url: 'https://your-project.supabase.co', // ЗАМЕНИТЕ НА ВАШ URL
-    anonKey: 'your-anon-key-here', // ЗАМЕНИТЕ НА ВАШ КЛЮЧ
+    url: 'https://ncfiwejrpozzbftkkdjx.supabase.co',
+    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZml3ZWpycG96emJmdGtrZGp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxMzU3MjYsImV4cCI6MjA3MTcxMTcyNn0.IQ_w-WhlK9wy3GkYmTJ7bvN6HsamVkYT6aQWlyWA5sw',
     bucket: 'public'
   };
   
   const [supa, setSupa] = useState(SUPABASE_CONFIG);
-  const supaConfigured = !!(supa.url && supa.anonKey && supa.url !== 'https://your-project.supabase.co');
+  const supaConfigured = !!(supa.url && supa.anonKey);
   const supaHeaders = () => ({
     'apikey': supa.anonKey,
     'Authorization': `Bearer ${supa.anonKey}`,
