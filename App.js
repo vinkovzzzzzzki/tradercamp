@@ -407,6 +407,23 @@ export default function App() {
   const [invFilter, setInvFilter] = useState({ type: 'All', currency: 'All', q: '' });
   // Chart visibility toggles
   const [chartVisibility, setChartVisibility] = useState({ cushion: true, investments: true, debts: true, total: true });
+
+  // Custom setter for chart visibility to ensure at least one option is always enabled
+  const setChartVisibilitySafe = (updater) => {
+    setChartVisibility(prev => {
+      const newVisibility = typeof updater === 'function' ? updater(prev) : updater;
+      
+      // Check if all options are disabled
+      const allDisabled = !newVisibility.cushion && !newVisibility.investments && !newVisibility.debts && !newVisibility.total;
+      
+      if (allDisabled) {
+        // Re-enable cushion by default
+        return { ...newVisibility, cushion: true };
+      }
+      
+      return newVisibility;
+    });
+  };
   
   // Animation functions
   const animateTabChange = (newTab) => {
@@ -1421,6 +1438,17 @@ export default function App() {
     }
     
     // Find min and max values across visible data
+    // Handle case when no data is visible
+    if (allValues.length === 0) {
+      return {
+        labels: [],
+        datasets: [],
+        yAxisMin: 0,
+        yAxisMax: 1000,
+        yAxisSuffix: ' USD'
+      };
+    }
+    
     const minValue = Math.min(...allValues);
     const maxValue = Math.max(...allValues);
     
@@ -3035,9 +3063,9 @@ export default function App() {
             <View style={styles.inputGroup}>
               <Text style={styles.label}>Email</Text>
               <TextInput style={styles.input} value={authEmail} onChangeText={setAuthEmail} placeholder="email@example.com" autoCapitalize="none" />
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Пароль</Text>
+              </View>
+                <View style={styles.inputGroup}>
+                  <Text style={styles.label}>Пароль</Text>
               <TextInput style={styles.input} value={authPassword} onChangeText={(t) => {
                 setAuthPassword(t);
                 setPasswordStrength(calculatePasswordStrength(t));
@@ -3056,38 +3084,38 @@ export default function App() {
                             backgroundColor: passwordStrength < 3 ? '#ef4444' : passwordStrength < 5 ? '#f59e0b' : '#10b981'
                           }
                         ]} />
-                      </View>
+                </View>
                       <Text style={[
                         styles.passwordStrengthText,
                         { color: passwordStrength < 3 ? '#ef4444' : passwordStrength < 5 ? '#f59e0b' : '#10b981' }
                       ]}>
                         {passwordStrength < 3 ? 'Слабый' : passwordStrength < 5 ? 'Средний' : 'Сильный'}
                       </Text>
-                    </View>
-                  )}
-                </>
+              </View>
               )}
-            </View>
-          </View>
+            </>
+              )}
+                </View>
+                </View>
           
-          {authMode === 'login' ? (
-            <>
+              {authMode === 'login' ? (
+                <>
               <Pressable style={[styles.addButton, isLoading && styles.addButtonDisabled]} onPress={supaLogin} disabled={isLoading}>
                 <Text style={styles.addButtonText}>{isLoading ? 'Вход...' : 'Войти'}</Text>
               </Pressable>
               <Pressable style={[styles.addButton, { backgroundColor: '#6b7280', marginTop: 8 }]} onPress={demoLogin}>
                 <Text style={styles.addButtonText}>Демо-вход (тест)</Text>
               </Pressable>
-              <Pressable style={styles.switchAuth} onPress={supaRecover}><Text style={styles.switchAuthText}>Забыли пароль?</Text></Pressable>
-            </>
-          ) : (
+                  <Pressable style={styles.switchAuth} onPress={supaRecover}><Text style={styles.switchAuthText}>Забыли пароль?</Text></Pressable>
+                </>
+              ) : (
             <Pressable style={[styles.addButton, isLoading && styles.addButtonDisabled]} onPress={supaRegister} disabled={isLoading}>
               <Text style={styles.addButtonText}>{isLoading ? 'Регистрация...' : 'Зарегистрироваться'}</Text>
             </Pressable>
-          )}
+              )}
           
-          {!supaConfigured && (
-            <Text style={styles.noteText}>Укажите Supabase URL и Anon Key в профиле</Text>
+              {!supaConfigured && (
+                <Text style={styles.noteText}>Укажите Supabase URL и Anon Key в профиле</Text>
           )}
 
           <Pressable style={styles.switchAuth} onPress={() => setAuthMode(m => m === 'login' ? 'register' : 'login')}>
@@ -3180,7 +3208,7 @@ export default function App() {
           >
             <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('journal', 'new')}>
               <Text style={styles.dropdownItemText}>Новая сделка</Text>
-            </Pressable>
+                  </Pressable>
             <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('journal', 'list')}>
               <Text style={styles.dropdownItemText}>Журнал сделок</Text>
             </Pressable>
@@ -3227,25 +3255,25 @@ export default function App() {
                   <View style={styles.compactToggles}>
                     <Pressable 
                       style={[styles.compactToggle, chartVisibility.cushion ? styles.compactToggleActive : null]} 
-                      onPress={() => setChartVisibility(v => ({ ...v, cushion: !v.cushion }))}
+                      onPress={() => setChartVisibilitySafe(v => ({ ...v, cushion: !v.cushion }))}
                     >
                       <Text style={[styles.compactToggleText, chartVisibility.cushion ? styles.compactToggleTextActive : null]}>Подушка</Text>
                     </Pressable>
                     <Pressable 
                       style={[styles.compactToggle, chartVisibility.investments ? styles.compactToggleActive : null]} 
-                      onPress={() => setChartVisibility(v => ({ ...v, investments: !v.investments }))}
+                      onPress={() => setChartVisibilitySafe(v => ({ ...v, investments: !v.investments }))}
                     >
                       <Text style={[styles.compactToggleText, chartVisibility.investments ? styles.compactToggleTextActive : null]}>Инвестиции</Text>
                     </Pressable>
                     <Pressable 
                       style={[styles.compactToggle, chartVisibility.debts ? styles.compactToggleActive : null]} 
-                      onPress={() => setChartVisibility(v => ({ ...v, debts: !v.debts }))}
+                      onPress={() => setChartVisibilitySafe(v => ({ ...v, debts: !v.debts }))}
                     >
                       <Text style={[styles.compactToggleText, chartVisibility.debts ? styles.compactToggleTextActive : null]}>Долги</Text>
                     </Pressable>
                     <Pressable 
                       style={[styles.compactToggle, chartVisibility.total ? styles.compactToggleActive : null]} 
-                      onPress={() => setChartVisibility(v => ({ ...v, total: !v.total }))}
+                      onPress={() => setChartVisibilitySafe(v => ({ ...v, total: !v.total }))}
                     >
                       <Text style={[styles.compactToggleText, chartVisibility.total ? styles.compactToggleTextActive : null]}>Итог</Text>
                     </Pressable>
@@ -3298,33 +3326,50 @@ export default function App() {
                         
                         {/* Comprehensive line chart with all metrics */}
                         <View style={styles.lineChartContainer}>
-                          <LineChart
-                            data={getComprehensiveChartData()}
-                            width={Dimensions.get('window').width - 60}
-                            height={220}
-                            chartConfig={{
-                              backgroundColor: isDark ? '#121820' : '#ffffff',
-                              backgroundGradientFrom: isDark ? '#121820' : '#ffffff',
-                              backgroundGradientTo: isDark ? '#121820' : '#ffffff',
-                              decimalPlaces: 0,
-                              color: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-                              labelColor: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-                              style: {
-                                borderRadius: 16
-                              },
-                              propsForDots: {
-                                r: "3",
-                                strokeWidth: "2"
-                              },
-                              // Custom Y-axis configuration for dynamic scaling
-                              yAxisMin: getComprehensiveChartData().yAxisMin,
-                              yAxisMax: getComprehensiveChartData().yAxisMax,
-                              yAxisSuffix: getComprehensiveChartData().yAxisSuffix
-                            }}
-                            bezier
-                            style={styles.lineChart}
-                            fromZero={false}
-                          />
+                          {(() => {
+                            const chartData = getComprehensiveChartData();
+                            
+                            // Show message when no data is visible
+                            if (chartData.datasets.length === 0) {
+                    return (
+                                <View style={styles.emptyChartContainer}>
+                                  <Text style={styles.emptyChartText}>
+                                    Выберите хотя бы одну метрику для отображения
+                                  </Text>
+                              </View>
+                              );
+                            }
+                            
+                            return (
+                              <LineChart
+                                data={chartData}
+                                width={Dimensions.get('window').width - 60}
+                                height={220}
+                                chartConfig={{
+                                  backgroundColor: isDark ? '#121820' : '#ffffff',
+                                  backgroundGradientFrom: isDark ? '#121820' : '#ffffff',
+                                  backgroundGradientTo: isDark ? '#121820' : '#ffffff',
+                                  decimalPlaces: 0,
+                                  color: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                                  labelColor: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                                  style: {
+                                    borderRadius: 16
+                                  },
+                                  propsForDots: {
+                                    r: "3",
+                                    strokeWidth: "2"
+                                  },
+                                  // Custom Y-axis configuration for dynamic scaling
+                                  yAxisMin: chartData.yAxisMin,
+                                  yAxisMax: chartData.yAxisMax,
+                                  yAxisSuffix: chartData.yAxisSuffix
+                                }}
+                                bezier
+                                style={styles.lineChart}
+                                fromZero={false}
+                              />
+                            );
+                          })()}
                         </View>
                         
                         {/* Chart legend */}
@@ -4455,21 +4500,21 @@ export default function App() {
             {/* Calendar content - only show when calendarView is 'calendar' */}
             {calendarView === 'calendar' && (
               <>
-                {/* Planner toolbar (Google Calendar–like) */}
-                <View style={[styles.card, { paddingBottom: 12 }]}>
-                  <View style={[styles.inputRow, { alignItems: 'center' }]}>
-                    <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goToday}><Text style={styles.addButtonText}>Сегодня</Text></Pressable>
-                    <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goPrev}><Text style={styles.addButtonText}>‹</Text></Pressable>
-                    <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goNext}><Text style={styles.addButtonText}>›</Text></Pressable>
-                    <View style={{ flex: 1 }} />
-                    {['month','week','day'].map(v => (
-                      <Pressable key={v} style={[styles.pickerOption, plannerView === v ? styles.pickerOptionActive : null]} onPress={() => setPlannerView(v)}>
-                        <Text style={[styles.pickerText, plannerView === v ? styles.pickerTextActive : null]}>{v === 'month' ? 'Месяц' : v === 'week' ? 'Неделя' : 'День'}</Text>
-                      </Pressable>
-                    ))}
-                    </View>
-                  <Text style={[styles.cardTitle, { marginBottom: 0 }]}>{monthLabel(plannerDate)}</Text>
-                    </View>
+            {/* Planner toolbar (Google Calendar–like) */}
+            <View style={[styles.card, { paddingBottom: 12 }]}>
+              <View style={[styles.inputRow, { alignItems: 'center' }]}>
+                <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goToday}><Text style={styles.addButtonText}>Сегодня</Text></Pressable>
+                <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goPrev}><Text style={styles.addButtonText}>‹</Text></Pressable>
+                <Pressable style={[styles.addButton, { backgroundColor: '#0f1520' }]} onPress={goNext}><Text style={styles.addButtonText}>›</Text></Pressable>
+                <View style={{ flex: 1 }} />
+                {['month','week','day'].map(v => (
+                  <Pressable key={v} style={[styles.pickerOption, plannerView === v ? styles.pickerOptionActive : null]} onPress={() => setPlannerView(v)}>
+                    <Text style={[styles.pickerText, plannerView === v ? styles.pickerTextActive : null]}>{v === 'month' ? 'Месяц' : v === 'week' ? 'Неделя' : 'День'}</Text>
+                  </Pressable>
+                ))}
+                </View>
+              <Text style={[styles.cardTitle, { marginBottom: 0 }]}>{monthLabel(plannerDate)}</Text>
+                </View>
               </>
             )}
 
@@ -5286,6 +5331,22 @@ const styles = StyleSheet.create({
   timePeriodTextActive: { color: '#fff', fontWeight: '600' },
   lineChartContainer: { marginBottom: 16, alignItems: 'center' },
   lineChart: { borderRadius: 16 },
+  emptyChartContainer: { 
+    width: Dimensions.get('window').width - 60, 
+    height: 220, 
+    justifyContent: 'center', 
+    alignItems: 'center', 
+    backgroundColor: '#1a1a1a', 
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#1f2a36'
+  },
+  emptyChartText: { 
+    fontSize: 14, 
+    color: '#9fb0c0', 
+    textAlign: 'center',
+    paddingHorizontal: 20
+  },
   currentValuesSummary: { marginTop: 16 },
   
   // Chart legend and statistics styles
