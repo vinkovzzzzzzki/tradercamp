@@ -3607,27 +3607,56 @@ export default function App() {
                                   const x = event.clientX - rect.left;
                                   const y = event.clientY - rect.top;
                                   
-                                  // Calculate approximate data point based on mouse position
+                                  // Calculate precise data point based on mouse position
                                   const chartWidth = Dimensions.get('window').width - 60;
-                                  const dataIndex = Math.round((x / chartWidth) * (chartData.labels.length - 1));
+                                  const chartPadding = 40; // Account for chart padding
+                                  const effectiveWidth = chartWidth - (chartPadding * 2);
+                                  const relativeX = x - chartPadding;
+                                  
+                                  // Calculate data index with better precision
+                                  let dataIndex = Math.round((relativeX / effectiveWidth) * (chartData.labels.length - 1));
+                                  dataIndex = Math.max(0, Math.min(dataIndex, chartData.labels.length - 1));
                                   
                                   if (dataIndex >= 0 && dataIndex < chartData.labels.length) {
                                     const label = chartData.labels[dataIndex];
                                     const values = [];
                                     
                                     // Get values for all visible datasets at this index
-                                    chartData.datasets.forEach((dataset, datasetIndex) => {
-                                      if (dataset.data[dataIndex] !== undefined) {
-                                        const colors = ['#3b82f6', '#10b981', '#ef4444', '#a855f7'];
-                                        values.push({
-                                          value: dataset.data[dataIndex],
-                                          color: colors[datasetIndex] || '#3b82f6',
-                                          label: datasetIndex === 0 ? 'Подушка' : 
-                                                 datasetIndex === 1 ? 'Инвестиции' :
-                                                 datasetIndex === 2 ? 'Долги' : 'Итог'
-                                        });
-                                      }
-                                    });
+                                    let datasetIndex = 0;
+                                    if (chartVisibility.cushion && chartData.datasets[datasetIndex]) {
+                                      values.push({
+                                        value: chartData.datasets[datasetIndex].data[dataIndex],
+                                        color: '#3b82f6',
+                                        label: 'Подушка'
+                                      });
+                                      datasetIndex++;
+                                    }
+                                    
+                                    if (chartVisibility.investments && chartData.datasets[datasetIndex]) {
+                                      values.push({
+                                        value: chartData.datasets[datasetIndex].data[dataIndex],
+                                        color: '#10b981',
+                                        label: 'Инвестиции'
+                                      });
+                                      datasetIndex++;
+                                    }
+                                    
+                                    if (chartVisibility.debts && chartData.datasets[datasetIndex]) {
+                                      values.push({
+                                        value: chartData.datasets[datasetIndex].data[dataIndex],
+                                        color: '#ef4444',
+                                        label: 'Долги'
+                                      });
+                                      datasetIndex++;
+                                    }
+                                    
+                                    if (chartVisibility.total && chartData.datasets[datasetIndex]) {
+                                      values.push({
+                                        value: chartData.datasets[datasetIndex].data[dataIndex],
+                                        color: '#a855f7',
+                                        label: 'Итог'
+                                      });
+                                    }
                                     
                                     if (values.length > 0) {
                                       // Calculate tooltip position with boundary checks
@@ -3637,7 +3666,7 @@ export default function App() {
                                       const screenHeight = window.innerHeight;
                                       
                                       let tooltipX = event.clientX;
-                                      let tooltipY = event.clientY + 15;
+                                      let tooltipY = event.clientY + 5;
                                       
                                       // Adjust X position if tooltip would go off screen
                                       if (tooltipX + tooltipWidth > screenWidth) {
@@ -3705,6 +3734,15 @@ export default function App() {
                               }
                             ]}
                           >
+                            {/* Tooltip arrow pointing to cursor */}
+                            <View style={[
+                              styles.tooltipArrow,
+                              {
+                                borderTopColor: isDark ? '#1a1a1a' : '#ffffff',
+                                borderBottomColor: isDark ? '#1a1a1a' : '#ffffff'
+                              }
+                            ]} />
+                            
                             <Text style={[styles.tooltipTitle, { color: isDark ? '#e6edf3' : '#1f2937' }]}>
                               {chartTooltip.data.label}
                             </Text>
@@ -5778,6 +5816,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     flex: 1
+  },
+  tooltipArrow: {
+    position: 'absolute',
+    top: -8,
+    left: '50%',
+    marginLeft: -4,
+    width: 0,
+    height: 0,
+    borderLeftWidth: 4,
+    borderRightWidth: 4,
+    borderBottomWidth: 8,
+    borderLeftColor: 'transparent',
+    borderRightColor: 'transparent'
   },
   emptyChartContainer: { 
     width: Dimensions.get('window').width - 60, 
