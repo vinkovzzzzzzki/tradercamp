@@ -1711,7 +1711,41 @@ export default function App() {
       }
     } catch {}
   };
-  useEffect(() => { fetchSupaWorkouts(); fetchSupaEvents(); }, [supaConfigured, currentSupaUser]);
+  
+  // Sync trades with Supabase
+  const fetchSupaTrades = async () => {
+    if (!supaConfigured || !currentSupaUser) return;
+    try {
+      const url = supaUrl(`/trades?select=*&order=id.desc`);
+      const res = await fetch(url, { headers: supaAuthHeadersWithSession() });
+      if (!res.ok) return;
+      const list = await res.json();
+      if (Array.isArray(list)) {
+        const mapped = list.map(trade => ({
+          id: trade.id,
+          userId: currentUser?.id,
+          asset: trade.asset || '',
+          side: trade.side || 'BUY',
+          qty: Number(trade.qty) || 0,
+          price: Number(trade.price) || 0,
+          market: trade.market || 'Crypto',
+          style: trade.style || 'Скальпинг',
+          date: trade.date || new Date().toISOString().slice(0, 10),
+          notes: trade.notes || '',
+          stopLoss: trade.stop_loss ? Number(trade.stop_loss) : null,
+          takeProfit: trade.take_profit ? Number(trade.take_profit) : null,
+          trailingEnabled: !!trade.trailing_enabled,
+          trailingType: trade.trailing_type || 'percent',
+          trailingValue: trade.trailing_value ? Number(trade.trailing_value) : null,
+          remainingQty: Number(trade.remaining_qty) || 0,
+          closures: Array.isArray(trade.closures) ? trade.closures : []
+        }));
+        setTrades(mapped);
+      }
+    } catch {}
+  };
+  
+  useEffect(() => { fetchSupaWorkouts(); fetchSupaEvents(); fetchSupaTrades(); }, [supaConfigured, currentSupaUser]);
 
   // Persist critical slices
   useEffect(() => storage.set('posts', posts), [posts]);
@@ -1820,6 +1854,33 @@ export default function App() {
     setFilterStyle('All');
     Alert.alert('Готово', 'Сделка добавлена');
     setNewTrade({ asset: '', side: 'BUY', qty: '', price: '', market: 'Crypto', style: 'Скальпинг', date: new Date().toISOString().slice(0,10), notes: '', stopLoss: '', takeProfit: '', trailingEnabled: false, trailingType: 'percent', trailingValue: '' });
+    
+    // Sync with Supabase
+    if (supaConfigured && currentSupaUser) {
+      (async () => {
+        try {
+          const body = [{
+            user_id: currentUser.id,
+            asset: trade.asset,
+            side: trade.side,
+            qty: trade.qty,
+            price: trade.price,
+            market: trade.market,
+            style: trade.style,
+            date: trade.date,
+            notes: trade.notes,
+            stop_loss: trade.stopLoss,
+            take_profit: trade.takeProfit,
+            trailing_enabled: trade.trailingEnabled,
+            trailing_type: trade.trailingType,
+            trailing_value: trade.trailingValue,
+            remaining_qty: trade.remainingQty,
+            closures: trade.closures
+          }];
+          await fetch(supaUrl('/trades'), { method: 'POST', headers: supaAuthHeadersWithSession(), body: JSON.stringify(body) });
+        } catch {}
+      })();
+    }
   };
 
   // Upgrade existing trades to ensure remainingQty/closures exist

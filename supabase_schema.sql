@@ -45,6 +45,11 @@ create table if not exists public.trades (
   style text not null,
   date date not null,
   notes text,
+  stop_loss numeric,
+  take_profit numeric,
+  trailing_enabled boolean not null default false,
+  trailing_type text check (trailing_type in ('percent','amount')),
+  trailing_value numeric,
   remaining_qty numeric not null,
   closures jsonb not null default '[]'::jsonb,
   created_at timestamp with time zone not null default now()
