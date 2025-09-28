@@ -2344,17 +2344,65 @@ export default function App() {
       }
       // Apply filters to the real data
       if (newsData.length > 0) {
-      const countryTokens = (normalizeCountries(newsCountry) || '')
-        .split(',')
-        .map(t => normalizeString(t))
-        .filter(Boolean);
+        console.log('Before country filter:', newsData.length, 'items');
+        
+        const countryTokens = (normalizeCountries(newsCountry) || '')
+          .split(',')
+          .map(t => normalizeString(t))
+          .filter(Boolean);
+        
+        console.log('Country tokens for filtering:', countryTokens);
+        console.log('Sample countries in news:', newsData.slice(0, 3).map(item => item.country));
         
         // Filter by country if specified
         if (countryTokens.length > 0) {
-          newsData = newsData.filter(item => 
-            countryTokens.some(token => normalizeString(item.country).includes(token))
-          );
+          // Create a mapping for better country matching
+          const countryMapping = {
+            'us': ['united states', 'usa', 'america'],
+            'eu': ['euro area', 'europe', 'european union'],
+            'cn': ['china', 'chinese'],
+            'ru': ['russia', 'russian'],
+            'gb': ['united kingdom', 'uk', 'britain', 'british'],
+            'de': ['germany', 'german'],
+            'fr': ['france', 'french'],
+            'jp': ['japan', 'japanese'],
+            'ca': ['canada', 'canadian'],
+            'au': ['australia', 'australian'],
+            'nz': ['new zealand'],
+            'ch': ['switzerland', 'swiss'],
+            'it': ['italy', 'italian'],
+            'es': ['spain', 'spanish']
+          };
+          
+          newsData = newsData.filter(item => {
+            const itemCountry = normalizeString(item.country);
+            const matches = countryTokens.some(token => {
+              // Direct match
+              if (itemCountry.includes(token) || token.includes(itemCountry)) {
+                return true;
+              }
+              
+              // Check country mapping
+              for (const [code, names] of Object.entries(countryMapping)) {
+                if (itemCountry === code && names.some(name => token.includes(name))) {
+                  return true;
+                }
+                if (names.some(name => itemCountry.includes(name)) && token === code) {
+                  return true;
+                }
+              }
+              
+              return false;
+            });
+            
+            if (!matches) {
+              console.log('Filtered out by country:', item.title, 'country:', item.country, 'normalized:', itemCountry);
+            }
+            return matches;
+          });
         }
+        
+        console.log('After country filter:', newsData.length, 'items');
         
         // Filter by importance
         console.log('Before importance filter:', newsData.length, 'items');
