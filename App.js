@@ -158,47 +158,69 @@ export default function App() {
   const supaBase = () => (supa.url || '').replace(/\/$/, '');
 
   const supaLogin = async () => {
+    console.log('🔐 supaLogin called');
     if (!supaConfigured) {
+      console.log('❌ Supabase not configured');
       Alert.alert('База данных', 'База данных не настроена. Обратитесь к разработчику.');
       return;
     }
     const email = (authEmail || '').trim();
     const password = (authPassword || '').trim();
+    console.log('📧 Login attempt:', { email, passwordLength: password.length });
+    
     if (!email || !password) {
+      console.log('❌ Missing email or password');
       Alert.alert('Ошибка', 'Введите email и пароль');
       return;
     }
+    
+    setIsLoading(true);
     try {
+      console.log('🌐 Making login request to:', `${supaBase()}/auth/v1/token?grant_type=password`);
       const res = await fetch(`${supaBase()}/auth/v1/token?grant_type=password`, {
         method: 'POST',
         headers: supaAuthHeaders(),
         body: JSON.stringify({ email, password }),
       });
+      console.log('📡 Login response status:', res.status);
+      
       const json = await res.json().catch(() => ({}));
+      console.log('📄 Login response data:', json);
+      
       if (!res.ok) {
         const err = json?.error_description || json?.msg || `HTTP ${res.status}`;
+        console.log('❌ Login failed:', err);
         Alert.alert('Вход', `Не удалось: ${err}`);
+        setIsLoading(false);
         return;
       }
+      
+      console.log('✅ Login successful');
       setSupaAuth(json);
       setAuthEmail('');
       setAuthPassword('');
       setAuthMode('login');
+      setIsLoading(false);
       Alert.alert('Вход', 'Успешно');
     } catch (e) {
+      console.log('💥 Login error:', e);
+      setIsLoading(false);
       Alert.alert('Вход', 'Произошла ошибка при обращении к Supabase');
     }
   };
 
   const supaRegister = async () => {
+    console.log('📝 supaRegister called');
     if (isLoading) return;
     
     if (!supaConfigured) {
+      console.log('❌ Supabase not configured');
       Alert.alert('База данных', 'База данных не настроена. Обратитесь к разработчику.');
       return;
     }
     const email = (authEmail || '').trim();
     const password = (authPassword || '').trim();
+    console.log('📧 Registration attempt:', { email, passwordLength: password.length });
     
     // Валидация email
     if (!email) {
@@ -225,36 +247,39 @@ export default function App() {
       return;
     }
     
-    // Проверка на сложность пароля
-    const hasUpperCase = /[A-Z]/.test(password);
-    const hasLowerCase = /[a-z]/.test(password);
-    const hasNumbers = /\d/.test(password);
-    if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
-      Alert.alert('Ошибка', 'Пароль должен содержать заглавные и строчные буквы, а также цифры');
-      return;
-    }
+    // Упрощенные требования к паролю (только длина)
+    // Пароль должен быть от 6 до 50 символов - этого достаточно
     
     setIsLoading(true);
     
     try {
+      console.log('🌐 Making registration request to:', `${supaBase()}/auth/v1/signup`);
       const res = await fetch(`${supaBase()}/auth/v1/signup`, {
         method: 'POST',
         headers: supaAuthHeaders(),
         body: JSON.stringify({ email, password }),
       });
+      console.log('📡 Registration response status:', res.status);
+      
       const json = await res.json().catch(() => ({}));
+      console.log('📄 Registration response data:', json);
+      
       if (!res.ok) {
         const err = json?.error_description || json?.msg || `HTTP ${res.status}`;
+        console.log('❌ Registration failed:', err);
         Alert.alert('Регистрация', `Не удалось: ${err}`);
         setIsLoading(false);
         return;
       }
+      
+      console.log('✅ Registration successful');
       Alert.alert('Регистрация', 'Успешно! Проверьте почту для подтверждения аккаунта.');
       setAuthMode('login');
       setAuthEmail('');
       setAuthPassword('');
       setIsLoading(false);
     } catch (e) {
+      console.log('💥 Registration error:', e);
       Alert.alert('Регистрация', 'Произошла ошибка при обращении к Supabase');
       setIsLoading(false);
     }
@@ -3290,7 +3315,14 @@ export default function App() {
           
               {authMode === 'login' ? (
                 <>
-              <Pressable style={[styles.addButton, isLoading && styles.addButtonDisabled]} onPress={supaLogin} disabled={isLoading}>
+              <Pressable 
+                style={[styles.addButton, isLoading && styles.addButtonDisabled]} 
+                onPress={() => {
+                  console.log('🔘 Login button pressed, isLoading:', isLoading);
+                  supaLogin();
+                }} 
+                disabled={isLoading}
+              >
                 <Text style={styles.addButtonText}>{isLoading ? 'Вход...' : 'Войти'}</Text>
               </Pressable>
               <Pressable style={[styles.addButton, { backgroundColor: '#6b7280', marginTop: 8 }]} onPress={demoLogin}>
@@ -3299,7 +3331,14 @@ export default function App() {
                   <Pressable style={styles.switchAuth} onPress={supaRecover}><Text style={styles.switchAuthText}>Забыли пароль?</Text></Pressable>
                 </>
               ) : (
-            <Pressable style={[styles.addButton, isLoading && styles.addButtonDisabled]} onPress={supaRegister} disabled={isLoading}>
+            <Pressable 
+              style={[styles.addButton, isLoading && styles.addButtonDisabled]} 
+              onPress={() => {
+                console.log('🔘 Register button pressed, isLoading:', isLoading);
+                supaRegister();
+              }} 
+              disabled={isLoading}
+            >
               <Text style={styles.addButtonText}>{isLoading ? 'Регистрация...' : 'Зарегистрироваться'}</Text>
             </Pressable>
               )}
