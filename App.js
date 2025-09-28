@@ -2360,59 +2360,7 @@ export default function App() {
           });
           console.log('Yahoo RSS data processed:', newsData.length, 'items');
         } else {
-          console.warn('All CORS proxies failed, using fallback news');
-          // Create fallback news when CORS proxies fail
-          const fallbackNews = [
-            {
-              id: 'fallback_1',
-              date: new Date().toISOString().slice(0, 10),
-              time: new Date().toTimeString().slice(0, 5),
-              country: 'US',
-              title: 'Federal Reserve Maintains Current Interest Rate Policy',
-              importance: 3,
-              Actual: null,
-              Previous: '5.25%',
-              Forecast: '5.50%',
-              source: 'Financial News'
-            },
-            {
-              id: 'fallback_2',
-              date: new Date().toISOString().slice(0, 10),
-              time: new Date().toTimeString().slice(0, 5),
-              country: 'US',
-              title: 'Stock Market Shows Mixed Results in Latest Trading Session',
-              importance: 2,
-              Actual: null,
-              Previous: null,
-              Forecast: null,
-              source: 'Market Update'
-            },
-            {
-              id: 'fallback_3',
-              date: new Date().toISOString().slice(0, 10),
-              time: new Date().toTimeString().slice(0, 5),
-              country: 'US',
-              title: 'Economic Indicators Point to Continued Growth',
-              importance: 2,
-              Actual: null,
-              Previous: null,
-              Forecast: null,
-              source: 'Economic Report'
-            },
-            {
-              id: 'fallback_4',
-              date: new Date().toISOString().slice(0, 10),
-              time: new Date().toTimeString().slice(0, 5),
-              country: 'US',
-              title: 'Corporate Earnings Season Shows Strong Performance',
-              importance: 1,
-              Actual: null,
-              Previous: null,
-              Forecast: null,
-              source: 'Earnings Report'
-            }
-          ];
-          newsData = fallbackNews;
+          console.warn('All CORS proxies failed, no news data available');
         }
       } catch (yahooError) {
         console.warn('Yahoo RSS failed:', yahooError.message);
@@ -2421,10 +2369,10 @@ export default function App() {
       if (newsData.length > 0) {
         console.log('Before country filter:', newsData.length, 'items');
         
-        const countryTokens = (normalizeCountries(newsCountry) || '')
-          .split(',')
-          .map(t => normalizeString(t))
-          .filter(Boolean);
+      const countryTokens = (normalizeCountries(newsCountry) || '')
+        .split(',')
+        .map(t => normalizeString(t))
+        .filter(Boolean);
         
         console.log('Country tokens for filtering:', countryTokens);
         console.log('Sample countries in news:', newsData.slice(0, 3).map(item => item.country));
@@ -2454,7 +2402,7 @@ export default function App() {
             const matches = countryTokens.some(token => {
               // Direct match
               if (itemCountry.includes(token) || token.includes(itemCountry)) {
-                return true;
+        return true;
               }
               
               // Check country mapping
@@ -2511,172 +2459,26 @@ export default function App() {
         
         console.log('Final processed news data:', newsData.length, 'items');
         
-        // If no news after filtering, show some news anyway to avoid empty state
+        // Show news or error message
         if (newsData.length === 0) {
-          console.log('No news after filtering, showing fallback news');
-          // Create some fallback news from the original data
-          const fallbackNews = [
-            {
-              id: 'fallback_1',
-              date: new Date().toISOString().slice(0, 10),
-              time: new Date().toTimeString().slice(0, 5),
-              country: 'US',
-              title: 'Market Update: Financial Markets Continue Trading',
-              importance: 2,
-              Actual: null,
-              Previous: null,
-              Forecast: null,
-              source: 'Yahoo Finance RSS'
-            },
-            {
-              id: 'fallback_2',
-              date: new Date().toISOString().slice(0, 10),
-              time: new Date().toTimeString().slice(0, 5),
-              country: 'US',
-              title: 'Economic Indicators: Regular Market Activity',
-              importance: 1,
-              Actual: null,
-              Previous: null,
-              Forecast: null,
-              source: 'Yahoo Finance RSS'
-            }
-          ];
-          setNews(fallbackNews);
-          setNewsError('Показаны базовые новости. Проверьте настройки фильтров для получения полного списка.');
-        } else {
+          console.log('No news after filtering');
+        setNews([]);
+          setNewsError('Нет новостей по выбранным фильтрам. Попробуйте изменить параметры поиска.');
+      } else {
           setNews(newsData);
           setNewsError('');
         }
       } else {
-        // Create realistic sample data based on current market conditions
-        console.log('All real data sources failed, creating realistic sample data');
-        const currentDate = new Date();
-        const sampleNews = [
-          {
-            id: 'sample_1',
-            date: currentDate.toISOString().slice(0, 10),
-            time: '14:30',
-            country: 'US',
-            title: 'Federal Reserve Interest Rate Decision Expected',
-            importance: 3,
-            Actual: null,
-            Previous: '5.25%',
-            Forecast: '5.50%',
-            source: 'Market Analysis'
-          },
-          {
-            id: 'sample_2',
-            date: new Date(currentDate.getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-            time: '09:00',
-            country: 'US',
-            title: 'Non-Farm Payrolls Data Release',
-            importance: 3,
-            Actual: null,
-            Previous: '150K',
-            Forecast: '148K',
-            source: 'Bureau of Labor Statistics'
-          },
-          {
-            id: 'sample_3',
-            date: new Date(currentDate.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-            time: '11:00',
-            country: 'EU',
-            title: 'European Central Bank Monetary Policy Meeting',
-            importance: 2,
-            Actual: null,
-            Previous: '4.25%',
-            Forecast: '4.50%',
-            source: 'European Central Bank'
-          },
-          {
-            id: 'sample_4',
-            date: new Date(currentDate.getTime() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-            time: '08:30',
-            country: 'US',
-            title: 'Consumer Price Index (CPI) Released',
-            importance: 2,
-            Actual: '3.2%',
-            Previous: '3.1%',
-            Forecast: '3.3%',
-            source: 'Bureau of Labor Statistics'
-          },
-          {
-            id: 'sample_5',
-            date: new Date(currentDate.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-            time: '16:00',
-            country: 'GB',
-            title: 'Bank of England Rate Decision',
-            importance: 2,
-            Actual: null,
-            Previous: '5.25%',
-            Forecast: '5.50%',
-            source: 'Bank of England'
-          }
-        ];
-        
-        setNews(sampleNews);
-        setNewsError('Используются образцы данных. Реальные источники временно недоступны. Проверьте подключение к интернету.');
+        console.log('No news data available from any source');
+        setNews([]);
+        setNewsError('Новости временно недоступны. Проверьте подключение к интернету.');
       }
     } catch (e) {
       console.error('News API error:', e);
       const msg = (e && e.message) ? `Ошибка загрузки новостей (${e.message}).` : 'Ошибка загрузки новостей.';
       
-      // Try one more time with a simple RSS feed as last resort
-      try {
-        console.log('Trying emergency RSS fallback...');
-        const emergencyRssUrl = 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC&region=US&lang=en-US';
-        const emergencyResponse = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(emergencyRssUrl)}`);
-        
-        if (emergencyResponse.ok) {
-          const emergencyXml = await emergencyResponse.text();
-          const items = emergencyXml.match(/<item>[\s\S]*?<\/item>/g) || [];
-          const emergencyNews = items.slice(0, 5).map((item, index) => {
-            const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
-            const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
-            
-            const title = titleMatch ? titleMatch[1] : 'Financial News';
-            const pubDate = pubDateMatch ? new Date(pubDateMatch[1]) : new Date();
-            
-            return {
-              id: `emergency_${index}`,
-              date: pubDate.toISOString().slice(0, 10),
-              time: pubDate.toTimeString().slice(0, 5),
-              country: 'US',
-              title: title,
-              importance: 2,
-              Actual: null,
-              Previous: null,
-              Forecast: null,
-              source: 'Emergency RSS'
-            };
-          });
-          
-          setNews(emergencyNews);
-          setNewsError(`Используется экстренный источник данных. ${msg}`);
-          return;
-        }
-      } catch (emergencyError) {
-        console.error('Emergency RSS also failed:', emergencyError);
-      }
-      
-      // Absolute last resort - minimal demo data
-      const minimalDemoNews = [
-        {
-          id: 'error_fallback',
-          date: new Date().toISOString().slice(0, 10),
-          time: '14:30',
-          country: 'Global',
-          title: 'Service temporarily unavailable - All data sources failed',
-          importance: 2,
-          Actual: null,
-          Previous: null,
-          Forecast: null,
-          source: 'Error Fallback'
-        }
-      ];
-      
-      setNews(minimalDemoNews);
-      setNewsError(`Все источники данных недоступны. ${msg} Проверьте подключение к интернету.`);
+      setNews([]);
+      setNewsError(msg);
     } finally {
       setNewsLoading(false);
     }
@@ -3932,8 +3734,8 @@ export default function App() {
                                 </Text>
                               </View>
                             ))}
-                          </View>
-                        )}
+                              </View>
+                            )}
                         
                         {/* Chart legend */}
                         <View style={styles.chartLegend}>
