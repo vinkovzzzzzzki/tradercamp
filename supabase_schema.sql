@@ -110,36 +110,48 @@ alter table public.finance_emergency_tx enable row level security;
 alter table public.finance_invest_tx enable row level security;
 
 -- Policies: owner-only read/write
-create policy if not exists posts_owner_select on public.posts
+drop policy if exists posts_owner_select on public.posts;
+create policy posts_owner_select on public.posts
   for select using (auth.uid() = user_id);
-create policy if not exists posts_owner_all on public.posts
+drop policy if exists posts_owner_all on public.posts;
+create policy posts_owner_all on public.posts
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy if not exists workouts_owner_select on public.workouts
+drop policy if exists workouts_owner_select on public.workouts;
+create policy workouts_owner_select on public.workouts
   for select using (auth.uid() = user_id);
-create policy if not exists workouts_owner_all on public.workouts
+drop policy if exists workouts_owner_all on public.workouts;
+create policy workouts_owner_all on public.workouts
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy if not exists events_owner_select on public.events
+drop policy if exists events_owner_select on public.events;
+create policy events_owner_select on public.events
   for select using (auth.uid() = user_id);
-create policy if not exists events_owner_all on public.events
+drop policy if exists events_owner_all on public.events;
+create policy events_owner_all on public.events
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy if not exists trades_owner_select on public.trades
+drop policy if exists trades_owner_select on public.trades;
+create policy trades_owner_select on public.trades
   for select using (auth.uid() = user_id);
-create policy if not exists trades_owner_all on public.trades
+drop policy if exists trades_owner_all on public.trades;
+create policy trades_owner_all on public.trades
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy if not exists finance_profiles_owner on public.finance_profiles
+drop policy if exists finance_profiles_owner on public.finance_profiles;
+create policy finance_profiles_owner on public.finance_profiles
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy if not exists finance_debts_owner on public.finance_debts
+drop policy if exists finance_debts_owner on public.finance_debts;
+create policy finance_debts_owner on public.finance_debts
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy if not exists finance_emergency_tx_owner on public.finance_emergency_tx
+drop policy if exists finance_emergency_tx_owner on public.finance_emergency_tx;
+create policy finance_emergency_tx_owner on public.finance_emergency_tx
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
-create policy if not exists finance_invest_tx_owner on public.finance_invest_tx
+drop policy if exists finance_invest_tx_owner on public.finance_invest_tx;
+create policy finance_invest_tx_owner on public.finance_invest_tx
   for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 
 
