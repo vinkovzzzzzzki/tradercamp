@@ -432,6 +432,32 @@ export default function App() {
   const [invFilter, setInvFilter] = useState({ type: 'All', currency: 'All', q: '' });
   // Chart visibility toggles
   const [chartVisibility, setChartVisibility] = useState({ cushion: true, investments: true, debts: true, total: true });
+  
+  // Chart tooltip state
+  const [chartTooltip, setChartTooltip] = useState({ visible: false, x: 0, y: 0, data: null });
+  
+  // Chart tooltip handlers
+  const handleChartHover = (event, dataPoint, index) => {
+    if (dataPoint && dataPoint.value !== undefined) {
+      const chartData = getComprehensiveChartData();
+      const label = chartData.labels[index] || `Точка ${index + 1}`;
+      
+      setChartTooltip({
+        visible: true,
+        x: event.nativeEvent.pageX || event.nativeEvent.clientX || 0,
+        y: event.nativeEvent.pageY || event.nativeEvent.clientY || 0,
+        data: {
+          label,
+          value: dataPoint.value,
+          color: dataPoint.color || '#3b82f6'
+        }
+      });
+    }
+  };
+  
+  const handleChartLeave = () => {
+    setChartTooltip({ visible: false, x: 0, y: 0, data: null });
+  };
 
   // Custom setter for chart visibility to ensure at least one option is always enabled
   const setChartVisibilitySafe = (updater) => {
@@ -3573,36 +3599,106 @@ export default function App() {
                             }
                             
                             return (
-                              <LineChart
-                                data={chartData}
-                                width={Dimensions.get('window').width - 60}
-                                height={220}
-                                chartConfig={{
-                                  backgroundColor: isDark ? '#121820' : '#ffffff',
-                                  backgroundGradientFrom: isDark ? '#121820' : '#ffffff',
-                                  backgroundGradientTo: isDark ? '#121820' : '#ffffff',
-                                  decimalPlaces: 0,
-                                  color: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-                                  labelColor: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
-                                  style: {
-                                    borderRadius: 16
-                                  },
-                                  propsForDots: {
-                                    r: "3",
-                                    strokeWidth: "2"
-                                  },
-                                  // Custom Y-axis configuration for dynamic scaling
-                                  yAxisMin: chartData.yAxisMin,
-                                  yAxisMax: chartData.yAxisMax,
-                                  yAxisSuffix: chartData.yAxisSuffix
+                              <View 
+                                style={styles.chartWrapper}
+                                onMouseMove={(event) => {
+                                  // Simple hover detection for chart area
+                                  const rect = event.currentTarget.getBoundingClientRect();
+                                  const x = event.clientX - rect.left;
+                                  const y = event.clientY - rect.top;
+                                  
+                                  // Calculate approximate data point based on mouse position
+                                  const chartWidth = Dimensions.get('window').width - 60;
+                                  const dataIndex = Math.round((x / chartWidth) * (chartData.labels.length - 1));
+                                  
+                                  if (dataIndex >= 0 && dataIndex < chartData.labels.length) {
+                                    const label = chartData.labels[dataIndex];
+                                    const values = [];
+                                    
+                                    // Get values for all visible datasets at this index
+                                    chartData.datasets.forEach((dataset, datasetIndex) => {
+                                      if (dataset.data[dataIndex] !== undefined) {
+                                        const colors = ['#3b82f6', '#10b981', '#ef4444', '#a855f7'];
+                                        values.push({
+                                          value: dataset.data[dataIndex],
+                                          color: colors[datasetIndex] || '#3b82f6',
+                                          label: datasetIndex === 0 ? 'Подушка' : 
+                                                 datasetIndex === 1 ? 'Инвестиции' :
+                                                 datasetIndex === 2 ? 'Долги' : 'Итог'
+                                        });
+                                      }
+                                    });
+                                    
+                                    if (values.length > 0) {
+                                      setChartTooltip({
+                                        visible: true,
+                                        x: event.clientX + 10,
+                                        y: event.clientY - 10,
+                                        data: { label, values }
+                                      });
+                                    }
+                                  }
                                 }}
-                                bezier
-                                style={styles.lineChart}
-                                fromZero={false}
-                              />
+                                onMouseLeave={handleChartLeave}
+                              >
+                                <LineChart
+                                  data={chartData}
+                                  width={Dimensions.get('window').width - 60}
+                                  height={220}
+                                  chartConfig={{
+                                    backgroundColor: isDark ? '#121820' : '#ffffff',
+                                    backgroundGradientFrom: isDark ? '#121820' : '#ffffff',
+                                    backgroundGradientTo: isDark ? '#121820' : '#ffffff',
+                                    decimalPlaces: 0,
+                                    color: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                                    labelColor: (opacity = 1) => isDark ? `rgba(230, 237, 243, ${opacity})` : `rgba(0, 0, 0, ${opacity})`,
+                                    style: {
+                                      borderRadius: 16
+                                    },
+                                    propsForDots: {
+                                      r: "4",
+                                      strokeWidth: "2"
+                                    },
+                                    // Custom Y-axis configuration for dynamic scaling
+                                    yAxisMin: chartData.yAxisMin,
+                                    yAxisMax: chartData.yAxisMax,
+                                    yAxisSuffix: chartData.yAxisSuffix
+                                  }}
+                                  bezier
+                                  style={styles.lineChart}
+                                  fromZero={false}
+                                />
+                              </View>
                             );
                           })()}
                         </View>
+                        
+                        {/* Chart tooltip */}
+                        {chartTooltip.visible && chartTooltip.data && (
+                          <View 
+                            style={[
+                              styles.chartTooltip,
+                              {
+                                left: chartTooltip.x,
+                                top: chartTooltip.y,
+                                backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
+                                borderColor: isDark ? '#1f2a36' : '#e5e7eb'
+                              }
+                            ]}
+                          >
+                            <Text style={[styles.tooltipTitle, { color: isDark ? '#e6edf3' : '#1f2937' }]}>
+                              {chartTooltip.data.label}
+                            </Text>
+                            {chartTooltip.data.values && chartTooltip.data.values.map((item, index) => (
+                              <View key={index} style={styles.tooltipRow}>
+                                <View style={[styles.tooltipColor, { backgroundColor: item.color }]} />
+                                <Text style={[styles.tooltipText, { color: isDark ? '#e6edf3' : '#1f2937' }]}>
+                                  {item.label}: {formatCurrencyCustom(item.value, 'USD')}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        )}
                         
                         {/* Chart legend */}
                         <View style={styles.chartLegend}>
@@ -5626,6 +5722,43 @@ const styles = StyleSheet.create({
   timePeriodTextActive: { color: '#fff', fontWeight: '600' },
   lineChartContainer: { marginBottom: 16, alignItems: 'center' },
   lineChart: { borderRadius: 16 },
+  chartWrapper: { position: 'relative' },
+  chartTooltip: {
+    position: 'absolute',
+    zIndex: 1000,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    minWidth: 150,
+    maxWidth: 250
+  },
+  tooltipTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 8,
+    textAlign: 'center'
+  },
+  tooltipRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 4
+  },
+  tooltipColor: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginRight: 8
+  },
+  tooltipText: {
+    fontSize: 12,
+    fontWeight: '500',
+    flex: 1
+  },
   emptyChartContainer: { 
     width: Dimensions.get('window').width - 60, 
     height: 220, 
