@@ -2166,8 +2166,10 @@ export default function App() {
       const countries = normalizeCountries(newsCountry);
       const importance = selectedImportanceList();
       const allSelected = (importance || '').split(',').filter(Boolean).length >= 3;
-      // Use your TE key:secret provided by the user (fallback to guest:guest)
-      const primaryCred = 'e4cd3fef8e944b6:fjav7sp40q39exh';
+      
+      console.log('News refresh params:', { d1, d2, countries, importance, allSelected });
+      
+      // Use guest credentials for demo
       const guestCred = 'guest:guest';
       const buildParams = (cred, withFilters) => {
         const p = new URLSearchParams({ c: cred, format: 'json', d1, d2, limit: '1000' });
@@ -2270,14 +2272,114 @@ export default function App() {
       .filter(it => countryTokens.length === 0 ? true : countryTokens.some(tok => normalizeString(it.country).includes(tok)))
       .sort((a,b) => (a.date === b.date ? (b.time || '').localeCompare(a.time || '') : b.date.localeCompare(a.date)));
       if (mapped.length === 0) {
-        setNews([]);
-        setNewsError('TradingEconomics: API вернуло 0 записей для текущих фильтров/диапазона. Попробуйте другой интервал/страны или используйте свой ключ.');
+        console.log('No news from API, using demo data');
+        // Fallback to demo data when API returns empty
+        const demoNews = [
+          {
+            id: 'demo_1',
+            date: new Date().toISOString().slice(0, 10),
+            time: '14:30',
+            country: 'US',
+            title: 'Non-Farm Payrolls',
+            importance: 3,
+            Actual: '150K',
+            Previous: '145K',
+            Forecast: '148K'
+          },
+          {
+            id: 'demo_2',
+            date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+            time: '09:00',
+            country: 'EU',
+            title: 'GDP Growth Rate',
+            importance: 2,
+            Actual: null,
+            Previous: '0.3%',
+            Forecast: '0.4%'
+          },
+          {
+            id: 'demo_3',
+            date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+            time: '11:00',
+            country: 'CN',
+            title: 'Manufacturing PMI',
+            importance: 2,
+            Actual: null,
+            Previous: '50.2',
+            Forecast: '50.5'
+          },
+          {
+            id: 'demo_4',
+            date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+            time: '16:00',
+            country: 'GB',
+            title: 'Bank of England Rate Decision',
+            importance: 3,
+            Actual: null,
+            Previous: '5.25%',
+            Forecast: '5.50%'
+          },
+          {
+            id: 'demo_5',
+            date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+            time: '08:30',
+            country: 'JP',
+            title: 'Unemployment Rate',
+            importance: 1,
+            Actual: '2.5%',
+            Previous: '2.6%',
+            Forecast: '2.5%'
+          }
+        ];
+        
+        setNews(demoNews);
+        setNewsError('Используются демо-данные. API TradingEconomics недоступен или вернул пустой результат.');
       } else {
-      setNews(mapped);
+        setNews(mapped);
       }
     } catch (e) {
+      console.error('News API error:', e);
       const msg = (e && e.message) ? `Ошибка загрузки новостей (${e.message}).` : 'Ошибка загрузки новостей.';
-      setNewsError(`${msg} Проверьте подключение/VPN и попробуйте позже.`);
+      
+      // Fallback to demo data on any error
+      const demoNews = [
+        {
+          id: 'demo_error_1',
+          date: new Date().toISOString().slice(0, 10),
+          time: '14:30',
+          country: 'US',
+          title: 'Non-Farm Payrolls',
+          importance: 3,
+          Actual: '150K',
+          Previous: '145K',
+          Forecast: '148K'
+        },
+        {
+          id: 'demo_error_2',
+          date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+          time: '09:00',
+          country: 'EU',
+          title: 'GDP Growth Rate',
+          importance: 2,
+          Actual: null,
+          Previous: '0.3%',
+          Forecast: '0.4%'
+        },
+        {
+          id: 'demo_error_3',
+          date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
+          time: '11:00',
+          country: 'CN',
+          title: 'Manufacturing PMI',
+          importance: 2,
+          Actual: null,
+          Previous: '50.2',
+          Forecast: '50.5'
+        }
+      ];
+      
+      setNews(demoNews);
+      setNewsError(`Используются демо-данные. ${msg} Проверьте подключение/VPN и попробуйте позже.`);
     } finally {
       setNewsLoading(false);
     }
@@ -4734,8 +4836,22 @@ export default function App() {
               </View>
             </View>
 
-              {newsLoading && <Text style={styles.noteText}>Загрузка…</Text>}
-              {!!newsError && <Text style={[styles.noteText, { color: '#ef4444' }]}>{newsError}</Text>}
+              {newsLoading && (
+                <View style={styles.newsLoadingContainer}>
+                  <Text style={styles.noteText}>Загрузка новостей…</Text>
+                </View>
+              )}
+              {!!newsError && (
+                <View style={styles.newsErrorContainer}>
+                  <Text style={[styles.noteText, { color: '#ef4444' }]}>{newsError}</Text>
+                  <Pressable 
+                    style={[styles.addButton, { marginTop: 8, backgroundColor: '#1f6feb' }]} 
+                    onPress={refreshNews}
+                  >
+                    <Text style={styles.addButtonText}>Попробовать снова</Text>
+                  </Pressable>
+                </View>
+              )}
               <View style={styles.newsList}>
                 {news.map((item) => (
                   <View key={item.id} style={styles.newsItem}>
@@ -5285,6 +5401,24 @@ const styles = StyleSheet.create({
   newsCountry: { fontSize: 12, color: '#9fb0c0' },
   newsTitle: { fontSize: 14, fontWeight: '600', marginBottom: 2, color: '#e6edf3' },
   newsImportance: { fontSize: 12, color: '#ffc107' },
+  newsLoadingContainer: { 
+    padding: 16, 
+    backgroundColor: '#1a1a1a', 
+    borderRadius: 8, 
+    borderWidth: 1, 
+    borderColor: '#1f2a36',
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  newsErrorContainer: { 
+    padding: 16, 
+    backgroundColor: '#2a1a1a', 
+    borderRadius: 8, 
+    borderWidth: 1, 
+    borderColor: '#ef4444',
+    alignItems: 'center',
+    marginBottom: 8
+  },
   noteText: { fontSize: 12, color: '#9fb0c0', fontStyle: 'italic' },
   toolbarRow: { flexDirection: 'row', gap: 12, marginBottom: 12, flexWrap: 'wrap' },
   chipsRow: { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
