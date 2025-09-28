@@ -1059,10 +1059,70 @@ export default function App() {
     }
   };
 
-  // Reset cushion history with new test data
-  const resetCushionHistory = () => {
+  // Generate random financial data for testing
+  const generateRandomFinancialData = () => {
+    // Generate random cushion amount (1000-8000)
+    const randomCushion = Math.floor(Math.random() * 7000) + 1000;
+    
+    // Generate random investment amount (500-5000)
+    const randomInvestment = Math.floor(Math.random() * 4500) + 500;
+    
+    // Generate random debt amount (0-4000)
+    const randomDebt = Math.floor(Math.random() * 4000);
+    
+    return {
+      cushion: randomCushion,
+      investment: randomInvestment,
+      debt: randomDebt
+    };
+  };
+
+  // Reset all financial data with new test data
+  const resetAllFinancialData = () => {
+    // Generate new cushion history
     const newHistory = generateInitialHistory();
     setCushionHistory(newHistory);
+    
+    // Generate random financial data
+    const randomData = generateRandomFinancialData();
+    
+    // Update cash reserve (cushion)
+    setCashReserve(randomData.cushion);
+    
+    // Generate random investment transactions
+    const investmentDestinations = ['Акции', 'Облигации', 'Криптовалюта', 'Недвижимость', 'Золото'];
+    const randomDestination = investmentDestinations[Math.floor(Math.random() * investmentDestinations.length)];
+    
+    const newInvestmentTx = {
+      id: Date.now().toString(),
+      date: new Date().toISOString().slice(0, 10),
+      type: 'in',
+      amount: randomData.investment,
+      currency: 'USD',
+      destination: randomDestination,
+      note: 'Автоматически сгенерированная инвестиция'
+    };
+    
+    // Update investment transactions
+    withFinance(cur => ({ ...cur, investTx: [newInvestmentTx] }));
+    
+    // Generate random debts if needed
+    if (randomData.debt > 0) {
+      const newDebt = {
+        id: Date.now().toString(),
+        name: 'Тестовый долг',
+        amount: randomData.debt,
+        currency: 'USD',
+        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+        category: 'Кредит',
+        description: 'Автоматически сгенерированный тестовый долг',
+        createdAt: new Date().toISOString()
+      };
+      
+      setDebts(prev => [newDebt]);
+    } else {
+      setDebts([]);
+    }
   };
   
   // Get chart data based on time period with all metrics
@@ -3052,7 +3112,7 @@ export default function App() {
                           ))}
                           <Pressable
                             style={[styles.timePeriodButton, { backgroundColor: '#ef4444', borderColor: '#ef4444' }]}
-                            onPress={resetCushionHistory}
+                            onPress={resetAllFinancialData}
                           >
                             <Text style={[styles.timePeriodText, { color: '#fff' }]}>Сброс</Text>
                           </Pressable>
