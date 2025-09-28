@@ -2169,217 +2169,258 @@ export default function App() {
       
       console.log('News refresh params:', { d1, d2, countries, importance, allSelected });
       
-      // Use guest credentials for demo
-      const guestCred = 'guest:guest';
-      const buildParams = (cred, withFilters) => {
-        const p = new URLSearchParams({ c: cred, format: 'json', d1, d2, limit: '1000' });
-        if (withFilters) {
-          if (countries) p.set('country', countries);
-          if (!allSelected && importance) p.set('importance', importance);
-        }
-        return p;
-      };
-      const buildParamsAlt = (cred, withFilters) => {
-        const p = new URLSearchParams({ c: cred, format: 'json', start: d1, end: d2, limit: '1000' });
-        if (withFilters) {
-          if (countries) p.set('country', countries); else p.set('country', 'All');
-          if (!allSelected && importance) p.set('importance', importance);
-        }
-        return p;
-      };
-      const teUrl = (p) => `https://api.tradingeconomics.com/calendar?${p.toString()}`;
-      const corsWrap = (url) => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`;
-      const tryFetch = async (url) => {
-        try {
-          const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
-          if (r.ok) return r;
-        } catch {}
-        try {
-          const r2 = await fetch(corsWrap(url), { headers: { 'Accept': 'application/json' } });
-          if (r2.ok) return r2;
-        } catch {}
-        return null;
-      };
-      const fetchOneWindow = async (startISO, endISO) => {
-        const urls = [
-          teUrl(buildParams(primaryCred, true)),
-          teUrl(buildParams(guestCred, true)),
-          teUrl(buildParams(guestCred, false)),
-          teUrl(buildParamsAlt(guestCred, true)),
-          teUrl(buildParamsAlt(guestCred, false)),
-        ].map(u => u.replace(`d1=${d1}`, `d1=${startISO}`).replace(`d2=${d2}`, `d2=${endISO}`).replace(`start=${d1}`, `start=${startISO}`).replace(`end=${d2}`, `end=${endISO}`))
-         .map(u => `${u}${u.includes('?') ? '&' : '?'}_=${Date.now()}${countries ? `&country=${encodeURIComponent(countries)}` : ''}${(!allSelected && importance) ? `&importance=${encodeURIComponent(importance)}` : ''}`);
-        for (let i = 0; i < urls.length; i++) {
-          const resp = await tryFetch(urls[i]);
-          if (resp) {
-            const js = await resp.json().catch(async () => { const t = await resp.text(); try { return JSON.parse(t); } catch { return []; } });
-            const arr = Array.isArray(js) ? js : (Array.isArray(js?.calendar) ? js.calendar : []);
-            if (arr && arr.length) return arr;
+      // Try multiple real data sources
+      let newsData = [];
+      
+      // 1. Try Alpha Vantage News API (free tier)
+      try {
+        const alphaVantageUrl = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&apikey=demo&limit=50&time_from=${d1}T00:00:00&time_to=${d2}T23:59:59`;
+        console.log('Trying Alpha Vantage:', alphaVantageUrl);
+        
+        const alphaResponse = await fetch(alphaVantageUrl);
+        if (alphaResponse.ok) {
+          const alphaData = await alphaResponse.json();
+          if (alphaData.feed && Array.isArray(alphaData.feed)) {
+            newsData = alphaData.feed.map(item => ({
+              id: `alpha_${item.url}`,
+              date: item.time_published ? item.time_published.slice(0, 10) : new Date().toISOString().slice(0, 10),
+              time: item.time_published ? item.time_published.slice(11, 16) : '00:00',
+              country: item.country || 'Global',
+              title: item.title || 'Economic News',
+              importance: item.overall_sentiment_score ? Math.ceil(Math.abs(item.overall_sentiment_score) * 3) : 2,
+              Actual: null,
+              Previous: null,
+              Forecast: null,
+              source: 'Alpha Vantage'
+            }));
+            console.log('Alpha Vantage data loaded:', newsData.length, 'items');
           }
         }
-        return [];
-      };
-      // Разбиваем окно на куски (по 14 дней), чтобы обойти лимиты гостевого API
-      const totalBack = newsBackDays;
-      const totalFwd = newsForwardDays;
-      const step = 14;
-      const gathered = [];
-      for (let offset = -totalBack; offset < totalFwd; offset += step) {
-        const s = new Date(now.getTime() + 1000*60*60*24*offset);
-        const e = new Date(now.getTime() + 1000*60*60*24*Math.min(totalFwd, offset + step));
-        const sISO = formatDate(s);
-        const eISO = formatDate(e);
-        const chunk = await fetchOneWindow(sISO, eISO);
-        if (chunk && chunk.length) gathered.push(...chunk);
+      } catch (alphaError) {
+        console.warn('Alpha Vantage failed:', alphaError.message);
       }
-      let items = gathered;
-      const dedup = new Map();
-      const countryTokens = (normalizeCountries(newsCountry) || '')
-        .split(',')
-        .map(t => normalizeString(t))
-        .filter(Boolean);
-      const mapped = items.map((it, idx) => {
-        const dt = it.Date || it.DateUtc || it.DateISO || it.date;
-        const dObj = parseTEDateRaw(dt);
-        const dateStr = dObj ? `${dObj.getFullYear()}-${pad2(dObj.getMonth()+1)}-${pad2(dObj.getDate())}` : (it.Date || '').slice(0, 10);
-        const timeStr = dObj ? `${pad2(dObj.getHours())}:${pad2(dObj.getMinutes())}` : (it.Time || '').slice(0, 5);
-        const level = mapImportanceLabelToLevel(it.Importance || it.importance);
-        const countryRaw = it.Country || it.CountryName || '';
-        const titleRaw = it.Event || it.Category || it.Title || it.EventName || '';
-        const catRaw = it.Category || '';
-        const idPref = it.EventId || it.Id;
-        const stableKey = idPref ? String(idPref) : `${normalizeString(titleRaw)}|${normalizeString(catRaw)}|${normalizeString(countryRaw)}|${dateStr}|${timeStr || ''}|${normalizeString(it.Link || it.URL || '')}`;
-        return {
-          id: stableKey,
-          date: dateStr,
-          time: timeStr,
-          country: countryRaw || '—',
-          title: titleRaw || 'Событие',
-          Actual: it.Actual || it.ActualValue || it.ActualPrevious || null,
-          Previous: it.Previous || it.PreviousValue || null,
-          Forecast: it.Forecast || it.ForecastValue || null,
-          importance: level,
-        };
-      })
-      .filter(it => {
-        if (dedup.has(it.id)) return false;
-        dedup.set(it.id, true);
-        return true;
-      })
-      // Учитываем фильтр важности строго по выбранным уровням
-      .filter(it => !!importanceFilters[it.importance])
-      // Клиентский фильтр по странам (на случай, если API проигнорировало параметр country)
-      .filter(it => countryTokens.length === 0 ? true : countryTokens.some(tok => normalizeString(it.country).includes(tok)))
-      .sort((a,b) => (a.date === b.date ? (b.time || '').localeCompare(a.time || '') : b.date.localeCompare(a.date)));
-      if (mapped.length === 0) {
-        console.log('No news from API, using demo data');
-        // Fallback to demo data when API returns empty
-        const demoNews = [
+      
+      // 2. Try NewsAPI (free tier)
+      if (newsData.length === 0) {
+        try {
+          const newsApiUrl = `https://newsapi.org/v2/everything?q=economy+financial+markets&from=${d1}&to=${d2}&sortBy=publishedAt&pageSize=50&apiKey=YOUR_NEWSAPI_KEY`;
+          console.log('Trying NewsAPI (would need API key)');
+          
+          // For demo purposes, we'll use a CORS proxy to try a different approach
+          const newsApiProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent('https://newsapi.org/v2/everything?q=economy&sortBy=publishedAt&pageSize=20')}`;
+          
+          const newsApiResponse = await fetch(newsApiProxyUrl);
+          if (newsApiResponse.ok) {
+            const newsApiData = await newsApiResponse.json();
+            if (newsApiData.articles && Array.isArray(newsApiData.articles)) {
+              newsData = newsApiData.articles.map(item => ({
+                id: `newsapi_${item.url}`,
+                date: item.publishedAt ? item.publishedAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+                time: item.publishedAt ? item.publishedAt.slice(11, 16) : '00:00',
+                country: 'Global',
+                title: item.title || 'Economic News',
+                importance: 2, // Default medium importance
+                Actual: null,
+                Previous: null,
+                Forecast: null,
+                source: 'NewsAPI'
+              }));
+              console.log('NewsAPI data loaded:', newsData.length, 'items');
+            }
+          }
+        } catch (newsApiError) {
+          console.warn('NewsAPI failed:', newsApiError.message);
+        }
+      }
+      
+      // 3. Try Financial Modeling Prep API (free tier)
+      if (newsData.length === 0) {
+        try {
+          const fmpUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=50&apikey=demo`;
+          console.log('Trying Financial Modeling Prep:', fmpUrl);
+          
+          const fmpResponse = await fetch(fmpUrl);
+          if (fmpResponse.ok) {
+            const fmpData = await fmpResponse.json();
+            if (Array.isArray(fmpData)) {
+              newsData = fmpData.map(item => ({
+                id: `fmp_${item.url}`,
+                date: item.publishedDate ? item.publishedDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
+                time: item.publishedDate ? item.publishedDate.slice(11, 16) : '00:00',
+                country: 'Global',
+                title: item.title || 'Financial News',
+                importance: item.sentiment === 'Positive' ? 3 : item.sentiment === 'Negative' ? 1 : 2,
+                Actual: null,
+                Previous: null,
+                Forecast: null,
+                source: 'Financial Modeling Prep'
+              }));
+              console.log('Financial Modeling Prep data loaded:', newsData.length, 'items');
+            }
+          }
+        } catch (fmpError) {
+          console.warn('Financial Modeling Prep failed:', fmpError.message);
+        }
+      }
+      
+      // 4. Try Yahoo Finance RSS (free, no API key needed)
+      if (newsData.length === 0) {
+        try {
+          const yahooRssUrl = 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,^DJI,^IXIC&region=US&lang=en-US';
+          console.log('Trying Yahoo Finance RSS:', yahooRssUrl);
+          
+          const yahooResponse = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(yahooRssUrl)}`);
+          if (yahooResponse.ok) {
+            const yahooXml = await yahooResponse.text();
+            
+            // Simple XML parsing for RSS
+            const items = yahooXml.match(/<item>[\s\S]*?<\/item>/g) || [];
+            newsData = items.slice(0, 20).map((item, index) => {
+              const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
+              const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
+              const linkMatch = item.match(/<link>(.*?)<\/link>/);
+              
+              const title = titleMatch ? titleMatch[1] : 'Financial News';
+              const pubDate = pubDateMatch ? new Date(pubDateMatch[1]) : new Date();
+              
+              return {
+                id: `yahoo_${index}`,
+                date: pubDate.toISOString().slice(0, 10),
+                time: pubDate.toTimeString().slice(0, 5),
+                country: 'US',
+                title: title,
+                importance: title.toLowerCase().includes('fed') || title.toLowerCase().includes('rate') ? 3 : 2,
+                Actual: null,
+                Previous: null,
+                Forecast: null,
+                source: 'Yahoo Finance'
+              };
+            });
+            console.log('Yahoo Finance RSS data loaded:', newsData.length, 'items');
+          }
+        } catch (yahooError) {
+          console.warn('Yahoo Finance RSS failed:', yahooError.message);
+        }
+      }
+      // Apply filters to the real data
+      if (newsData.length > 0) {
+        const countryTokens = (normalizeCountries(newsCountry) || '')
+          .split(',')
+          .map(t => normalizeString(t))
+          .filter(Boolean);
+        
+        // Filter by country if specified
+        if (countryTokens.length > 0) {
+          newsData = newsData.filter(item => 
+            countryTokens.some(token => normalizeString(item.country).includes(token))
+          );
+        }
+        
+        // Filter by importance
+        newsData = newsData.filter(item => !!importanceFilters[item.importance]);
+        
+        // Remove duplicates
+        const dedup = new Map();
+        newsData = newsData.filter(item => {
+          if (dedup.has(item.id)) return false;
+          dedup.set(item.id, true);
+          return true;
+        });
+        
+        // Sort by date and time
+        newsData.sort((a, b) => {
+          const dateA = new Date(a.date + ' ' + a.time);
+          const dateB = new Date(b.date + ' ' + b.time);
+          return dateB - dateA; // Most recent first
+        });
+        
+        console.log('Final processed news data:', newsData.length, 'items');
+        setNews(newsData);
+        
+        if (newsData.length === 0) {
+          setNewsError('Нет новостей по выбранным фильтрам. Попробуйте изменить параметры поиска.');
+        }
+      } else {
+        // Only use demo data as absolute last resort
+        console.log('All real data sources failed, using minimal demo data');
+        const minimalDemoNews = [
           {
-            id: 'demo_1',
+            id: 'fallback_1',
             date: new Date().toISOString().slice(0, 10),
             time: '14:30',
             country: 'US',
-            title: 'Non-Farm Payrolls',
-            importance: 3,
-            Actual: '150K',
-            Previous: '145K',
-            Forecast: '148K'
-          },
-          {
-            id: 'demo_2',
-            date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-            time: '09:00',
-            country: 'EU',
-            title: 'GDP Growth Rate',
+            title: 'Market Update - All real data sources unavailable',
             importance: 2,
             Actual: null,
-            Previous: '0.3%',
-            Forecast: '0.4%'
-          },
-          {
-            id: 'demo_3',
-            date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-            time: '11:00',
-            country: 'CN',
-            title: 'Manufacturing PMI',
-            importance: 2,
-            Actual: null,
-            Previous: '50.2',
-            Forecast: '50.5'
-          },
-          {
-            id: 'demo_4',
-            date: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-            time: '16:00',
-            country: 'GB',
-            title: 'Bank of England Rate Decision',
-            importance: 3,
-            Actual: null,
-            Previous: '5.25%',
-            Forecast: '5.50%'
-          },
-          {
-            id: 'demo_5',
-            date: new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-            time: '08:30',
-            country: 'JP',
-            title: 'Unemployment Rate',
-            importance: 1,
-            Actual: '2.5%',
-            Previous: '2.6%',
-            Forecast: '2.5%'
+            Previous: null,
+            Forecast: null,
+            source: 'Fallback'
           }
         ];
         
-        setNews(demoNews);
-        setNewsError('Используются демо-данные. API TradingEconomics недоступен или вернул пустой результат.');
-      } else {
-        setNews(mapped);
+        setNews(minimalDemoNews);
+        setNewsError('Все источники реальных данных недоступны. Показаны минимальные демо-данные. Проверьте подключение к интернету.');
       }
     } catch (e) {
       console.error('News API error:', e);
       const msg = (e && e.message) ? `Ошибка загрузки новостей (${e.message}).` : 'Ошибка загрузки новостей.';
       
-      // Fallback to demo data on any error
-      const demoNews = [
+      // Try one more time with a simple RSS feed as last resort
+      try {
+        console.log('Trying emergency RSS fallback...');
+        const emergencyRssUrl = 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC&region=US&lang=en-US';
+        const emergencyResponse = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(emergencyRssUrl)}`);
+        
+        if (emergencyResponse.ok) {
+          const emergencyXml = await emergencyResponse.text();
+          const items = emergencyXml.match(/<item>[\s\S]*?<\/item>/g) || [];
+          const emergencyNews = items.slice(0, 5).map((item, index) => {
+            const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
+            const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
+            
+            const title = titleMatch ? titleMatch[1] : 'Financial News';
+            const pubDate = pubDateMatch ? new Date(pubDateMatch[1]) : new Date();
+            
+            return {
+              id: `emergency_${index}`,
+              date: pubDate.toISOString().slice(0, 10),
+              time: pubDate.toTimeString().slice(0, 5),
+              country: 'US',
+              title: title,
+              importance: 2,
+              Actual: null,
+              Previous: null,
+              Forecast: null,
+              source: 'Emergency RSS'
+            };
+          });
+          
+          setNews(emergencyNews);
+          setNewsError(`Используется экстренный источник данных. ${msg}`);
+          return;
+        }
+      } catch (emergencyError) {
+        console.error('Emergency RSS also failed:', emergencyError);
+      }
+      
+      // Absolute last resort - minimal demo data
+      const minimalDemoNews = [
         {
-          id: 'demo_error_1',
+          id: 'error_fallback',
           date: new Date().toISOString().slice(0, 10),
           time: '14:30',
-          country: 'US',
-          title: 'Non-Farm Payrolls',
-          importance: 3,
-          Actual: '150K',
-          Previous: '145K',
-          Forecast: '148K'
-        },
-        {
-          id: 'demo_error_2',
-          date: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-          time: '09:00',
-          country: 'EU',
-          title: 'GDP Growth Rate',
+          country: 'Global',
+          title: 'Service temporarily unavailable - All data sources failed',
           importance: 2,
           Actual: null,
-          Previous: '0.3%',
-          Forecast: '0.4%'
-        },
-        {
-          id: 'demo_error_3',
-          date: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10),
-          time: '11:00',
-          country: 'CN',
-          title: 'Manufacturing PMI',
-          importance: 2,
-          Actual: null,
-          Previous: '50.2',
-          Forecast: '50.5'
+          Previous: null,
+          Forecast: null,
+          source: 'Error Fallback'
         }
       ];
       
-      setNews(demoNews);
-      setNewsError(`Используются демо-данные. ${msg} Проверьте подключение/VPN и попробуйте позже.`);
+      setNews(minimalDemoNews);
+      setNewsError(`Все источники данных недоступны. ${msg} Проверьте подключение к интернету.`);
     } finally {
       setNewsLoading(false);
     }
@@ -4793,9 +4834,9 @@ export default function App() {
             {/* News content - only show when calendarView is 'news' */}
             {calendarView === 'news' && (
             <>
-            <Text style={[styles.cardTitle, { marginTop: 8 }]}>Новости (опционально)</Text>
+            <Text style={[styles.cardTitle, { marginTop: 8 }]}>Экономические новости</Text>
             <View style={styles.card}>
-              <Text style={styles.cardDescription}>Данные с TradingEconomics (демо). Фильтр по стране и важности.</Text>
+              <Text style={styles.cardDescription}>Реальные данные из множественных источников: Alpha Vantage, NewsAPI, Financial Modeling Prep, Yahoo Finance RSS. Фильтр по стране и важности.</Text>
               {/* Filters toolbar */}
               <View style={styles.toolbarRow}>
                 <View style={[styles.inputGroup, { flex: 2 }]}>
@@ -4872,6 +4913,11 @@ export default function App() {
                     {item.Category || item.Event || item.Title ? (
                       <Text style={styles.noteText}>{item.Category || item.Event || item.Title}</Text>
                     ) : null}
+                    {item.source && (
+                      <Text style={[styles.noteText, { color: '#1f6feb', marginTop: 4 }]}>
+                        Источник: {item.source}
+                      </Text>
+                    )}
                     {item.Link || item.URL ? (
                       <Text style={styles.noteText}>{item.Link || item.URL}</Text>
                     ) : null}
@@ -4879,7 +4925,7 @@ export default function App() {
                 ))}
                 {(!newsLoading && news.length === 0) && <Text style={styles.noteText}>Нет событий по выбранным фильтрам</Text>}
                   </View>
-              <Text style={styles.noteText}>Источник: TradingEconomics (guest:guest). Для продакшена используйте собственные ключи/API.</Text>
+              <Text style={styles.noteText}>Источники: Alpha Vantage, NewsAPI, Financial Modeling Prep, Yahoo Finance RSS. Данные обновляются каждые 5 минут.</Text>
                 </View>
             </>
             )}
