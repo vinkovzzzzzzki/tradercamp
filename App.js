@@ -3414,6 +3414,9 @@ export default function App() {
             <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'debts')}>
               <Text style={styles.dropdownItemText}>Долги</Text>
             </Pressable>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'questionnaire')}>
+              <Text style={styles.dropdownItemText}>Финансовая анкета</Text>
+            </Pressable>
           </Animated.View>
         )}
         
@@ -3674,7 +3677,9 @@ export default function App() {
                 <Text style={styles.noteText}>Войдите, чтобы видеть сводку</Text>
               )}
             </View>
-            {/* Finance onboarding / questionnaire */}
+            
+            {/* Finance Questionnaire */}
+            {financeView === 'questionnaire' && (
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
               <Text style={styles.cardTitle}>🧾 Финансовая анкета</Text>
               {!currentUser && <Text style={styles.noteText}>Войдите, чтобы заполнить анкету</Text>}
@@ -3772,6 +3777,8 @@ export default function App() {
                 </>
               )}
             </View>
+            )}
+            
             {/* Investment Planning */}
             {financeView === 'invest' && (
             <View style={[styles.card, isDark ? { backgroundColor: '#121820' } : null]}>
