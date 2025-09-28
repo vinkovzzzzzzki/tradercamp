@@ -3630,10 +3630,29 @@ export default function App() {
                                     });
                                     
                                     if (values.length > 0) {
+                                      // Calculate tooltip position with boundary checks
+                                      const tooltipWidth = 200; // Approximate tooltip width
+                                      const tooltipHeight = 100; // Approximate tooltip height
+                                      const screenWidth = window.innerWidth;
+                                      const screenHeight = window.innerHeight;
+                                      
+                                      let tooltipX = event.clientX;
+                                      let tooltipY = event.clientY + 15;
+                                      
+                                      // Adjust X position if tooltip would go off screen
+                                      if (tooltipX + tooltipWidth > screenWidth) {
+                                        tooltipX = event.clientX - tooltipWidth - 10;
+                                      }
+                                      
+                                      // Adjust Y position if tooltip would go off screen
+                                      if (tooltipY + tooltipHeight > screenHeight) {
+                                        tooltipY = event.clientY - tooltipHeight - 10;
+                                      }
+                                      
                                       setChartTooltip({
                                         visible: true,
-                                        x: event.clientX + 10,
-                                        y: event.clientY - 10,
+                                        x: tooltipX,
+                                        y: tooltipY,
                                         data: { label, values }
                                       });
                                     }
@@ -5724,7 +5743,7 @@ const styles = StyleSheet.create({
   lineChart: { borderRadius: 16 },
   chartWrapper: { position: 'relative' },
   chartTooltip: {
-    position: 'absolute',
+    position: 'fixed',
     zIndex: 1000,
     padding: 12,
     borderRadius: 8,
@@ -5735,7 +5754,8 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
     minWidth: 150,
-    maxWidth: 250
+    maxWidth: 250,
+    pointerEvents: 'none'
   },
   tooltipTitle: {
     fontSize: 14,
