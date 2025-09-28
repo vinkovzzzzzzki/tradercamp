@@ -994,6 +994,18 @@ export default function App() {
     const saved = storage.get('cushionHistory', []);
     return saved.length > 0 ? saved : generateInitialHistory();
   });
+
+  // Investment history for chart
+  const [investmentHistory, setInvestmentHistory] = useState(() => {
+    const saved = storage.get('investmentHistory', []);
+    return saved.length > 0 ? saved : generateInitialInvestmentHistory();
+  });
+
+  // Debts history for chart
+  const [debtsHistory, setDebtsHistory] = useState(() => {
+    const saved = storage.get('debtsHistory', []);
+    return saved.length > 0 ? saved : generateInitialDebtsHistory();
+  });
   
   // Generate initial history data for demo
   function generateInitialHistory() {
@@ -1021,12 +1033,67 @@ export default function App() {
     return history;
   }
 
+  // Generate initial investment history
+  function generateInitialInvestmentHistory() {
+    const history = [];
+    const now = new Date();
+    
+    // Generate 30 days of investment data with gradual growth
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      
+      // Generate investment data with gradual growth and some volatility
+      const baseAmount = 2000;
+      const growth = i * 20; // Gradual growth over time
+      const volatility = (Math.random() - 0.5) * 400; // ±200 variation
+      const amount = Math.max(1000, baseAmount + growth + volatility);
+      
+      history.push({
+        date: date.toISOString().split('T')[0],
+        amount: Math.round(amount),
+        timestamp: date.getTime()
+      });
+    }
+    
+    storage.set('investmentHistory', history);
+    return history;
+  }
+
+  // Generate initial debts history
+  function generateInitialDebtsHistory() {
+    const history = [];
+    const now = new Date();
+    
+    // Generate 30 days of debt data with gradual changes
+    for (let i = 29; i >= 0; i--) {
+      const date = new Date(now);
+      date.setDate(date.getDate() - i);
+      
+      // Generate debt data with some variation
+      const baseAmount = 3000;
+      const variation = (Math.random() - 0.5) * 600; // ±300 variation
+      const amount = Math.max(1000, baseAmount + variation);
+      
+      history.push({
+        date: date.toISOString().split('T')[0],
+        amount: Math.round(amount),
+        timestamp: date.getTime()
+      });
+    }
+    
+    storage.set('debtsHistory', history);
+    return history;
+  }
+
   // Friend requests (local)
   const [friendRequests, setFriendRequests] = useState(() => storage.get('friendRequests', []));
   useEffect(() => storage.set('friendRequests', friendRequests), [friendRequests]);
   
-  // Save cushion history to storage
+  // Save histories to storage
   useEffect(() => storage.set('cushionHistory', cushionHistory), [cushionHistory]);
+  useEffect(() => storage.set('investmentHistory', investmentHistory), [investmentHistory]);
+  useEffect(() => storage.set('debtsHistory', debtsHistory), [debtsHistory]);
   
   // Auto-update cushion history when cashReserve changes
   useEffect(() => {
@@ -1079,9 +1146,14 @@ export default function App() {
 
   // Reset all financial data with new test data
   const resetAllFinancialData = () => {
-    // Generate new cushion history
-    const newHistory = generateInitialHistory();
-    setCushionHistory(newHistory);
+    // Generate new histories for all metrics
+    const newCushionHistory = generateInitialHistory();
+    const newInvestmentHistory = generateInitialInvestmentHistory();
+    const newDebtsHistory = generateInitialDebtsHistory();
+    
+    setCushionHistory(newCushionHistory);
+    setInvestmentHistory(newInvestmentHistory);
+    setDebtsHistory(newDebtsHistory);
     
     // Generate random financial data
     const randomData = generateRandomFinancialData();
@@ -1190,17 +1262,123 @@ export default function App() {
     return filteredData.sort((a, b) => a.timestamp - b.timestamp);
   };
 
+  // Get investment chart data based on time period
+  const getInvestmentChartData = () => {
+    const now = new Date();
+    let filteredData = [...investmentHistory];
+    
+    switch (chartTimePeriod) {
+      case 'days':
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        filteredData = filteredData.filter(item => item.timestamp >= thirtyDaysAgo.getTime());
+        break;
+      case 'weeks':
+        const groupedData = {};
+        filteredData.forEach(item => {
+          const weekStart = new Date(item.timestamp);
+          weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+          const weekKey = weekStart.toISOString().split('T')[0];
+          
+          if (!groupedData[weekKey]) {
+            groupedData[weekKey] = { amounts: [], timestamp: weekStart.getTime() };
+          }
+          groupedData[weekKey].amounts.push(item.amount);
+        });
+        
+        filteredData = Object.entries(groupedData).map(([date, data]) => ({
+          date,
+          amount: data.amounts.reduce((sum, amount) => sum + amount, 0) / data.amounts.length,
+          timestamp: data.timestamp
+        }));
+        break;
+      case 'months':
+        const monthGroupedData = {};
+        filteredData.forEach(item => {
+          const date = new Date(item.timestamp);
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          
+          if (!monthGroupedData[monthKey]) {
+            monthGroupedData[monthKey] = { amounts: [], timestamp: date.getTime() };
+          }
+          monthGroupedData[monthKey].amounts.push(item.amount);
+        });
+        
+        filteredData = Object.entries(monthGroupedData).map(([date, data]) => ({
+          date,
+          amount: data.amounts.reduce((sum, amount) => sum + amount, 0) / data.amounts.length,
+          timestamp: data.timestamp
+        }));
+        break;
+    }
+    
+    return filteredData.sort((a, b) => a.timestamp - b.timestamp);
+  };
+
+  // Get debts chart data based on time period
+  const getDebtsChartData = () => {
+    const now = new Date();
+    let filteredData = [...debtsHistory];
+    
+    switch (chartTimePeriod) {
+      case 'days':
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        filteredData = filteredData.filter(item => item.timestamp >= thirtyDaysAgo.getTime());
+        break;
+      case 'weeks':
+        const groupedData = {};
+        filteredData.forEach(item => {
+          const weekStart = new Date(item.timestamp);
+          weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+          const weekKey = weekStart.toISOString().split('T')[0];
+          
+          if (!groupedData[weekKey]) {
+            groupedData[weekKey] = { amounts: [], timestamp: weekStart.getTime() };
+          }
+          groupedData[weekKey].amounts.push(item.amount);
+        });
+        
+        filteredData = Object.entries(groupedData).map(([date, data]) => ({
+          date,
+          amount: data.amounts.reduce((sum, amount) => sum + amount, 0) / data.amounts.length,
+          timestamp: data.timestamp
+        }));
+        break;
+      case 'months':
+        const monthGroupedData = {};
+        filteredData.forEach(item => {
+          const date = new Date(item.timestamp);
+          const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          
+          if (!monthGroupedData[monthKey]) {
+            monthGroupedData[monthKey] = { amounts: [], timestamp: date.getTime() };
+          }
+          monthGroupedData[monthKey].amounts.push(item.amount);
+        });
+        
+        filteredData = Object.entries(monthGroupedData).map(([date, data]) => ({
+          date,
+          amount: data.amounts.reduce((sum, amount) => sum + amount, 0) / data.amounts.length,
+          timestamp: data.timestamp
+        }));
+        break;
+    }
+    
+    return filteredData.sort((a, b) => a.timestamp - b.timestamp);
+  };
+
   // Get comprehensive chart data with all metrics
   const getComprehensiveChartData = () => {
     const chartData = getChartData();
-    const totalDebt = (sortedDebts || []).reduce((s, d) => s + (d.amount || 0), 0);
-    const invest = investmentBalance;
+    const investmentData = getInvestmentChartData();
+    const debtsData = getDebtsChartData();
     
     // Calculate all data points
     const cushionData = chartData.map(item => item.amount);
-    const investmentData = chartData.map(() => invest); // Constant investment line
-    const debtsData = chartData.map(() => totalDebt); // Constant debts line
-    const totalData = chartData.map(item => item.amount + invest - totalDebt);
+    const investmentAmounts = investmentData.map(item => item.amount);
+    const debtsAmounts = debtsData.map(item => item.amount);
+    const totalData = chartData.map((item, index) => 
+      item.amount + investmentAmounts[index] - debtsAmounts[index]
+    );
     
     // Build datasets based on visibility settings
     const datasets = [];
@@ -1217,20 +1395,20 @@ export default function App() {
     
     if (chartVisibility.investments) {
       datasets.push({
-        data: investmentData,
+        data: investmentAmounts,
         color: (opacity = 1) => `rgba(16, 185, 129, ${opacity})`,
         strokeWidth: 2
       });
-      allValues.push(...investmentData);
+      allValues.push(...investmentAmounts);
     }
     
     if (chartVisibility.debts) {
       datasets.push({
-        data: debtsData,
+        data: debtsAmounts,
         color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
         strokeWidth: 2
       });
-      allValues.push(...debtsData);
+      allValues.push(...debtsAmounts);
     }
     
     if (chartVisibility.total) {
