@@ -2169,33 +2169,32 @@ export default function App() {
       
       console.log('News refresh params:', { d1, d2, countries, importance, allSelected });
       
-      // Try multiple real data sources
+      // Try real data sources (simplified to only working APIs)
       let newsData = [];
       
-      // 1. Try a simple RSS feed first (most reliable)
+      // 1. Try Yahoo Finance RSS (most reliable, no API key needed)
       try {
-        console.log('Trying RSS feed...');
-        const rssUrl = 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,^DJI,^IXIC&region=US&lang=en-US';
-        const rssResponse = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(rssUrl)}`);
+        console.log('Loading Yahoo Finance RSS...');
+        const yahooRssUrl = 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,^DJI,^IXIC&region=US&lang=en-US';
+        const yahooResponse = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(yahooRssUrl)}`);
         
-        if (rssResponse.ok) {
-          const rssXml = await rssResponse.text();
-          console.log('RSS response received, length:', rssXml.length);
+        if (yahooResponse.ok) {
+          const yahooXml = await yahooResponse.text();
+          console.log('Yahoo RSS response received, length:', yahooXml.length);
           
           // Simple XML parsing for RSS
-          const items = rssXml.match(/<item>[\s\S]*?<\/item>/g) || [];
-          console.log('Found RSS items:', items.length);
+          const items = yahooXml.match(/<item>[\s\S]*?<\/item>/g) || [];
+          console.log('Found Yahoo RSS items:', items.length);
           
-          newsData = items.slice(0, 20).map((item, index) => {
+          newsData = items.slice(0, 15).map((item, index) => {
             const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
             const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
-            const linkMatch = item.match(/<link>(.*?)<\/link>/);
             
             const title = titleMatch ? titleMatch[1] : 'Financial News';
             const pubDate = pubDateMatch ? new Date(pubDateMatch[1]) : new Date();
             
             return {
-              id: `rss_${index}`,
+              id: `yahoo_${index}`,
               date: pubDate.toISOString().slice(0, 10),
               time: pubDate.toTimeString().slice(0, 5),
               country: 'US',
@@ -2208,145 +2207,12 @@ export default function App() {
               source: 'Yahoo Finance RSS'
             };
           });
-          console.log('RSS data processed:', newsData.length, 'items');
+          console.log('Yahoo RSS data processed:', newsData.length, 'items');
         } else {
-          console.warn('RSS response not ok:', rssResponse.status);
+          console.warn('Yahoo RSS response not ok:', yahooResponse.status);
         }
-      } catch (rssError) {
-        console.warn('RSS failed:', rssError.message);
-      }
-      
-      // 2. Try Alpha Vantage News API (free tier) as backup
-      if (newsData.length === 0) {
-        try {
-          const alphaVantageUrl = `https://www.alphavantage.co/query?function=NEWS_SENTIMENT&apikey=demo&limit=50&time_from=${d1}T00:00:00&time_to=${d2}T23:59:59`;
-          console.log('Trying Alpha Vantage:', alphaVantageUrl);
-          
-          const alphaResponse = await fetch(alphaVantageUrl);
-          if (alphaResponse.ok) {
-            const alphaData = await alphaResponse.json();
-            if (alphaData.feed && Array.isArray(alphaData.feed)) {
-              newsData = alphaData.feed.map(item => ({
-                id: `alpha_${item.url}`,
-                date: item.time_published ? item.time_published.slice(0, 10) : new Date().toISOString().slice(0, 10),
-                time: item.time_published ? item.time_published.slice(11, 16) : '00:00',
-                country: item.country || 'Global',
-                title: item.title || 'Economic News',
-                importance: item.overall_sentiment_score ? Math.ceil(Math.abs(item.overall_sentiment_score) * 3) : 2,
-                Actual: null,
-                Previous: null,
-                Forecast: null,
-                source: 'Alpha Vantage'
-              }));
-              console.log('Alpha Vantage data loaded:', newsData.length, 'items');
-            }
-          }
-        } catch (alphaError) {
-          console.warn('Alpha Vantage failed:', alphaError.message);
-        }
-      }
-      
-      // 2. Try NewsAPI (free tier)
-      if (newsData.length === 0) {
-        try {
-          const newsApiUrl = `https://newsapi.org/v2/everything?q=economy+financial+markets&from=${d1}&to=${d2}&sortBy=publishedAt&pageSize=50&apiKey=YOUR_NEWSAPI_KEY`;
-          console.log('Trying NewsAPI (would need API key)');
-          
-          // For demo purposes, we'll use a CORS proxy to try a different approach
-          const newsApiProxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent('https://newsapi.org/v2/everything?q=economy&sortBy=publishedAt&pageSize=20')}`;
-          
-          const newsApiResponse = await fetch(newsApiProxyUrl);
-          if (newsApiResponse.ok) {
-            const newsApiData = await newsApiResponse.json();
-            if (newsApiData.articles && Array.isArray(newsApiData.articles)) {
-              newsData = newsApiData.articles.map(item => ({
-                id: `newsapi_${item.url}`,
-                date: item.publishedAt ? item.publishedAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
-                time: item.publishedAt ? item.publishedAt.slice(11, 16) : '00:00',
-                country: 'Global',
-                title: item.title || 'Economic News',
-                importance: 2, // Default medium importance
-                Actual: null,
-                Previous: null,
-                Forecast: null,
-                source: 'NewsAPI'
-              }));
-              console.log('NewsAPI data loaded:', newsData.length, 'items');
-            }
-          }
-        } catch (newsApiError) {
-          console.warn('NewsAPI failed:', newsApiError.message);
-        }
-      }
-      
-      // 3. Try Financial Modeling Prep API (free tier)
-      if (newsData.length === 0) {
-        try {
-          const fmpUrl = `https://financialmodelingprep.com/api/v3/stock_news?limit=50&apikey=demo`;
-          console.log('Trying Financial Modeling Prep:', fmpUrl);
-          
-          const fmpResponse = await fetch(fmpUrl);
-          if (fmpResponse.ok) {
-            const fmpData = await fmpResponse.json();
-            if (Array.isArray(fmpData)) {
-              newsData = fmpData.map(item => ({
-                id: `fmp_${item.url}`,
-                date: item.publishedDate ? item.publishedDate.slice(0, 10) : new Date().toISOString().slice(0, 10),
-                time: item.publishedDate ? item.publishedDate.slice(11, 16) : '00:00',
-                country: 'Global',
-                title: item.title || 'Financial News',
-                importance: item.sentiment === 'Positive' ? 3 : item.sentiment === 'Negative' ? 1 : 2,
-                Actual: null,
-                Previous: null,
-                Forecast: null,
-                source: 'Financial Modeling Prep'
-              }));
-              console.log('Financial Modeling Prep data loaded:', newsData.length, 'items');
-            }
-          }
-        } catch (fmpError) {
-          console.warn('Financial Modeling Prep failed:', fmpError.message);
-        }
-      }
-      
-      // 4. Try Yahoo Finance RSS (free, no API key needed)
-      if (newsData.length === 0) {
-        try {
-          const yahooRssUrl = 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,^DJI,^IXIC&region=US&lang=en-US';
-          console.log('Trying Yahoo Finance RSS:', yahooRssUrl);
-          
-          const yahooResponse = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(yahooRssUrl)}`);
-          if (yahooResponse.ok) {
-            const yahooXml = await yahooResponse.text();
-            
-            // Simple XML parsing for RSS
-            const items = yahooXml.match(/<item>[\s\S]*?<\/item>/g) || [];
-            newsData = items.slice(0, 20).map((item, index) => {
-              const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
-              const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
-              const linkMatch = item.match(/<link>(.*?)<\/link>/);
-              
-              const title = titleMatch ? titleMatch[1] : 'Financial News';
-              const pubDate = pubDateMatch ? new Date(pubDateMatch[1]) : new Date();
-              
-              return {
-                id: `yahoo_${index}`,
-                date: pubDate.toISOString().slice(0, 10),
-                time: pubDate.toTimeString().slice(0, 5),
-                country: 'US',
-                title: title,
-                importance: title.toLowerCase().includes('fed') || title.toLowerCase().includes('rate') ? 3 : 2,
-                Actual: null,
-                Previous: null,
-                Forecast: null,
-                source: 'Yahoo Finance'
-              };
-            });
-            console.log('Yahoo Finance RSS data loaded:', newsData.length, 'items');
-          }
-        } catch (yahooError) {
-          console.warn('Yahoo Finance RSS failed:', yahooError.message);
-        }
+      } catch (yahooError) {
+        console.warn('Yahoo RSS failed:', yahooError.message);
       }
       // Apply filters to the real data
       if (newsData.length > 0) {
@@ -4951,7 +4817,7 @@ export default function App() {
             <>
             <Text style={[styles.cardTitle, { marginTop: 8 }]}>Экономические новости</Text>
             <View style={styles.card}>
-              <Text style={styles.cardDescription}>Реальные данные из множественных источников: Alpha Vantage, NewsAPI, Financial Modeling Prep, Yahoo Finance RSS. Фильтр по стране и важности.</Text>
+              <Text style={styles.cardDescription}>Реальные данные из Yahoo Finance RSS. Фильтр по стране и важности.</Text>
               {/* Filters toolbar */}
               <View style={styles.toolbarRow}>
                 <View style={[styles.inputGroup, { flex: 2 }]}>
@@ -5048,7 +4914,7 @@ export default function App() {
                 ))}
                 {(!newsLoading && news.length === 0) && <Text style={styles.noteText}>Нет событий по выбранным фильтрам</Text>}
                   </View>
-              <Text style={styles.noteText}>Источники: Alpha Vantage, NewsAPI, Financial Modeling Prep, Yahoo Finance RSS. Данные обновляются каждые 5 минут.</Text>
+              <Text style={styles.noteText}>Источник: Yahoo Finance RSS. Данные обновляются каждые 5 минут.</Text>
                 </View>
             </>
             )}
