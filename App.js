@@ -159,7 +159,7 @@ export default function App() {
 
   const supaLogin = async () => {
     if (!supaConfigured) {
-      Alert.alert('Supabase', 'Заполните URL и Anon Key в профиле');
+      Alert.alert('База данных', 'База данных не настроена. Обратитесь к разработчику.');
       return;
     }
     const email = (authEmail || '').trim();
@@ -194,7 +194,7 @@ export default function App() {
     if (isLoading) return;
     
     if (!supaConfigured) {
-      Alert.alert('Supabase', 'Заполните URL и Anon Key в профиле');
+      Alert.alert('База данных', 'База данных не настроена. Обратитесь к разработчику.');
       return;
     }
     const email = (authEmail || '').trim();
@@ -262,7 +262,7 @@ export default function App() {
 
   const supaRecover = async () => {
     if (!supaConfigured) {
-      Alert.alert('Supabase', 'Заполните URL и Anon Key в профиле');
+      Alert.alert('База данных', 'База данных не настроена. Обратитесь к разработчику.');
       return;
     }
     const email = (authEmail || '').trim();
@@ -1594,10 +1594,15 @@ export default function App() {
     );
   };
 
-  // Backend (Supabase REST) config
-  const [supa, setSupa] = useState(() => storage.get('supa', { url: '', anonKey: '', bucket: 'public' }));
-  useEffect(() => storage.set('supa', supa), [supa]);
-  const supaConfigured = !!(supa.url && supa.anonKey);
+  // Backend (Supabase REST) config - встроенная конфигурация
+  const SUPABASE_CONFIG = {
+    url: 'https://your-project.supabase.co', // ЗАМЕНИТЕ НА ВАШ URL
+    anonKey: 'your-anon-key-here', // ЗАМЕНИТЕ НА ВАШ КЛЮЧ
+    bucket: 'public'
+  };
+  
+  const [supa, setSupa] = useState(SUPABASE_CONFIG);
+  const supaConfigured = !!(supa.url && supa.anonKey && supa.url !== 'https://your-project.supabase.co');
   const supaHeaders = () => ({
     'apikey': supa.anonKey,
     'Authorization': `Bearer ${supa.anonKey}`,
@@ -3300,7 +3305,7 @@ export default function App() {
               )}
           
               {!supaConfigured && (
-                <Text style={styles.noteText}>Укажите Supabase URL и Anon Key в профиле</Text>
+                <Text style={styles.noteText}>База данных не настроена. Обратитесь к разработчику.</Text>
           )}
 
           <Pressable style={styles.switchAuth} onPress={() => setAuthMode(m => m === 'login' ? 'register' : 'login')}>
@@ -5209,46 +5214,17 @@ export default function App() {
                       </View>
                     </View>
                     
-                    {/* Supabase Configuration */}
-                    <Text style={[styles.cardTitle, { marginTop: 12 }]}>🔧 Настройки Supabase</Text>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Project URL</Text>
-                      <TextInput 
-                        style={styles.input} 
-                        value={supa.url} 
-                        onChangeText={(t) => setSupa(prev => ({ ...prev, url: t }))} 
-                        placeholder="https://your-project.supabase.co" 
-                      />
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Anon Key</Text>
-                      <TextInput 
-                        style={styles.input} 
-                        value={supa.anonKey} 
-                        onChangeText={(t) => setSupa(prev => ({ ...prev, anonKey: t }))} 
-                        placeholder="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." 
-                        secureTextEntry={true}
-                      />
-                    </View>
-                    <View style={styles.inputGroup}>
-                      <Text style={styles.label}>Storage Bucket</Text>
-                      <TextInput 
-                        style={styles.input} 
-                        value={supa.bucket} 
-                        onChangeText={(t) => setSupa(prev => ({ ...prev, bucket: t }))} 
-                        placeholder="public" 
-                      />
-                    </View>
+                    {/* Database Status */}
                     {supaConfigured && (
                       <View style={[styles.resultCard, { backgroundColor: '#1a2f1a', borderColor: '#10b981' }]}>
-                        <Text style={[styles.resultTitle, { color: '#10b981' }]}>✅ Supabase настроен</Text>
-                        <Text style={styles.noteText}>База данных подключена и готова к работе</Text>
+                        <Text style={[styles.resultTitle, { color: '#10b981' }]}>✅ База данных подключена</Text>
+                        <Text style={styles.noteText}>Все данные сохраняются в облачной базе данных</Text>
                       </View>
                     )}
                     {!supaConfigured && (
                       <View style={[styles.resultCard, { backgroundColor: '#2f1a1a', borderColor: '#ef4444' }]}>
-                        <Text style={[styles.resultTitle, { color: '#ef4444' }]}>❌ Supabase не настроен</Text>
-                        <Text style={styles.noteText}>Заполните URL и Anon Key для подключения к базе данных</Text>
+                        <Text style={[styles.resultTitle, { color: '#ef4444' }]}>⚠️ База данных не настроена</Text>
+                        <Text style={styles.noteText}>Обратитесь к разработчику для настройки подключения</Text>
                       </View>
                     )}
                     
