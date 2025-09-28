@@ -2350,10 +2350,10 @@ export default function App() {
       }
       // Apply filters to the real data
       if (newsData.length > 0) {
-        const countryTokens = (normalizeCountries(newsCountry) || '')
-          .split(',')
-          .map(t => normalizeString(t))
-          .filter(Boolean);
+      const countryTokens = (normalizeCountries(newsCountry) || '')
+        .split(',')
+        .map(t => normalizeString(t))
+        .filter(Boolean);
         
         // Filter by country if specified
         if (countryTokens.length > 0) {
@@ -2370,7 +2370,7 @@ export default function App() {
         newsData = newsData.filter(item => {
           if (dedup.has(item.id)) return false;
           dedup.set(item.id, true);
-          return true;
+        return true;
         });
         
         // Sort by date and time
@@ -2520,7 +2520,7 @@ export default function App() {
       setNewsLoading(false);
     }
   };
-  useEffect(() => { 
+  useEffect(() => {
     console.log('Initial news load triggered');
     refreshNews(); 
   }, []);
@@ -2537,6 +2537,14 @@ export default function App() {
     }, 5 * 60 * 1000); // автообновление каждые 5 минут
     return () => clearInterval(id);
   }, []);
+
+  // Force refresh news when news tab is opened
+  useEffect(() => {
+    if (calendarView === 'news') {
+      console.log('News tab opened, refreshing news...');
+      refreshNews();
+    }
+  }, [calendarView]);
 
   const expandNewsRange = () => {
     setNewsBackDays(v => v + 30);
@@ -4942,14 +4950,6 @@ export default function App() {
             {calendarView === 'news' && (
             <>
             <Text style={[styles.cardTitle, { marginTop: 8 }]}>Экономические новости</Text>
-            {(() => {
-              // Force refresh news when this tab is opened
-              React.useEffect(() => {
-                console.log('News tab opened, refreshing news...');
-                refreshNews();
-              }, []);
-              return null;
-            })()}
             <View style={styles.card}>
               <Text style={styles.cardDescription}>Реальные данные из множественных источников: Alpha Vantage, NewsAPI, Financial Modeling Prep, Yahoo Finance RSS. Фильтр по стране и важности.</Text>
               {/* Filters toolbar */}
