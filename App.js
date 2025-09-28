@@ -2235,43 +2235,20 @@ export default function App() {
     }
   };
 
-  // TradingEconomics integration (public demo credentials)
-  const countryCodeMap = {
-    US: 'United States', EU: 'Euro Area', CN: 'China', RU: 'Russia', GB: 'United Kingdom', DE: 'Germany', FR: 'France',
-    JP: 'Japan', CA: 'Canada', AU: 'Australia', NZ: 'New Zealand', CH: 'Switzerland', IT: 'Italy', ES: 'Spain'
-  };
+  // News helper functions
   const normalizeCountries = (input) => {
     if (!input) return '';
+    const countryCodeMap = {
+      US: 'United States', EU: 'Euro Area', CN: 'China', RU: 'Russia', GB: 'United Kingdom', DE: 'Germany', FR: 'France',
+      JP: 'Japan', CA: 'Canada', AU: 'Australia', NZ: 'New Zealand', CH: 'Switzerland', IT: 'Italy', ES: 'Spain'
+    };
     return input.split(',').map(t => t.trim()).filter(Boolean).map(tok => {
       const up = tok.toUpperCase();
-      return countryCodeMap[up] || tok; // allow full names
+      return countryCodeMap[up] || tok;
     }).join(',');
   };
   const selectedImportanceList = () => Object.entries(importanceFilters).filter(([k, v]) => v).map(([k]) => k).join(',');
   const formatDate = (d) => d.toISOString().slice(0, 10);
-  const mapImportanceLabelToLevel = (label) => {
-    const l = (label || '').toString().toLowerCase();
-    if (l.includes('high') || l.includes('выс')) return 3;
-    if (l.includes('medium') || l.includes('сред')) return 2;
-    if (l.includes('low') || l.includes('низ')) return 1;
-    const n = Number(label);
-    return Number.isFinite(n) && n >= 1 && n <= 3 ? n : 1;
-  };
-  const parseTEDateRaw = (raw) => {
-    if (!raw && raw !== 0) return null;
-    try {
-      if (typeof raw === 'number') {
-        const ms = raw < 1e12 ? raw * 1000 : raw;
-        return new Date(ms);
-      }
-      const s = String(raw);
-      const m = /\/Date\((\d+)\)\//.exec(s);
-      if (m) return new Date(Number(m[1]));
-      const t = Date.parse(s);
-      if (!Number.isNaN(t)) return new Date(t);
-      return null;
-    } catch { return null; }
-  };
   const normalizeString = (s) => (s == null ? '' : String(s)).trim().toLowerCase().replace(/\s+/g, ' ');
   const refreshNews = async () => {
     setNewsLoading(true);
@@ -2284,12 +2261,7 @@ export default function App() {
       const importance = selectedImportanceList();
       const allSelected = (importance || '').split(',').filter(Boolean).length >= 3;
       
-      console.log('News refresh params:', { d1, d2, countries, importance, allSelected });
-      
-      // Try real data sources (simplified to only working APIs)
       let newsData = [];
-      
-      // 1. Try Yahoo Finance RSS (most reliable, no API key needed)
       try {
         console.log('Loading Yahoo Finance RSS...');
         const yahooRssUrl = 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=^GSPC,^DJI,^IXIC&region=US&lang=en-US';
@@ -2305,26 +2277,18 @@ export default function App() {
         let yahooResponse = null;
         for (const proxyUrl of corsProxies) {
           try {
-            console.log('Trying CORS proxy:', proxyUrl);
             yahooResponse = await fetch(proxyUrl);
             if (yahooResponse.ok) {
-              console.log('CORS proxy successful:', proxyUrl);
               break;
-            } else {
-              console.warn('CORS proxy failed:', proxyUrl, 'status:', yahooResponse.status);
             }
           } catch (error) {
-            console.warn('CORS proxy error:', proxyUrl, error.message);
+            // Try next proxy
           }
         }
         
         if (yahooResponse && yahooResponse.ok) {
           const yahooXml = await yahooResponse.text();
-          console.log('Yahoo RSS response received, length:', yahooXml.length);
-          
-          // Simple XML parsing for RSS
           const items = yahooXml.match(/<item>[\s\S]*?<\/item>/g) || [];
-          console.log('Found Yahoo RSS items:', items.length);
           
           newsData = items.slice(0, 15).map((item, index) => {
             const titleMatch = item.match(/<title><!\[CDATA\[(.*?)\]\]><\/title>/);
@@ -2358,24 +2322,16 @@ export default function App() {
               source: 'Yahoo Finance RSS'
             };
           });
-          console.log('Yahoo RSS data processed:', newsData.length, 'items');
-        } else {
-          console.warn('All CORS proxies failed, no news data available');
         }
       } catch (yahooError) {
-        console.warn('Yahoo RSS failed:', yahooError.message);
+        // Yahoo RSS failed
       }
       // Apply filters to the real data
       if (newsData.length > 0) {
-        console.log('Before country filter:', newsData.length, 'items');
-        
-      const countryTokens = (normalizeCountries(newsCountry) || '')
-        .split(',')
-        .map(t => normalizeString(t))
-        .filter(Boolean);
-        
-        console.log('Country tokens for filtering:', countryTokens);
-        console.log('Sample countries in news:', newsData.slice(0, 3).map(item => item.country));
+        const countryTokens = (normalizeCountries(newsCountry) || '')
+          .split(',')
+          .map(t => normalizeString(t))
+          .filter(Boolean);
         
         // Filter by country if specified
         if (countryTokens.length > 0) {
@@ -2417,59 +2373,36 @@ export default function App() {
               
               return false;
             });
-            
-            if (!matches) {
-              console.log('Filtered out by country:', item.title, 'country:', item.country, 'normalized:', itemCountry);
-            }
             return matches;
           });
         }
         
-        console.log('After country filter:', newsData.length, 'items');
-        
         // Filter by importance
-        console.log('Before importance filter:', newsData.length, 'items');
-        console.log('Importance filters:', importanceFilters);
-        console.log('Sample items before filter:', newsData.slice(0, 3).map(item => ({ title: item.title, importance: item.importance })));
+        newsData = newsData.filter(item => !!importanceFilters[item.importance]);
         
-        newsData = newsData.filter(item => {
-          const isVisible = !!importanceFilters[item.importance];
-          if (!isVisible) {
-            console.log('Filtered out item:', item.title, 'importance:', item.importance);
-          }
-          return isVisible;
-        });
-        
-        console.log('After importance filter:', newsData.length, 'items');
-        
-        // Remove duplicates
+        // Remove duplicates and sort
         const dedup = new Map();
         newsData = newsData.filter(item => {
           if (dedup.has(item.id)) return false;
           dedup.set(item.id, true);
-        return true;
+          return true;
         });
         
-        // Sort by date and time
         newsData.sort((a, b) => {
           const dateA = new Date(a.date + ' ' + a.time);
           const dateB = new Date(b.date + ' ' + b.time);
-          return dateB - dateA; // Most recent first
+          return dateB - dateA;
         });
-        
-        console.log('Final processed news data:', newsData.length, 'items');
         
         // Show news or error message
         if (newsData.length === 0) {
-          console.log('No news after filtering');
-        setNews([]);
+          setNews([]);
           setNewsError('Нет новостей по выбранным фильтрам. Попробуйте изменить параметры поиска.');
-      } else {
+        } else {
           setNews(newsData);
           setNewsError('');
         }
       } else {
-        console.log('No news data available from any source');
         setNews([]);
         setNewsError('Новости временно недоступны. Проверьте подключение к интернету.');
       }
