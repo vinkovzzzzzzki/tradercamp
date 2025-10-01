@@ -1,4 +1,4 @@
-// Version 3d05557 - Ultra-compact header design
+// Version d99062d - Clean up unused API code and simplify news functionality
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, Image, Platform, Animated, LayoutAnimation, UIManager, Dimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
