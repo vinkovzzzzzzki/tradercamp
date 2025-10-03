@@ -3235,12 +3235,14 @@ export default function App() {
             </Animated.View>
           ))}
         </View>
-        
-        {/* Static dropdown menus for tabs (positioned under navigation) */}
+      </View>
+      
+      {/* Dropdown container positioned below navigation */}
+      <View style={styles.dropdownContainer}>
         {openDropdown === 'finance' && (
           <Animated.View 
             style={[
-              styles.dropdownFinance, 
+              styles.dropdownFinanceNew, 
               isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
               {
                 opacity: getDropdownAnimation('finance'),
@@ -3273,7 +3275,7 @@ export default function App() {
         {openDropdown === 'journal' && (
           <Animated.View 
             style={[
-              styles.dropdownJournal, 
+              styles.dropdownJournalNew, 
               isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
               {
                 opacity: getDropdownAnimation('journal'),
@@ -3300,7 +3302,7 @@ export default function App() {
         {openDropdown === 'planner' && (
           <Animated.View 
             style={[
-              styles.dropdownPlanner, 
+              styles.dropdownPlannerNew, 
               isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
               {
                 opacity: getDropdownAnimation('planner'),
@@ -5856,10 +5858,12 @@ const styles = StyleSheet.create({
   // Dropdown styles
   dropdownWrapper: { position: 'relative' },
   dropdown: { position: 'absolute', top: 48, left: 0, right: 0, maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
-  // Compact dropdowns positioned under specific tabs in static header
-  dropdownFinance: { position: 'absolute', top: 100, left: 20, width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
-  dropdownJournal: { position: 'absolute', top: 100, left: '20%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
-  dropdownPlanner: { position: 'absolute', top: 100, left: '40%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
+  // Dropdown container positioned below navigation
+  dropdownContainer: { position: 'relative', height: 0, zIndex: 50 },
+  // New dropdown styles positioned under specific tabs
+  dropdownFinanceNew: { position: 'absolute', top: 0, left: 20, width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
+  dropdownJournalNew: { position: 'absolute', top: 0, left: '20%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
+  dropdownPlannerNew: { position: 'absolute', top: 0, left: '40%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
   dropdownScroll: { maxHeight: 200 },
   dropdownItem: { paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
   dropdownItemText: { color: '#e6edf3', fontSize: 14 },
