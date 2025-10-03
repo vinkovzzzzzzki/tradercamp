@@ -3206,6 +3206,35 @@ export default function App() {
             resizeMode="contain"
           />
         </View>
+        
+        {/* Static navigation tabs (does not scroll) */}
+        <View style={[styles.tabContainer, isDark ? { backgroundColor: '#1b2430' } : null]}>
+          {[
+            { key: 'finance', label: 'Финансы' },
+            { key: 'journal', label: 'Дневник' },
+            { key: 'planner', label: 'Планер' },
+            { key: 'community', label: 'Сообщество' },
+            { key: 'profile', label: 'Профиль' },
+          ].map(({ key, label }) => (
+            <Animated.View key={key} style={{ flex: 1 }}>
+              <Pressable 
+                style={[styles.tab, tab === key ? styles.activeTab : styles.inactiveTab]} 
+                onPress={() => handleTabClick(key)}
+                onHoverIn={() => handleTabHover(key)}
+                onHoverOut={() => handleTabLeave(key)}
+                onPressIn={(e) => {
+                  // Hover effect simulation
+                  e.target.style.transform = 'scale(0.95)';
+                }}
+                onPressOut={(e) => {
+                  e.target.style.transform = 'scale(1)';
+                }}
+              >
+                <Text style={[styles.tabText, tab === key ? styles.activeTabText : (isDark ? { color: '#9fb0c0' } : styles.inactiveTabText)]}>{label}</Text>
+              </Pressable>
+            </Animated.View>
+          ))}
+        </View>
       </View>
 
       {/* Auth Gate (inline) */}
@@ -3296,34 +3325,6 @@ export default function App() {
       <ScrollView style={styles.content}>
         {/* The rest of the content continues here and the ScrollView is properly closed at the end of the component */}
 
-        {/* Tabs (moved below the logo) */}
-        <View style={[styles.tabContainer, isDark ? { backgroundColor: '#1b2430' } : null]}>
-          {[
-            { key: 'finance', label: 'Финансы' },
-            { key: 'journal', label: 'Дневник' },
-            { key: 'planner', label: 'Планер' },
-            { key: 'community', label: 'Сообщество' },
-            { key: 'profile', label: 'Профиль' },
-          ].map(({ key, label }) => (
-            <Animated.View key={key} style={{ flex: 1 }}>
-              <Pressable 
-                style={[styles.tab, tab === key ? styles.activeTab : styles.inactiveTab]} 
-                onPress={() => handleTabClick(key)}
-                onHoverIn={() => handleTabHover(key)}
-                onHoverOut={() => handleTabLeave(key)}
-                onPressIn={(e) => {
-                  // Hover effect simulation
-                  e.target.style.transform = 'scale(0.95)';
-                }}
-                onPressOut={(e) => {
-                  e.target.style.transform = 'scale(1)';
-                }}
-              >
-                <Text style={[styles.tabText, tab === key ? styles.activeTabText : (isDark ? { color: '#9fb0c0' } : styles.inactiveTabText)]}>{label}</Text>
-              </Pressable>
-            </Animated.View>
-          ))}
-        </View>
         
         {/* Dropdown menus for tabs */}
         {openDropdown === 'finance' && (
@@ -5548,7 +5549,7 @@ const styles = StyleSheet.create({
   brandLogo: { width: 280, height: 120, alignSelf: 'center', marginBottom: 0 },
   topBar: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   stickyTopBar: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
-  tabContainer: { flex: 1, flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4 },
+  tabContainer: { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 10 },
   tab: { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center' },
   activeTab: { backgroundColor: '#1f6feb' },
   inactiveTab: { backgroundColor: 'transparent' },
