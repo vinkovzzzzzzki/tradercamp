@@ -3235,6 +3235,94 @@ export default function App() {
             </Animated.View>
           ))}
         </View>
+        
+        {/* Static dropdown menus for tabs (positioned under navigation) */}
+        {openDropdown === 'finance' && (
+          <Animated.View 
+            style={[
+              styles.dropdownFinance, 
+              isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
+              {
+                opacity: getDropdownAnimation('finance'),
+                transform: [{
+                  translateY: getDropdownAnimation('finance').interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0]
+                  })
+                }]
+              }
+            ]}
+            onMouseEnter={() => handleDropdownHover('finance')}
+            onMouseLeave={() => handleDropdownLeave('finance')}
+          >
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'fund')}>
+              <Text style={styles.dropdownItemText}>Расчёт подушки безопасности</Text>
+            </Pressable>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'invest')}>
+              <Text style={styles.dropdownItemText}>Инвестиции</Text>
+            </Pressable>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'debts')}>
+              <Text style={styles.dropdownItemText}>Долги</Text>
+            </Pressable>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'questionnaire')}>
+              <Text style={styles.dropdownItemText}>Финансовая анкета</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+        
+        {openDropdown === 'journal' && (
+          <Animated.View 
+            style={[
+              styles.dropdownJournal, 
+              isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
+              {
+                opacity: getDropdownAnimation('journal'),
+                transform: [{
+                  translateY: getDropdownAnimation('journal').interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0]
+                  })
+                }]
+              }
+            ]}
+            onMouseEnter={() => handleDropdownHover('journal')}
+            onMouseLeave={() => handleDropdownLeave('journal')}
+          >
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('journal', 'new')}>
+              <Text style={styles.dropdownItemText}>Новая сделка</Text>
+            </Pressable>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('journal', 'list')}>
+              <Text style={styles.dropdownItemText}>Журнал сделок</Text>
+            </Pressable>
+          </Animated.View>
+        )}
+        
+        {openDropdown === 'planner' && (
+          <Animated.View 
+            style={[
+              styles.dropdownPlanner, 
+              isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
+              {
+                opacity: getDropdownAnimation('planner'),
+                transform: [{
+                  translateY: getDropdownAnimation('planner').interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [-20, 0]
+                  })
+                }]
+              }
+            ]}
+            onMouseEnter={() => handleDropdownHover('planner')}
+            onMouseLeave={() => handleDropdownLeave('planner')}
+          >
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('planner', 'news')}>
+              <Text style={styles.dropdownItemText}>Новости</Text>
+            </Pressable>
+            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('planner', 'calendar')}>
+              <Text style={styles.dropdownItemText}>Календарь</Text>
+            </Pressable>
+          </Animated.View>
+        )}
       </View>
 
       {/* Auth Gate (inline) */}
@@ -3325,94 +3413,6 @@ export default function App() {
       <ScrollView style={styles.content}>
         {/* The rest of the content continues here and the ScrollView is properly closed at the end of the component */}
 
-        
-        {/* Dropdown menus for tabs */}
-        {openDropdown === 'finance' && (
-          <Animated.View 
-            style={[
-              styles.dropdownFinance, 
-              isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
-              {
-                opacity: getDropdownAnimation('finance'),
-                transform: [{
-                  translateY: getDropdownAnimation('finance').interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-20, 0]
-                  })
-                }]
-              }
-            ]}
-            onMouseEnter={() => handleDropdownHover('finance')} // Keep dropdown open when hovering over it
-            onMouseLeave={() => handleDropdownLeave('finance')}
-          >
-            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'fund')}>
-              <Text style={styles.dropdownItemText}>Расчёт подушки безопасности</Text>
-            </Pressable>
-            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'invest')}>
-              <Text style={styles.dropdownItemText}>Инвестиции</Text>
-            </Pressable>
-            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'debts')}>
-              <Text style={styles.dropdownItemText}>Долги</Text>
-            </Pressable>
-            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('finance', 'questionnaire')}>
-              <Text style={styles.dropdownItemText}>Финансовая анкета</Text>
-            </Pressable>
-          </Animated.View>
-        )}
-        
-        {openDropdown === 'journal' && (
-          <Animated.View 
-            style={[
-              styles.dropdownJournal, 
-              isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
-              {
-                opacity: getDropdownAnimation('journal'),
-                transform: [{
-                  translateY: getDropdownAnimation('journal').interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-20, 0]
-                  })
-                }]
-              }
-            ]}
-            onMouseEnter={() => handleDropdownHover('journal')} // Keep dropdown open when hovering over it
-            onMouseLeave={() => handleDropdownLeave('journal')}
-          >
-            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('journal', 'new')}>
-              <Text style={styles.dropdownItemText}>Новая сделка</Text>
-                  </Pressable>
-            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('journal', 'list')}>
-              <Text style={styles.dropdownItemText}>Журнал сделок</Text>
-            </Pressable>
-          </Animated.View>
-        )}
-        
-        {openDropdown === 'planner' && (
-          <Animated.View 
-            style={[
-              styles.dropdownPlanner, 
-              isDark ? { backgroundColor: '#121820', borderColor: '#1f2a36' } : null,
-              {
-                opacity: getDropdownAnimation('planner'),
-                transform: [{
-                  translateY: getDropdownAnimation('planner').interpolate({
-                    inputRange: [0, 1],
-                    outputRange: [-20, 0]
-                  })
-                }]
-              }
-            ]}
-            onMouseEnter={() => handleDropdownHover('planner')} // Keep dropdown open when hovering over it
-            onMouseLeave={() => handleDropdownLeave('planner')}
-          >
-            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('planner', 'news')}>
-              <Text style={styles.dropdownItemText}>Новости</Text>
-            </Pressable>
-            <Pressable style={styles.dropdownItem} onPress={() => handleDropdownItemClick('planner', 'calendar')}>
-              <Text style={styles.dropdownItemText}>Календарь</Text>
-            </Pressable>
-          </Animated.View>
-        )}
         
         {tab === 'finance' && (
           <View>
@@ -5856,10 +5856,10 @@ const styles = StyleSheet.create({
   // Dropdown styles
   dropdownWrapper: { position: 'relative' },
   dropdown: { position: 'absolute', top: 48, left: 0, right: 0, maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
-  // Compact dropdowns positioned under specific tabs
-  dropdownFinance: { position: 'absolute', top: 48, left: 0, width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
-  dropdownJournal: { position: 'absolute', top: 48, left: '20%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
-  dropdownPlanner: { position: 'absolute', top: 48, left: '40%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
+  // Compact dropdowns positioned under specific tabs in static header
+  dropdownFinance: { position: 'absolute', top: 0, left: 20, width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
+  dropdownJournal: { position: 'absolute', top: 0, left: '20%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
+  dropdownPlanner: { position: 'absolute', top: 0, left: '40%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
   dropdownScroll: { maxHeight: 200 },
   dropdownItem: { paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
   dropdownItemText: { color: '#e6edf3', fontSize: 14 },
