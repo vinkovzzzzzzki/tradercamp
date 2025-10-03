@@ -5857,9 +5857,9 @@ const styles = StyleSheet.create({
   dropdownWrapper: { position: 'relative' },
   dropdown: { position: 'absolute', top: 48, left: 0, right: 0, maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
   // Compact dropdowns positioned under specific tabs in static header
-  dropdownFinance: { position: 'absolute', top: 0, left: 20, width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
-  dropdownJournal: { position: 'absolute', top: 0, left: '20%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
-  dropdownPlanner: { position: 'absolute', top: 0, left: '40%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
+  dropdownFinance: { position: 'absolute', top: 50, left: 20, width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
+  dropdownJournal: { position: 'absolute', top: 50, left: '20%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
+  dropdownPlanner: { position: 'absolute', top: 50, left: '40%', width: '20%', maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 },
   dropdownScroll: { maxHeight: 200 },
   dropdownItem: { paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
   dropdownItemText: { color: '#e6edf3', fontSize: 14 },
