@@ -1,4 +1,4 @@
-// Version d99062d - Clean up unused API code and simplify news functionality
+// Version 9ff9689 - Revert to stable state and trigger Vercel deployment
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, TextInput, ScrollView, Pressable, StyleSheet, Alert, Image, Platform, Animated, LayoutAnimation, UIManager, Dimensions } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
