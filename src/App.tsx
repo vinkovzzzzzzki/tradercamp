@@ -1,6 +1,6 @@
 // Main App component - exact reproduction of current app structure
 import React, { useRef, useEffect } from 'react';
-import { View, Animated, Platform, UIManager } from 'react-native';
+import { View, Text, Animated, Platform, UIManager } from 'react-native';
 import { useAppState } from './state';
 import { Header, Toast } from './components/common';
 import { Dashboard } from './features';
@@ -33,6 +33,19 @@ const App: React.FC = () => {
     tabAnimation,
     dropdownAnimations,
     buttonAnimations,
+    
+    // Finance
+    chartVisibility,
+    setChartVisibility,
+    chartTimePeriod,
+    setChartTimePeriod,
+    cashReserve,
+    setCashReserve,
+    monthlyExpenses,
+    setMonthlyExpenses,
+    cushionHistory,
+    investmentHistory,
+    debtsHistory,
     
     // Additional states for Dashboard
     newEmergencyTx, setNewEmergencyTx,

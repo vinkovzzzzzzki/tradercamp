@@ -1,7 +1,8 @@
 // Main app state hook
 // Exact reproduction of current state logic
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { Animated } from 'react-native';
 import { storage, STORAGE_KEYS } from '../../services/persist';
 import type { 
   TabType, 
@@ -29,7 +30,9 @@ import type {
   ChartVisibility,
   ChartTooltip,
   DataPoint,
-  ChartData
+  ChartData,
+  EmergencyTransaction,
+  InvestmentTransaction
 } from '../types';
 
 export const useAppState = () => {
@@ -37,6 +40,11 @@ export const useAppState = () => {
   const [tab, setTab] = useState<TabType>('finance');
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const [profileTab, setProfileTab] = useState<ProfileTabType>('overview');
+  
+  // Animation refs
+  const tabAnimation = useRef(new Animated.Value(0)).current;
+  const dropdownAnimations = useRef<Record<string, Animated.Value>>({}).current;
+  const buttonAnimations = useRef<Record<string, Animated.Value>>({}).current;
   
   // Auth state
   const [supaAuth, setSupaAuth] = useState<SupaAuth | null>(() => 
@@ -239,6 +247,11 @@ export const useAppState = () => {
     appTheme, setAppTheme,
     toast, setToast,
     isDark,
+    
+    // Animation refs
+    tabAnimation,
+    dropdownAnimations,
+    buttonAnimations,
     
     // Finance
     startCapital, setStartCapital,
