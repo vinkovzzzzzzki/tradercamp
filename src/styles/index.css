@@ -1,0 +1,6 @@
+/* Styles index - import all component styles */
+@import './tokens.css';
+@import './globals.css';
+@import './components/button.css';
+@import './components/card.css';
+@import './components/chart.css';

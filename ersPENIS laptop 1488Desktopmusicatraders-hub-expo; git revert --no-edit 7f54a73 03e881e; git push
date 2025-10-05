@@ -1,5 +1,0 @@
-[33m7f54a73[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m UX: add searchable suggestions and 'Insert balance' buttons in Emergency/Invest forms; currency-aware filtering
-[33m03e881e[m Finance: add dropdowns of existing holdings (emergency/invest) to location/destination fields; client-side country filter for news; fixes
-[33m02f0465[m News: allow all-importance (no importance param) when all selected; carry filters into chunked URLs; remove demo fallback; show clear zero-data message
-[33mabcb5ad[m News: preserve filters through chunked fetch; stronger stable key; keep only selected importance levels
-[33m573851a[m News: stronger dedupe (title+country+date+time normalized) to remove repeats
