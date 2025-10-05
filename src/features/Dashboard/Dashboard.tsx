@@ -1,10 +1,11 @@
-// Dashboard feature component - simplified version
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
-import type { 
-  User, 
-  ChartVisibility, 
-  ChartTimePeriodType, 
+// Dashboard feature component - exact reproduction of current finance tab structure
+import React, { useState, useMemo } from 'react';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { SummaryBalance } from '../../components/finance';
+import type {
+  User,
+  ChartVisibility,
+  ChartTimePeriodType,
   DataPoint,
   EmergencyTransaction,
   InvestmentTransaction,
@@ -54,7 +55,7 @@ interface DashboardProps {
   onAddDebt: () => void;
   onRepayDraftChange: (drafts: Record<number, string>) => void;
   onRepayDebt: (debtId: number) => void;
-  onDeleteDebt: (debtId: number) => void;
+  onDeleteDebt: (id: number) => void;
   onDeleteDebtTx: (debtId: number, txId: number) => void;
   getComprehensiveChartData: () => { datasets: any[]; labels: string[] };
 }
@@ -104,65 +105,185 @@ const Dashboard: React.FC<DashboardProps> = ({
   onRepayDebt,
   onDeleteDebt,
   onDeleteDebtTx,
-  getComprehensiveChartData
+  getComprehensiveChartData,
 }) => {
-  return (
-    <View style={[styles.container, isDark ? styles.containerDark : null]}>
-      <Text style={[styles.title, isDark ? styles.titleDark : null]}>
-        Финансовый дашборд
-      </Text>
+  const [chartTooltip, setChartTooltip] = useState({
+    visible: false,
+    x: 0,
+    y: 0,
+    data: null
+  });
+
+  // Format currency function
+  const formatCurrencyCustom = (value: number, currency: string) => {
+    const num = Number(value);
+    const cur = (currency || '').toString().trim();
+    if (!Number.isFinite(num)) return `0,0${cur ? ' ' + cur : ''}`;
+    const sign = num < 0 ? '-' : '';
+    const abs = Math.abs(num);
+    const fixed = abs.toFixed(10);
+    const parts = fixed.split('.');
+    const intPart = parts[0] || '0';
+    let fracPart = parts[1] || '';
+    while (fracPart.endsWith('0')) fracPart = fracPart.slice(0, -1);
+    if (fracPart.length === 0) fracPart = '0';
+    const intWithSpaces = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+    return `${sign}${intWithSpaces},${fracPart}${cur ? ' ' + cur : ''}`;
+  };
+
+  // Chart mouse move handler
+  const handleChartMouseMove = (event: any) => {
+    const chartData = getComprehensiveChartData();
+    const rect = event.currentTarget.getBoundingClientRect();
+    const x = event.clientX - rect.left;
+    const y = event.clientY - rect.top;
+    
+    const chartWidth = Dimensions.get('window').width - 60;
+    const chartPadding = 40;
+    const effectiveWidth = chartWidth - (chartPadding * 2);
+    const relativeX = x - chartPadding;
+    
+    let dataIndex = Math.round((relativeX / effectiveWidth) * (chartData.labels.length - 1));
+    dataIndex = Math.max(0, Math.min(dataIndex, chartData.labels.length - 1));
+    
+    if (dataIndex >= 0 && dataIndex < chartData.labels.length) {
+      const label = chartData.labels[dataIndex];
+      const values = [];
       
-      <View style={[styles.section, isDark ? styles.sectionDark : null]}>
-        <Text style={[styles.sectionTitle, isDark ? styles.sectionTitleDark : null]}>
-          Общий баланс
-        </Text>
-        <Text style={[styles.balance, isDark ? styles.balanceDark : null]}>
-          ${(cashReserve + investmentBalance).toLocaleString()}
-        </Text>
-      </View>
+      let datasetIndex = 0;
+      if (chartVisibility.cushion && chartData.datasets[datasetIndex]) {
+        values.push({
+          value: chartData.datasets[datasetIndex].data[dataIndex],
+          color: '#3b82f6',
+          label: 'Подушка'
+        });
+        datasetIndex++;
+      }
+      
+      if (chartVisibility.investments && chartData.datasets[datasetIndex]) {
+        values.push({
+          value: chartData.datasets[datasetIndex].data[dataIndex],
+          color: '#10b981',
+          label: 'Инвестиции'
+        });
+        datasetIndex++;
+      }
+      
+      if (chartVisibility.debts && chartData.datasets[datasetIndex]) {
+        values.push({
+          value: chartData.datasets[datasetIndex].data[dataIndex],
+          color: '#ef4444',
+          label: 'Долги'
+        });
+        datasetIndex++;
+      }
+      
+      if (chartVisibility.total && chartData.datasets[datasetIndex]) {
+        values.push({
+          value: chartData.datasets[datasetIndex].data[dataIndex],
+          color: '#a855f7',
+          label: 'Итого'
+        });
+      }
+      
+      if (values.length > 0) {
+        const tooltipWidth = 200;
+        const tooltipHeight = 100;
+        const screenWidth = window.innerWidth;
+        const screenHeight = window.innerHeight;
+        
+        let tooltipX = event.clientX;
+        let tooltipY = event.clientY + 5;
+        
+        if (tooltipX + tooltipWidth > screenWidth) {
+          tooltipX = event.clientX - tooltipWidth - 10;
+        }
+        
+        if (tooltipY + tooltipHeight > screenHeight) {
+          tooltipY = event.clientY - tooltipHeight - 10;
+        }
+        
+        setChartTooltip({
+          visible: true,
+          x: tooltipX,
+          y: tooltipY,
+          data: { label, values }
+        });
+      }
+    }
+  };
 
-      <View style={[styles.section, isDark ? styles.sectionDark : null]}>
-        <Text style={[styles.sectionTitle, isDark ? styles.sectionTitleDark : null]}>
-          Резервный фонд
-        </Text>
-        <Text style={[styles.amount, isDark ? styles.amountDark : null]}>
-          ${cashReserve.toLocaleString()}
-        </Text>
-        <Text style={[styles.subtitle, isDark ? styles.subtitleDark : null]}>
-          На {emergencyMonths} месяцев расходов
-        </Text>
-      </View>
+  const handleChartLeave = () => {
+    setChartTooltip({ visible: false, x: 0, y: 0, data: null });
+  };
 
-      <View style={[styles.section, isDark ? styles.sectionDark : null]}>
-        <Text style={[styles.sectionTitle, isDark ? styles.sectionTitleDark : null]}>
-          Инвестиции
-        </Text>
-        <Text style={[styles.amount, isDark ? styles.amountDark : null]}>
-          ${investmentBalance.toLocaleString()}
-        </Text>
-        <Text style={[styles.subtitle, isDark ? styles.subtitleDark : null]}>
-          {investTx.length} транзакций
-        </Text>
-      </View>
+  // Chart statistics
+  const getChartStatistics = () => {
+    if (!chartVisibility.cushion || cushionHistory.length < 2) return null;
+    
+    const values = cushionHistory.map(d => d.amount || 0);
+    const current = values[values.length - 1];
+    const previous = values[values.length - 2];
+    const change = current - previous;
+    const changePercent = previous > 0 ? (change / previous) * 100 : 0;
+    
+    return {
+      change,
+      changePercent,
+      trend: change > 0 ? 'up' : change < 0 ? 'down' : 'stable',
+      average: values.reduce((a, b) => a + b, 0) / values.length,
+      min: Math.min(...values),
+      max: Math.max(...values)
+    };
+  };
 
-      <View style={[styles.section, isDark ? styles.sectionDark : null]}>
-        <Text style={[styles.sectionTitle, isDark ? styles.sectionTitleDark : null]}>
-          Долги
+  return (
+    <View style={[styles.container, isDark ? styles.darkContainer : null]}>
+      {/* Summary chart (compact vertical) */}
+      <SummaryBalance
+        isDark={isDark}
+        currentUser={currentUser}
+        chartVisibility={chartVisibility}
+        chartTimePeriod={chartTimePeriod}
+        cashReserve={cashReserve}
+        investmentBalance={investmentBalance}
+        sortedDebts={sortedDebts}
+        cushionHistory={cushionHistory}
+        investmentHistory={investmentHistory}
+        debtsHistory={debtsHistory}
+        chartTooltip={chartTooltip}
+        onChartVisibilityChange={onChartVisibilityChange}
+        onChartTimePeriodChange={onChartTimePeriodChange}
+        onChartMouseMove={handleChartMouseMove}
+        onChartLeave={handleChartLeave}
+        onResetAllFinancialData={onResetAllFinancialData}
+        getComprehensiveChartData={getComprehensiveChartData}
+        getChartStatistics={getChartStatistics}
+        formatCurrencyCustom={formatCurrencyCustom}
+      />
+      
+      {/* Additional financial components will be added here */}
+      <View style={[styles.card, isDark ? styles.cardDark : null]}>
+        <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
+          💼 Финансовый обзор
         </Text>
-        <Text style={[styles.amount, isDark ? styles.amountDark : null]}>
-          ${sortedDebts.reduce((sum, debt) => sum + debt.amount, 0).toLocaleString()}
+        <Text style={[styles.text, isDark ? styles.darkText : null]}>
+          Добро пожаловать, {currentUser?.nickname || 'Гость'}!
         </Text>
-        <Text style={[styles.subtitle, isDark ? styles.subtitleDark : null]}>
-          {sortedDebts.length} активных долгов
+        <Text style={[styles.text, isDark ? styles.darkText : null]}>
+          Текущий баланс: {formatCurrencyCustom(cashReserve, 'USD')}
         </Text>
-      </View>
-
-      <View style={[styles.section, isDark ? styles.sectionDark : null]}>
-        <Text style={[styles.sectionTitle, isDark ? styles.sectionTitleDark : null]}>
-          Ежемесячные расходы
+        <Text style={[styles.text, isDark ? styles.darkText : null]}>
+          Инвестиции: {formatCurrencyCustom(investmentBalance, 'USD')}
         </Text>
-        <Text style={[styles.amount, isDark ? styles.amountDark : null]}>
-          ${monthlyExpenses.toLocaleString()}
+        <Text style={[styles.text, isDark ? styles.darkText : null]}>
+          Месячные расходы: {formatCurrencyCustom(monthlyExpenses, 'USD')}
+        </Text>
+        <Text style={[styles.text, isDark ? styles.darkText : null]}>
+          Месяцев резерва: {emergencyMonths.toFixed(2)}
+        </Text>
+        <Text style={[styles.text, isDark ? styles.darkText : null]}>
+          Долги: {sortedDebts.length}
         </Text>
       </View>
     </View>
@@ -173,23 +294,15 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    backgroundColor: '#f0f2f5',
   },
-  containerDark: {
-    backgroundColor: '#0d1117',
+  darkContainer: {
+    backgroundColor: '#0b0f14',
   },
-  title: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 24,
-  },
-  titleDark: {
-    color: '#f9fafb',
-  },
-  section: {
+  card: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     marginBottom: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -197,41 +310,25 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  sectionDark: {
-    backgroundColor: '#161b22',
+  cardDark: {
+    backgroundColor: '#121820',
   },
-  sectionTitle: {
+  cardTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: 'bold',
     color: '#1f2937',
+    marginBottom: 12,
+  },
+  cardTitleDark: {
+    color: '#e6edf3',
+  },
+  text: {
+    fontSize: 16,
+    color: '#2d3748',
     marginBottom: 8,
   },
-  sectionTitleDark: {
-    color: '#f9fafb',
-  },
-  balance: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#10b981',
-  },
-  balanceDark: {
-    color: '#34d399',
-  },
-  amount: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#1f2937',
-    marginBottom: 4,
-  },
-  amountDark: {
-    color: '#f9fafb',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#6b7280',
-  },
-  subtitleDark: {
-    color: '#9ca3af',
+  darkText: {
+    color: '#e6edf3',
   },
 });
 
