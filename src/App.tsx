@@ -61,7 +61,18 @@ const App: React.FC = () => {
     emergencyMonths,
     investmentBalance,
     emergencyTx, setEmergencyTx,
-    investTx, setInvestTx
+    investTx, setInvestTx,
+    
+    // Business logic functions
+    addEmergencyTransaction,
+    addInvestmentTransaction,
+    addDebt,
+    deleteEmergencyTx,
+    deleteInvestTx,
+    deleteDebt,
+    repayDebt,
+    resetAllFinancialData,
+    getComprehensiveChartData
   } = useAppState();
 
   // Animation refs
@@ -182,26 +193,38 @@ const App: React.FC = () => {
             investDestinations={investDestinations}
             onChartVisibilityChange={setChartVisibility}
             onChartTimePeriodChange={setChartTimePeriod}
-            onResetAllFinancialData={() => {}}
+            onResetAllFinancialData={resetAllFinancialData}
             onMonthlyExpensesChange={setMonthlyExpenses}
             onCashReserveChange={setCashReserve}
             onNewEmergencyTxChange={setNewEmergencyTx}
-            onAddEmergencyTransaction={() => {}}
+            onAddEmergencyTransaction={addEmergencyTransaction}
             onShowEmergencyLocationDropdown={setShowEmergencyLocationDropdown}
-            onEmergencyLocationSelect={() => {}}
-            onDeleteEmergencyTx={() => {}}
+            onEmergencyLocationSelect={(location, currency) => {
+              setNewEmergencyTx(v => ({ ...v, location, currency }));
+              setShowEmergencyLocationDropdown(false);
+            }}
+            onDeleteEmergencyTx={deleteEmergencyTx}
             onNewInvestTxChange={setNewInvestTx}
-            onAddInvestmentTransaction={() => {}}
+            onAddInvestmentTransaction={addInvestmentTransaction}
             onShowInvestDestinationDropdown={setShowInvestDestinationDropdown}
-            onInvestDestinationSelect={() => {}}
-            onDeleteInvestTx={() => {}}
+            onInvestDestinationSelect={(destination, currency) => {
+              setNewInvestTx(v => ({ ...v, destination, currency }));
+              setShowInvestDestinationDropdown(false);
+            }}
+            onDeleteInvestTx={deleteInvestTx}
             onNewDebtChange={setNewDebt}
-            onAddDebt={() => {}}
-            onRepayDraftChange={() => {}}
-            onRepayDebt={() => {}}
-            onDeleteDebt={() => {}}
-            onDeleteDebtTx={() => {}}
-            getComprehensiveChartData={() => ({ datasets: [], labels: [] })}
+            onAddDebt={addDebt}
+            onRepayDraftChange={setRepayDrafts}
+            onRepayDebt={repayDebt}
+            onDeleteDebt={deleteDebt}
+            onDeleteDebtTx={(debtId, txId) => {
+              setSortedDebts(prev => prev.map(debt => 
+                debt.id === debtId 
+                  ? { ...debt, tx: debt.tx.filter(tx => tx.id !== txId) }
+                  : debt
+              ));
+            }}
+            getComprehensiveChartData={getComprehensiveChartData}
           />
         )}
         {tab === 'journal' && (

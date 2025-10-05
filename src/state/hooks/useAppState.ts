@@ -228,6 +228,149 @@ export const useAppState = () => {
   
   const currentFinance = currentUser ? financeData[currentUser.id] : null;
   
+  // Business logic functions
+  const addEmergencyTransaction = () => {
+    if (!currentUser || !newEmergencyTx.amount || !newEmergencyTx.currency || !newEmergencyTx.location) return;
+    
+    const newTx = {
+      id: Date.now(),
+      date: new Date().toISOString().slice(0, 10),
+      type: newEmergencyTx.type,
+      amount: Number(newEmergencyTx.amount),
+      currency: newEmergencyTx.currency,
+      location: newEmergencyTx.location,
+      note: newEmergencyTx.note
+    };
+    
+    setEmergencyTx(prev => [...prev, newTx]);
+    setNewEmergencyTx({ type: 'deposit', amount: '', currency: 'USD', location: '', note: '' });
+    
+    // Update locations
+    if (!emergencyLocations.includes(newEmergencyTx.location)) {
+      setEmergencyLocations(prev => [...prev, newEmergencyTx.location]);
+    }
+  };
+  
+  const addInvestmentTransaction = () => {
+    if (!currentUser || !newInvestTx.amount || !newInvestTx.currency || !newInvestTx.destination) return;
+    
+    const newTx = {
+      id: Date.now(),
+      date: new Date().toISOString().slice(0, 10),
+      type: newInvestTx.type,
+      amount: Number(newInvestTx.amount),
+      currency: newInvestTx.currency,
+      destination: newInvestTx.destination,
+      note: newInvestTx.note
+    };
+    
+    setInvestTx(prev => [...prev, newTx]);
+    setNewInvestTx({ type: 'in', amount: '', currency: 'USD', destination: '', note: '' });
+    
+    // Update destinations
+    if (!investDestinations.includes(newInvestTx.destination)) {
+      setInvestDestinations(prev => [...prev, newInvestTx.destination]);
+    }
+  };
+  
+  const addDebt = () => {
+    if (!currentUser || !newDebt.name || !newDebt.amount || !newDebt.currency) return;
+    
+    const newDebtObj = {
+      id: Date.now(),
+      name: newDebt.name,
+      amount: Number(newDebt.amount),
+      currency: newDebt.currency,
+      tx: [{
+        id: Date.now(),
+        date: new Date().toISOString().slice(0, 10),
+        type: 'add' as const,
+        amount: Number(newDebt.amount),
+        note: 'Initial debt'
+      }]
+    };
+    
+    setSortedDebts(prev => [...prev, newDebtObj]);
+    setNewDebt({ name: '', amount: '', currency: 'USD' });
+  };
+  
+  const deleteEmergencyTx = (id: number) => {
+    setEmergencyTx(prev => prev.filter(tx => tx.id !== id));
+  };
+  
+  const deleteInvestTx = (id: number) => {
+    setInvestTx(prev => prev.filter(tx => tx.id !== id));
+  };
+  
+  const deleteDebt = (id: number) => {
+    setSortedDebts(prev => prev.filter(debt => debt.id !== id));
+  };
+  
+  const repayDebt = (debtId: number) => {
+    const amount = Number(repayDrafts[debtId]);
+    if (!amount) return;
+    
+    setSortedDebts(prev => prev.map(debt => {
+      if (debt.id === debtId) {
+        const newTx = {
+          id: Date.now(),
+          date: new Date().toISOString().slice(0, 10),
+          type: 'repay' as const,
+          amount: amount,
+          note: 'Debt repayment'
+        };
+        return {
+          ...debt,
+          amount: Math.max(0, debt.amount - amount),
+          tx: [...debt.tx, newTx]
+        };
+      }
+      return debt;
+    }));
+    
+    setRepayDrafts(prev => ({ ...prev, [debtId]: '' }));
+  };
+  
+  const resetAllFinancialData = () => {
+    setEmergencyTx([]);
+    setInvestTx([]);
+    setSortedDebts([]);
+    setCushionHistory([]);
+    setInvestmentHistory([]);
+    setDebtsHistory([]);
+    setCashReserve(0);
+    setMonthlyExpenses(0);
+  };
+  
+  const getComprehensiveChartData = () => {
+    // Simple chart data for now
+    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
+    const emergencyData = cushionHistory.length > 0 ? cushionHistory.map(d => d.value) : [0, 0, 0, 0, 0, 0];
+    const investmentData = investmentHistory.length > 0 ? investmentHistory.map(d => d.value) : [0, 0, 0, 0, 0, 0];
+    const debtData = debtsHistory.length > 0 ? debtsHistory.map(d => d.value) : [0, 0, 0, 0, 0, 0];
+    
+    return {
+      labels,
+      datasets: [
+        {
+          data: emergencyData,
+          color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
+          strokeWidth: 2
+        },
+        {
+          data: investmentData,
+          color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
+          strokeWidth: 2
+        },
+        {
+          data: debtData,
+          color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
+          strokeWidth: 2
+        }
+      ]
+    };
+  };
+  
   return {
     // Navigation
     tab, setTab,
@@ -309,18 +452,29 @@ export const useAppState = () => {
   emergencyMonths,
   investmentBalance,
   
-  // Additional states for Dashboard
-  newEmergencyTx, setNewEmergencyTx,
-  newInvestTx, setNewInvestTx,
-  newDebt, setNewDebt,
-  repayDrafts, setRepayDrafts,
-  showEmergencyLocationDropdown, setShowEmergencyLocationDropdown,
-  showInvestDestinationDropdown, setShowInvestDestinationDropdown,
-  emergencyLocations, setEmergencyLocations,
-  investDestinations, setInvestDestinations,
-  sortedDebts, setSortedDebts,
-  investHoldings, setInvestHoldings,
-  emergencyTx, setEmergencyTx,
-  investTx, setInvestTx
+    // Additional states for Dashboard
+    newEmergencyTx, setNewEmergencyTx,
+    newInvestTx, setNewInvestTx,
+    newDebt, setNewDebt,
+    repayDrafts, setRepayDrafts,
+    showEmergencyLocationDropdown, setShowEmergencyLocationDropdown,
+    showInvestDestinationDropdown, setShowInvestDestinationDropdown,
+    emergencyLocations, setEmergencyLocations,
+    investDestinations, setInvestDestinations,
+    sortedDebts, setSortedDebts,
+    investHoldings, setInvestHoldings,
+    emergencyTx, setEmergencyTx,
+    investTx, setInvestTx,
+    
+    // Business logic functions
+    addEmergencyTransaction,
+    addInvestmentTransaction,
+    addDebt,
+    deleteEmergencyTx,
+    deleteInvestTx,
+    deleteDebt,
+    repayDebt,
+    resetAllFinancialData,
+    getComprehensiveChartData
   };
 };
