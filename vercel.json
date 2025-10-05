@@ -4,12 +4,7 @@
   "framework": null,
   "rewrites": [
     { "source": "/(.*)", "destination": "/index.html" }
-  ],
-  "functions": {
-    "src/pages/api/**/*.js": {
-      "runtime": "nodejs18.x"
-    }
-  }
+  ]
 }
 
 
