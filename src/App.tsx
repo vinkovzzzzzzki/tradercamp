@@ -3,11 +3,7 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, Animated, Platform, UIManager } from 'react-native';
 import { useAppState } from './state';
 import { Header, Toast } from './components/common';
-import { Dashboard } from './features/Dashboard';
-import { Journal } from './features/Journal';
-import { Planner } from './features/Planner';
-import { Community } from './features/Community';
-import { Profile } from './features/Profile';
+import { Dashboard, Journal, Planner, Community, Profile } from './features';
 // import './styles/index.css'; // CSS не поддерживается в React Native
 
 // Enable LayoutAnimation on Android

@@ -1,2 +1,6 @@
 // Features index
-export { default as Dashboard } from './Dashboard/Dashboard';
+export { Dashboard } from './Dashboard';
+export { Journal } from './Journal';
+export { Planner } from './Planner';
+export { Community } from './Community';
+export { Profile } from './Profile';

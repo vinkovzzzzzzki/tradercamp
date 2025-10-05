@@ -1,7 +1,6 @@
-// Dashboard feature component - exact reproduction of current finance tab structure
+// Dashboard feature component - simplified version
 import React from 'react';
-import { View } from 'react-native';
-import { SummaryBalance, SafetyFund, Investments, Debts } from '../../components/finance';
+import { View, Text, StyleSheet } from 'react-native';
 import type { 
   User, 
   ChartVisibility, 
@@ -44,20 +43,20 @@ interface DashboardProps {
   onNewEmergencyTxChange: (tx: any) => void;
   onAddEmergencyTransaction: () => void;
   onShowEmergencyLocationDropdown: (show: boolean) => void;
-  onEmergencyLocationSelect: (location: string) => void;
+  onEmergencyLocationSelect: (location: string, currency: string) => void;
   onDeleteEmergencyTx: (id: number) => void;
   onNewInvestTxChange: (tx: any) => void;
   onAddInvestmentTransaction: () => void;
   onShowInvestDestinationDropdown: (show: boolean) => void;
-  onInvestDestinationSelect: (destination: string) => void;
+  onInvestDestinationSelect: (destination: string, currency: string) => void;
   onDeleteInvestTx: (id: number) => void;
   onNewDebtChange: (debt: any) => void;
   onAddDebt: () => void;
-  onRepayDraftChange: (debtId: number, amount: string) => void;
+  onRepayDraftChange: (drafts: Record<number, string>) => void;
   onRepayDebt: (debtId: number) => void;
   onDeleteDebt: (debtId: number) => void;
   onDeleteDebtTx: (debtId: number, txId: number) => void;
-  getComprehensiveChartData: () => any;
+  getComprehensiveChartData: () => { datasets: any[]; labels: string[] };
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -108,79 +107,132 @@ const Dashboard: React.FC<DashboardProps> = ({
   getComprehensiveChartData
 }) => {
   return (
-    <View>
-      {/* Summary chart (compact vertical) */}
-      <SummaryBalance
-        currentUser={currentUser}
-        isDark={isDark}
-        chartVisibility={chartVisibility}
-        chartTimePeriod={chartTimePeriod}
-        cashReserve={cashReserve}
-        investmentBalance={investmentBalance}
-        sortedDebts={sortedDebts}
-        cushionHistory={cushionHistory}
-        investmentHistory={investmentHistory}
-        debtsHistory={debtsHistory}
-        onChartVisibilityChange={onChartVisibilityChange}
-        onChartTimePeriodChange={onChartTimePeriodChange}
-        onResetAllFinancialData={onResetAllFinancialData}
-        getComprehensiveChartData={getComprehensiveChartData}
-      />
+    <View style={[styles.container, isDark ? styles.containerDark : null]}>
+      <Text style={[styles.title, isDark ? styles.titleDark : null]}>
+        Финансовый дашборд
+      </Text>
+      
+      <View style={[styles.section, isDark ? styles.sectionDark : null]}>
+        <Text style={[styles.sectionTitle, isDark ? styles.sectionTitleDark : null]}>
+          Общий баланс
+        </Text>
+        <Text style={[styles.balance, isDark ? styles.balanceDark : null]}>
+          ${(cashReserve + investmentBalance).toLocaleString()}
+        </Text>
+      </View>
 
-      {/* Safety Fund */}
-      <SafetyFund
-        currentUser={currentUser}
-        isDark={isDark}
-        monthlyExpenses={monthlyExpenses}
-        cashReserve={cashReserve}
-        emergencyTx={emergencyTx}
-        emergencyMonths={emergencyMonths}
-        newEmergencyTx={newEmergencyTx}
-        showEmergencyLocationDropdown={showEmergencyLocationDropdown}
-        emergencyLocations={emergencyLocations}
-        onMonthlyExpensesChange={onMonthlyExpensesChange}
-        onCashReserveChange={onCashReserveChange}
-        onNewEmergencyTxChange={onNewEmergencyTxChange}
-        onAddEmergencyTransaction={onAddEmergencyTransaction}
-        onShowEmergencyLocationDropdown={onShowEmergencyLocationDropdown}
-        onEmergencyLocationSelect={onEmergencyLocationSelect}
-        onDeleteEmergencyTx={onDeleteEmergencyTx}
-      />
+      <View style={[styles.section, isDark ? styles.sectionDark : null]}>
+        <Text style={[styles.sectionTitle, isDark ? styles.sectionTitleDark : null]}>
+          Резервный фонд
+        </Text>
+        <Text style={[styles.amount, isDark ? styles.amountDark : null]}>
+          ${cashReserve.toLocaleString()}
+        </Text>
+        <Text style={[styles.subtitle, isDark ? styles.subtitleDark : null]}>
+          На {emergencyMonths} месяцев расходов
+        </Text>
+      </View>
 
-      {/* Investments */}
-      <Investments
-        currentUser={currentUser}
-        isDark={isDark}
-        investmentBalance={investmentBalance}
-        investTx={investTx}
-        investHoldings={investHoldings}
-        newInvestTx={newInvestTx}
-        showInvestDestinationDropdown={showInvestDestinationDropdown}
-        investDestinations={investDestinations}
-        onNewInvestTxChange={onNewInvestTxChange}
-        onAddInvestmentTransaction={onAddInvestmentTransaction}
-        onShowInvestDestinationDropdown={onShowInvestDestinationDropdown}
-        onInvestDestinationSelect={onInvestDestinationSelect}
-        onDeleteInvestTx={onDeleteInvestTx}
-      />
+      <View style={[styles.section, isDark ? styles.sectionDark : null]}>
+        <Text style={[styles.sectionTitle, isDark ? styles.sectionTitleDark : null]}>
+          Инвестиции
+        </Text>
+        <Text style={[styles.amount, isDark ? styles.amountDark : null]}>
+          ${investmentBalance.toLocaleString()}
+        </Text>
+        <Text style={[styles.subtitle, isDark ? styles.subtitleDark : null]}>
+          {investTx.length} транзакций
+        </Text>
+      </View>
 
-      {/* Debts */}
-      <Debts
-        currentUser={currentUser}
-        isDark={isDark}
-        debts={sortedDebts}
-        totalDebt={sortedDebts.reduce((sum, d) => sum + (d.amount || 0), 0)}
-        newDebt={newDebt}
-        repayDrafts={repayDrafts}
-        onNewDebtChange={onNewDebtChange}
-        onAddDebt={onAddDebt}
-        onRepayDraftChange={onRepayDraftChange}
-        onRepayDebt={onRepayDebt}
-        onDeleteDebt={onDeleteDebt}
-        onDeleteDebtTx={onDeleteDebtTx}
-      />
+      <View style={[styles.section, isDark ? styles.sectionDark : null]}>
+        <Text style={[styles.sectionTitle, isDark ? styles.sectionTitleDark : null]}>
+          Долги
+        </Text>
+        <Text style={[styles.amount, isDark ? styles.amountDark : null]}>
+          ${sortedDebts.reduce((sum, debt) => sum + debt.amount, 0).toLocaleString()}
+        </Text>
+        <Text style={[styles.subtitle, isDark ? styles.subtitleDark : null]}>
+          {sortedDebts.length} активных долгов
+        </Text>
+      </View>
+
+      <View style={[styles.section, isDark ? styles.sectionDark : null]}>
+        <Text style={[styles.sectionTitle, isDark ? styles.sectionTitleDark : null]}>
+          Ежемесячные расходы
+        </Text>
+        <Text style={[styles.amount, isDark ? styles.amountDark : null]}>
+          ${monthlyExpenses.toLocaleString()}
+        </Text>
+      </View>
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  containerDark: {
+    backgroundColor: '#0d1117',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 24,
+  },
+  titleDark: {
+    color: '#f9fafb',
+  },
+  section: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 20,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  sectionDark: {
+    backgroundColor: '#161b22',
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  sectionTitleDark: {
+    color: '#f9fafb',
+  },
+  balance: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: '#10b981',
+  },
+  balanceDark: {
+    color: '#34d399',
+  },
+  amount: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  amountDark: {
+    color: '#f9fafb',
+  },
+  subtitle: {
+    fontSize: 14,
+    color: '#6b7280',
+  },
+  subtitleDark: {
+    color: '#9ca3af',
+  },
+});
 
 export default Dashboard;
