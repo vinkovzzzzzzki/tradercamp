@@ -195,11 +195,6 @@ export const useAppState = () => {
     [cashReserve, monthlyExpenses]
   );
   
-  const investmentBalance = useMemo(() => {
-    const list = currentFinance?.investTx || [];
-    return list.reduce((sum, it) => sum + (it.type === 'in' ? it.amount : -it.amount), 0);
-  }, [currentFinance]);
-  
   // Persist state changes
   useEffect(() => storage.set(STORAGE_KEYS.SUPA_AUTH, supaAuth), [supaAuth]);
   useEffect(() => storage.set(STORAGE_KEYS.SUPA_PROFILES, supaProfiles), [supaProfiles]);
@@ -219,14 +214,19 @@ export const useAppState = () => {
     const overlay = supaProfiles[currentSupaUser.id] || {};
     return {
       id: currentSupaUser.id,
-      nickname: overlay.nickname || (currentSupaUser.email || 'user').split('@')[0],
-      bio: overlay.bio || '',
-      avatar: overlay.avatar || '',
-      friends: Array.isArray(overlay.friends) ? overlay.friends : []
+      nickname: (overlay as any).nickname || (currentSupaUser.email || 'user').split('@')[0],
+      bio: (overlay as any).bio || '',
+      avatar: (overlay as any).avatar || '',
+      friends: Array.isArray((overlay as any).friends) ? (overlay as any).friends : []
     };
   })() : null;
   
   const currentFinance = currentUser ? financeData[currentUser.id] : null;
+  
+  const investmentBalance = useMemo(() => {
+    const list = currentFinance?.investTx || [];
+    return list.reduce((sum, it) => sum + (it.type === 'in' ? it.amount : -it.amount), 0);
+  }, [currentFinance]);
   
   // Business logic functions
   const addEmergencyTransaction = () => {
@@ -235,7 +235,7 @@ export const useAppState = () => {
     const newTx = {
       id: Date.now(),
       date: new Date().toISOString().slice(0, 10),
-      type: newEmergencyTx.type,
+      type: newEmergencyTx.type as 'deposit' | 'withdraw',
       amount: Number(newEmergencyTx.amount),
       currency: newEmergencyTx.currency,
       location: newEmergencyTx.location,
@@ -257,7 +257,7 @@ export const useAppState = () => {
     const newTx = {
       id: Date.now(),
       date: new Date().toISOString().slice(0, 10),
-      type: newInvestTx.type,
+      type: newInvestTx.type as 'in' | 'out',
       amount: Number(newInvestTx.amount),
       currency: newInvestTx.currency,
       destination: newInvestTx.destination,

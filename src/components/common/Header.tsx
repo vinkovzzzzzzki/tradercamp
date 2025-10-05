@@ -125,13 +125,6 @@ const Header: React.FC<HeaderProps> = ({
                 onPress={() => onTabClick(key)}
                 onHoverIn={() => onTabHover(key)}
                 onHoverOut={() => onTabLeave(key)}
-                onPressIn={(e) => {
-                  // Hover effect simulation
-                  e.target.style.transform = 'scale(0.95)';
-                }}
-                onPressOut={(e) => {
-                  e.target.style.transform = 'scale(1)';
-                }}
               >
                 <Text style={[
                   { fontSize: 12, fontWeight: '600' },
@@ -153,12 +146,6 @@ const Header: React.FC<HeaderProps> = ({
                     key={index}
                     style={styles.dropdownItem}
                     onPress={item.action}
-                    onHoverIn={(e) => {
-                      e.target.style.backgroundColor = '#2d3748';
-                    }}
-                    onHoverOut={(e) => {
-                      e.target.style.backgroundColor = 'transparent';
-                    }}
                   >
                     <Text style={[
                       styles.dropdownText,
