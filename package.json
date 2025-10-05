@@ -14,8 +14,9 @@
     "lint": "eslint src --ext .ts,.tsx",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
     "type-check": "tsc --noEmit",
-    "build": "expo build",
-    "build:web": "expo build:web"
+    "build": "expo export -p web",
+    "build:web": "expo export -p web",
+    "vercel-build": "expo export -p web"
   },
   "dependencies": {
     "expo": "~49.0.0",
@@ -24,9 +25,22 @@
     "expo-image-picker": "~14.3.2",
     "expo-image-manipulator": "~11.3.0",
     "react": "18.2.0",
+    "react-dom": "18.2.0",
     "react-native": "0.72.6",
     "react-native-chart-kit": "^6.12.0",
     "react-native-svg": "13.9.0"
+  },
+  "overrides": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "resolutions": {
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

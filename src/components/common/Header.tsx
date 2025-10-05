@@ -1,6 +1,6 @@
 // Header component - exact reproduction of current header structure
 import React from 'react';
-import { View, Text, Image, Pressable, Animated } from 'react-native';
+import { View, Text, Image, Pressable, Animated, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { TabType, User } from '../../state/types';
 
@@ -41,15 +41,15 @@ const Header: React.FC<HeaderProps> = ({
 
   return (
     <View style={[
-      { backgroundColor: '#121820', paddingTop: 10, paddingBottom: 4, paddingHorizontal: 20, borderBottomWidth: 1, borderBottomColor: '#1f2a36' },
-      isDark ? { backgroundColor: '#121820', borderBottomColor: '#1f2a36' } : null
+      styles.header,
+      isDark ? styles.headerDark : null
     ]}>
       <StatusBar style="dark" />
       
       {/* Sticky top bar */}
       <View style={[
-        { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 1000, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8 },
-        isDark ? { backgroundColor: '#121820' } : null
+        styles.stickyTopBar,
+        isDark ? styles.stickyTopBarDark : null
       ]}>
         <View style={{ flex: 1 }} />
       </View>
@@ -58,7 +58,7 @@ const Header: React.FC<HeaderProps> = ({
       <View style={{ alignItems: 'center', marginTop: 4 }}>
         <Image
           source={require('../../../assets/investcamp-logo.png')}
-          style={{ width: 280, height: 120, alignSelf: 'center', marginBottom: 0 }}
+          style={styles.brandLogo}
           resizeMode="contain"
         />
       </View>
@@ -99,20 +99,76 @@ const Header: React.FC<HeaderProps> = ({
       
       {/* Auth status */}
       {currentUser && (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 8, marginBottom: 8 }}>
-          <Text style={{ fontSize: 12, color: '#9fb0c0' }}>
+        <View style={styles.authStatus}>
+          <Text style={styles.authStatusText}>
             {currentUser.nickname}
           </Text>
           <Pressable 
-            style={{ backgroundColor: '#ef4444', paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 }}
+            style={styles.logoutBtn}
             onPress={onLogout}
           >
-            <Text style={{ color: '#fff', fontWeight: '600' }}>Выйти</Text>
+            <Text style={styles.logoutText}>Выйти</Text>
           </Pressable>
         </View>
       )}
     </View>
   );
 };
+
+const styles = StyleSheet.create({
+  header: {
+    backgroundColor: '#121820',
+    paddingTop: 10,
+    paddingBottom: 4,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2a36',
+  },
+  headerDark: {
+    backgroundColor: '#121820',
+    borderBottomColor: '#1f2a36',
+  },
+  stickyTopBar: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 1000,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 8,
+  },
+  stickyTopBarDark: {
+    backgroundColor: '#121820',
+  },
+  authStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 8,
+    marginBottom: 8,
+  },
+  authStatusText: {
+    fontSize: 12,
+    color: '#9fb0c0',
+  },
+  logoutBtn: {
+    backgroundColor: '#ef4444',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  logoutText: {
+    color: '#fff',
+    fontWeight: '600',
+  },
+  brandLogo: {
+    width: 280,
+    height: 120,
+    alignSelf: 'center',
+    marginBottom: 0,
+  },
+});
 
 export default Header;
