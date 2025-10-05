@@ -3,7 +3,11 @@ import React, { useRef, useEffect } from 'react';
 import { View, Text, Animated, Platform, UIManager } from 'react-native';
 import { useAppState } from './state';
 import { Header, Toast } from './components/common';
-import { Dashboard } from './features';
+import { Dashboard } from './features/Dashboard';
+import { Journal } from './features/Journal';
+import { Planner } from './features/Planner';
+import { Community } from './features/Community';
+import { Profile } from './features/Profile';
 // import './styles/index.css'; // CSS не поддерживается в React Native
 
 // Enable LayoutAnimation on Android
@@ -228,24 +232,29 @@ const App: React.FC = () => {
           />
         )}
         {tab === 'journal' && (
-          <View>
-            <Text style={{ color: '#e6edf3' }}>Journal content will be implemented here</Text>
-          </View>
+          <Journal
+            currentUser={currentUser}
+            isDark={isDark}
+          />
         )}
         {tab === 'planner' && (
-          <View>
-            <Text style={{ color: '#e6edf3' }}>Planner content will be implemented here</Text>
-          </View>
+          <Planner
+            currentUser={currentUser}
+            isDark={isDark}
+          />
         )}
         {tab === 'community' && (
-          <View>
-            <Text style={{ color: '#e6edf3' }}>Community content will be implemented here</Text>
-          </View>
+          <Community
+            currentUser={currentUser}
+            isDark={isDark}
+          />
         )}
         {tab === 'profile' && (
-          <View>
-            <Text style={{ color: '#e6edf3' }}>Profile content will be implemented here</Text>
-          </View>
+          <Profile
+            currentUser={currentUser}
+            isDark={isDark}
+            onLogout={handleLogout}
+          />
         )}
       </View>
     </View>

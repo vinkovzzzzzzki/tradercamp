@@ -32,11 +32,57 @@ const Header: React.FC<HeaderProps> = ({
   buttonAnimations
 }) => {
   const tabs = [
-    { key: 'finance' as TabType, label: 'Финансы' },
-    { key: 'journal' as TabType, label: 'Дневник' },
-    { key: 'planner' as TabType, label: 'Планер' },
-    { key: 'community' as TabType, label: 'Сообщество' },
-    { key: 'profile' as TabType, label: 'Профиль' },
+    { 
+      key: 'finance' as TabType, 
+      label: 'Финансы',
+      dropdown: [
+        { label: 'Обзор', action: () => onTabClick('finance') },
+        { label: 'Резервный фонд', action: () => onTabClick('finance') },
+        { label: 'Инвестиции', action: () => onTabClick('finance') },
+        { label: 'Долги', action: () => onTabClick('finance') },
+        { label: 'Аналитика', action: () => onTabClick('finance') }
+      ]
+    },
+    { 
+      key: 'journal' as TabType, 
+      label: 'Дневник',
+      dropdown: [
+        { label: 'Записи', action: () => onTabClick('journal') },
+        { label: 'Цели', action: () => onTabClick('journal') },
+        { label: 'Достижения', action: () => onTabClick('journal') },
+        { label: 'Рефлексия', action: () => onTabClick('journal') }
+      ]
+    },
+    { 
+      key: 'planner' as TabType, 
+      label: 'Планер',
+      dropdown: [
+        { label: 'Календарь', action: () => onTabClick('planner') },
+        { label: 'Задачи', action: () => onTabClick('planner') },
+        { label: 'Привычки', action: () => onTabClick('planner') },
+        { label: 'Планы', action: () => onTabClick('planner') }
+      ]
+    },
+    { 
+      key: 'community' as TabType, 
+      label: 'Сообщество',
+      dropdown: [
+        { label: 'Лента', action: () => onTabClick('community') },
+        { label: 'Друзья', action: () => onTabClick('community') },
+        { label: 'Группы', action: () => onTabClick('community') },
+        { label: 'Чат', action: () => onTabClick('community') }
+      ]
+    },
+    { 
+      key: 'profile' as TabType, 
+      label: 'Профиль',
+      dropdown: [
+        { label: 'Настройки', action: () => onTabClick('profile') },
+        { label: 'Статистика', action: () => onTabClick('profile') },
+        { label: 'Безопасность', action: () => onTabClick('profile') },
+        { label: 'Выйти', action: onLogout }
+      ]
+    },
   ];
 
   return (
@@ -63,37 +109,68 @@ const Header: React.FC<HeaderProps> = ({
         />
       </View>
       
-      {/* Static navigation tabs (does not scroll) */}
+      {/* Static navigation tabs with dropdowns */}
       <View style={[
-        { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 10 },
+        { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 10, position: 'relative' },
         isDark ? { backgroundColor: '#1b2430' } : null
       ]}>
-        {tabs.map(({ key, label }) => (
-          <Animated.View key={key} style={{ flex: 1 }}>
-            <Pressable 
-              style={[
-                { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center' },
-                tab === key ? { backgroundColor: '#1f6feb' } : { backgroundColor: 'transparent' }
-              ]} 
-              onPress={() => onTabClick(key)}
-              onHoverIn={() => onTabHover(key)}
-              onHoverOut={() => onTabLeave(key)}
-              onPressIn={(e) => {
-                // Hover effect simulation
-                e.target.style.transform = 'scale(0.95)';
-              }}
-              onPressOut={(e) => {
-                e.target.style.transform = 'scale(1)';
-              }}
-            >
-              <Text style={[
-                { fontSize: 12, fontWeight: '600' },
-                tab === key ? { color: '#fff' } : { color: '#9fb0c0' }
+        {tabs.map(({ key, label, dropdown }) => (
+          <View key={key} style={{ flex: 1, position: 'relative' }}>
+            <Animated.View style={{ flex: 1 }}>
+              <Pressable 
+                style={[
+                  { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center' },
+                  tab === key ? { backgroundColor: '#1f6feb' } : { backgroundColor: 'transparent' }
+                ]} 
+                onPress={() => onTabClick(key)}
+                onHoverIn={() => onTabHover(key)}
+                onHoverOut={() => onTabLeave(key)}
+                onPressIn={(e) => {
+                  // Hover effect simulation
+                  e.target.style.transform = 'scale(0.95)';
+                }}
+                onPressOut={(e) => {
+                  e.target.style.transform = 'scale(1)';
+                }}
+              >
+                <Text style={[
+                  { fontSize: 12, fontWeight: '600' },
+                  tab === key ? { color: '#fff' } : { color: '#9fb0c0' }
+                ]}>
+                  {label}
+                </Text>
+              </Pressable>
+            </Animated.View>
+            
+            {/* Dropdown menu */}
+            {openDropdown === key && (
+              <Animated.View style={[
+                styles.dropdown,
+                isDark ? styles.dropdownDark : null
               ]}>
-                {label}
-              </Text>
-            </Pressable>
-          </Animated.View>
+                {dropdown.map((item, index) => (
+                  <Pressable
+                    key={index}
+                    style={styles.dropdownItem}
+                    onPress={item.action}
+                    onHoverIn={(e) => {
+                      e.target.style.backgroundColor = '#2d3748';
+                    }}
+                    onHoverOut={(e) => {
+                      e.target.style.backgroundColor = 'transparent';
+                    }}
+                  >
+                    <Text style={[
+                      styles.dropdownText,
+                      isDark ? styles.dropdownTextDark : null
+                    ]}>
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </Animated.View>
+            )}
+          </View>
         ))}
       </View>
       
@@ -101,12 +178,9 @@ const Header: React.FC<HeaderProps> = ({
       {currentUser && (
         <View style={styles.authStatus}>
           <Text style={styles.authStatusText}>
-            {currentUser.nickname}
+            Добро пожаловать, {currentUser.nickname}!
           </Text>
-          <Pressable 
-            style={styles.logoutBtn}
-            onPress={onLogout}
-          >
+          <Pressable style={styles.logoutBtn} onPress={onLogout}>
             <Text style={styles.logoutText}>Выйти</Text>
           </Pressable>
         </View>
@@ -168,6 +242,38 @@ const styles = StyleSheet.create({
     height: 120,
     alignSelf: 'center',
     marginBottom: 0,
+  },
+  dropdown: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
+    backgroundColor: '#1a202c',
+    borderRadius: 8,
+    padding: 4,
+    marginTop: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+    zIndex: 1000,
+  },
+  dropdownDark: {
+    backgroundColor: '#1a202c',
+  },
+  dropdownItem: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+  },
+  dropdownText: {
+    fontSize: 12,
+    color: '#e2e8f0',
+    fontWeight: '500',
+  },
+  dropdownTextDark: {
+    color: '#e2e8f0',
   },
 });
 
