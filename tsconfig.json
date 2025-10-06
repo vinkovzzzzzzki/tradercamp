@@ -11,6 +11,11 @@
     "noImplicitOverride": false,
     "exactOptionalPropertyTypes": false,
     "skipLibCheck": true,
+    "types": [
+      "react",
+      "node",
+      "prop-types"
+    ],
     "baseUrl": ".",
     "paths": {
       "@/*": ["src/*"],

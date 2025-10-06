@@ -58,6 +58,7 @@ interface DashboardProps {
   onDeleteDebt: (id: number) => void;
   onDeleteDebtTx: (debtId: number, txId: number) => void;
   getComprehensiveChartData: () => { datasets: any[]; labels: string[] };
+  totalDebt: number;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
@@ -161,7 +162,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         datasetIndex++;
       }
       
-      if (chartVisibility.investments && chartData.datasets[datasetIndex]) {
+      if (chartVisibility.investment && chartData.datasets[datasetIndex]) {
         values.push({
           value: chartData.datasets[datasetIndex].data[dataIndex],
           color: '#10b981',

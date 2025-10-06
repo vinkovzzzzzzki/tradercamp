@@ -60,6 +60,7 @@ const App: React.FC = () => {
     investHoldings, setInvestHoldings,
     emergencyMonths,
     investmentBalance,
+    totalDebt,
     emergencyTx, setEmergencyTx,
     investTx, setInvestTx,
     
@@ -225,6 +226,7 @@ const App: React.FC = () => {
               ));
             }}
             getComprehensiveChartData={getComprehensiveChartData}
+            totalDebt={totalDebt}
           />
         )}
         {tab === 'journal' && (
