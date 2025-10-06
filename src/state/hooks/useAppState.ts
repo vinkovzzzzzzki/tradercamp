@@ -205,11 +205,7 @@ export const useAppState = () => {
   const [emergencyTx, setEmergencyTx] = useState<EmergencyTransaction[]>([]);
   const [investTx, setInvestTx] = useState<InvestmentTransaction[]>([]);
   
-  // Computed values
-  const emergencyMonths = useMemo(() => 
-    monthlyExpenses > 0 ? (cashReserve / monthlyExpenses) : 0,
-    [cashReserve, monthlyExpenses]
-  );
+  // Computed values (moved to services-calc below)
   
   // Persist state changes
   useEffect(() => storage.set(STORAGE_KEYS.SUPA_AUTH, supaAuth), [supaAuth]);
@@ -595,3 +591,5 @@ export const useAppState = () => {
     logout
   };
 };
+/ /   F o r c e   u p d a t e   t o   c l e a r   V e r c e l   c a c h e  
+ 

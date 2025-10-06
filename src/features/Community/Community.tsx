@@ -51,11 +51,9 @@ const Community: React.FC<CommunityProps> = ({ currentUser, isDark }) => {
       comments: []
     }
   ]);
-  const [bookmarks, setBookmarks] = useState<Record<number, boolean>>({});
+  
 
-  const isBookmarked = (postId: number) => {
-    return bookmarks[postId] || false;
-  };
+  
 
   const toggleBookmark = (postId: number) => {
     if (!currentUser) return;
