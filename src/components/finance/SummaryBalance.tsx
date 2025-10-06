@@ -64,10 +64,10 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
               <Text style={[styles.compactToggleText, chartVisibility.cushion ? styles.compactToggleTextActive : null]}>Подушка</Text>
             </Pressable>
             <Pressable 
-              style={[styles.compactToggle, chartVisibility.investment ? styles.compactToggleActive : null]} 
-              onPress={() => setChartVisibilitySafe(v => ({ ...v, investment: !v.investment }))}
+              style={[styles.compactToggle, chartVisibility.investments ? styles.compactToggleActive : null]} 
+              onPress={() => setChartVisibilitySafe(v => ({ ...v, investments: !v.investments }))}
             >
-              <Text style={[styles.compactToggleText, chartVisibility.investment ? styles.compactToggleTextActive : null]}>Инвестиции</Text>
+              <Text style={[styles.compactToggleText, chartVisibility.investments ? styles.compactToggleTextActive : null]}>Инвестиции</Text>
             </Pressable>
             <Pressable 
               style={[styles.compactToggle, chartVisibility.debts ? styles.compactToggleActive : null]} 
@@ -93,9 +93,9 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
             const invest = investmentBalance;
             const delta = cushion + invest - totalDebt;
             
-            const visibleValues = [];
+            const visibleValues = [] as number[];
             if (chartVisibility.cushion) visibleValues.push(cushion);
-            if (chartVisibility.investment) visibleValues.push(invest);
+            if (chartVisibility.investments) visibleValues.push(invest);
             if (chartVisibility.debts) visibleValues.push(totalDebt);
             if (chartVisibility.total) visibleValues.push(delta);
             const maxVal = Math.max(...visibleValues, 1);
@@ -148,8 +148,6 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                     return (
                       <View 
                         style={styles.chartWrapper}
-                        onMouseMove={onChartMouseMove}
-                        onMouseLeave={onChartLeave}
                       >
                         <LineChart
                           data={chartData}
@@ -168,11 +166,7 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                             propsForDots: {
                               r: "4",
                               strokeWidth: "2"
-                            },
-                            // Custom Y-axis configuration for dynamic scaling
-                            yAxisMin: chartData.yAxisMin,
-                            yAxisMax: chartData.yAxisMax,
-                            yAxisSuffix: chartData.yAxisSuffix
+                            }
                           }}
                           bezier
                           style={styles.lineChart}
@@ -228,7 +222,7 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                         <Text style={styles.legendText}>Подушка безопасности</Text>
                       </View>
                     )}
-                    {chartVisibility.investment && (
+                    {chartVisibility.investments && (
                       <View style={styles.legendItem}>
                         <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
                         <Text style={styles.legendText}>Инвестиции</Text>

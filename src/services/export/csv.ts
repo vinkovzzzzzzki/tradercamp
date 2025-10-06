@@ -90,7 +90,7 @@ export function exportFinancialDataToCSV(
       'Заметка': tx.note || ''
     })),
     ...debts.flatMap(debt => 
-      debt.tx.map((tx: any) => ({
+      (debt.history || []).map((tx: any) => ({
         'Тип': 'Долги',
         'Дата': tx.date,
         'Операция': tx.type === 'add' ? 'Добавление долга' : 'Погашение',

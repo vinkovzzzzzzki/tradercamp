@@ -257,10 +257,10 @@ const Debts: React.FC<DebtsProps> = ({
             <Text style={styles.deleteDebtButtonText}>Удалить долг</Text>
           </Pressable>
 
-          {debt.tx.length > 0 && (
+          {debt.history.length > 0 && (
             <View style={styles.transactionList}>
               <Text style={[styles.formLabel, { marginBottom: 4 }]}>История:</Text>
-              {debt.tx.slice(-3).reverse().map((tx) => (
+              {debt.history.slice(-3).reverse().map((tx) => (
                 <View key={tx.id} style={styles.transactionItem}>
                   <View style={styles.transactionInfo}>
                     <Text style={styles.transactionDate}>{tx.date}</Text>

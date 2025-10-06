@@ -53,8 +53,8 @@ interface DashboardProps {
   onDeleteInvestTx: (id: number) => void;
   onNewDebtChange: (debt: any) => void;
   onAddDebt: () => void;
-  onRepayDraftChange: (drafts: Record<number, string>) => void;
-  onRepayDebt: (debtId: number) => void;
+  onRepayDraftChange: (debtId: number, amount: string) => void;
+  onRepayDebt: (debtId: number, amount: number) => void;
   onDeleteDebt: (id: number) => void;
   onDeleteDebtTx: (debtId: number, txId: number) => void;
   getComprehensiveChartData: () => { datasets: any[]; labels: string[] };
@@ -81,6 +81,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   newInvestTx,
   newDebt,
   repayDrafts,
+  totalDebt,
   showEmergencyLocationDropdown,
   showInvestDestinationDropdown,
   emergencyLocations,
@@ -162,7 +163,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         datasetIndex++;
       }
       
-      if (chartVisibility.investment && chartData.datasets[datasetIndex]) {
+      if (chartVisibility.investments && chartData.datasets[datasetIndex]) {
         values.push({
           value: chartData.datasets[datasetIndex].data[dataIndex],
           color: '#10b981',
@@ -223,7 +224,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   const getChartStatistics = () => {
     if (!chartVisibility.cushion || cushionHistory.length < 2) return null;
     
-    const values = cushionHistory.map(d => d.amount || 0);
+    const values = cushionHistory.map(d => (d as any).amount ?? (d as any).y ?? 0);
     const current = values[values.length - 1];
     const previous = values[values.length - 2];
     const change = current - previous;

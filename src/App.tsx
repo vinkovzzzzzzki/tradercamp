@@ -215,13 +215,13 @@ const App: React.FC = () => {
             onDeleteInvestTx={deleteInvestTx}
             onNewDebtChange={setNewDebt}
             onAddDebt={addDebt}
-            onRepayDraftChange={setRepayDrafts}
+            onRepayDraftChange={(debtId, value) => setRepayDrafts(prev => ({ ...prev, [debtId]: value }))}
             onRepayDebt={repayDebt}
             onDeleteDebt={deleteDebt}
             onDeleteDebtTx={(debtId, txId) => {
               setSortedDebts(prev => prev.map(debt => 
                 debt.id === debtId 
-                  ? { ...debt, tx: debt.tx.filter(tx => tx.id !== txId) }
+                  ? { ...debt, history: (debt.history || []).filter(tx => tx.id !== txId) }
                   : debt
               ));
             }}

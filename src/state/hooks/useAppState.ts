@@ -9,7 +9,7 @@ import {
   calculateInvestmentBalance, 
   calculateTotalDebt,
   generateComprehensiveChartData 
-} from '../../services/calc';
+} from '../../services/calc/balances';
 import { 
   signUp, 
   signIn, 
@@ -327,9 +327,8 @@ export const useAppState = () => {
     setSortedDebts(prev => prev.filter(debt => debt.id !== id));
   };
   
-  const repayDebt = (debtId: number) => {
-    const amount = Number(repayDrafts[debtId]);
-    if (!amount) return;
+  const repayDebt = (debtId: number, amount: number) => {
+    if (!amount || amount <= 0) return;
     
     setSortedDebts(prev => prev.map(debt => {
       if (debt.id === debtId) {
@@ -343,7 +342,7 @@ export const useAppState = () => {
         return {
           ...debt,
           amount: Math.max(0, debt.amount - amount),
-          tx: [...debt.tx, newTx]
+          history: [...(debt.history || []), newTx]
         };
       }
       return debt;

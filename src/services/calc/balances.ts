@@ -1,10 +1,23 @@
 // Financial calculations - exact reproduction of original logic
 // All calculations preserve original behavior and precision
 
-export interface DataPoint {
-  x: number;
-  y: number;
-}
+// Local helpers accept both shapes:
+// - { x: number, y: number }
+// - { date: string, value: number }
+type AnyPoint = { x?: number; y?: number; date?: string; value?: number };
+const getPointX = (p: AnyPoint): number => {
+  if (typeof p.x === 'number') return p.x;
+  if (p.date) {
+    const t = Date.parse(p.date);
+    return isNaN(t) ? 0 : t;
+  }
+  return 0;
+};
+const getPointY = (p: AnyPoint): number => {
+  if (typeof p.y === 'number') return p.y || 0;
+  if (typeof p.value === 'number') return p.value || 0;
+  return 0;
+};
 
 export interface ChartData {
   labels: string[];
@@ -22,22 +35,22 @@ export function calculateEmergencyMonths(cashReserve: number, monthlyExpenses: n
 }
 
 // Calculate investment balance from history
-export function calculateInvestmentBalance(investmentHistory: DataPoint[]): number {
+export function calculateInvestmentBalance(investmentHistory: AnyPoint[]): number {
   if (!investmentHistory || investmentHistory.length === 0) return 0;
   
   // Sum all investment transactions
   return investmentHistory.reduce((total, point) => {
-    return total + (point.y || 0);
+    return total + getPointY(point);
   }, 0);
 }
 
 // Calculate total debt from debts history
-export function calculateTotalDebt(debtsHistory: DataPoint[]): number {
+export function calculateTotalDebt(debtsHistory: AnyPoint[]): number {
   if (!debtsHistory || debtsHistory.length === 0) return 0;
   
   // Sum all debt transactions (debts are typically positive values)
   return debtsHistory.reduce((total, point) => {
-    return total + Math.abs(point.y || 0);
+    return total + Math.abs(getPointY(point));
   }, 0);
 }
 
@@ -69,17 +82,17 @@ export function calculateSavingsRate(
 
 // Generate comprehensive chart data for financial overview
 export function generateComprehensiveChartData(
-  cushionHistory: DataPoint[],
-  investmentHistory: DataPoint[],
-  debtsHistory: DataPoint[],
+  cushionHistory: AnyPoint[],
+  investmentHistory: AnyPoint[],
+  debtsHistory: AnyPoint[],
   timePeriod: '1M' | '3M' | '6M' | '1Y' | 'ALL' = 'ALL'
 ): ChartData {
   // Filter data based on time period
   const now = Date.now();
-  const timeFilter = (point: DataPoint) => {
+  const timeFilter = (point: AnyPoint) => {
     if (timePeriod === 'ALL') return true;
     
-    const pointTime = point.x;
+    const pointTime = getPointX(point);
     const periods = {
       '1M': 30 * 24 * 60 * 60 * 1000,
       '3M': 90 * 24 * 60 * 60 * 1000,
@@ -111,24 +124,24 @@ export function generateComprehensiveChartData(
   const datasets = [
     {
       data: sortedDates.map(date => {
-        const point = filteredCushion.find(p => p.x === date);
-        return point ? point.y : 0;
+        const point = filteredCushion.find(p => getPointX(p) === date);
+        return point ? getPointY(point) : 0;
       }),
       color: (opacity: number) => `rgba(34, 197, 94, ${opacity})`, // Green for emergency fund
       strokeWidth: 2
     },
     {
       data: sortedDates.map(date => {
-        const point = filteredInvestment.find(p => p.x === date);
-        return point ? point.y : 0;
+        const point = filteredInvestment.find(p => getPointX(p) === date);
+        return point ? getPointY(point) : 0;
       }),
       color: (opacity: number) => `rgba(59, 130, 246, ${opacity})`, // Blue for investments
       strokeWidth: 2
     },
     {
       data: sortedDates.map(date => {
-        const point = filteredDebts.find(p => p.x === date);
-        return point ? Math.abs(point.y) : 0; // Debts as positive values
+        const point = filteredDebts.find(p => getPointX(p) === date);
+        return point ? Math.abs(getPointY(point)) : 0; // Debts as positive values
       }),
       color: (opacity: number) => `rgba(239, 68, 68, ${opacity})`, // Red for debts
       strokeWidth: 2
