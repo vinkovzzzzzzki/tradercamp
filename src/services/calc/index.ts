@@ -1,3 +1,3 @@
-// Calculation utilities index
+// Financial calculations index
 export * from './balances';
-export * from './stats';
+export * from './statistics';

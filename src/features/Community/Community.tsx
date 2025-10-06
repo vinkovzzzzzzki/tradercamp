@@ -1,5 +1,5 @@
 // Community feature component - exact reproduction of original functionality
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
 import type { User } from '../../state/types';
 
@@ -21,6 +21,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser, isDark }) => {
     images: []
   });
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
+  const [bookmarks, setBookmarks] = useState<Record<number, boolean>>({});
   const [posts, setPosts] = useState([
     {
       id: 1,
@@ -50,23 +51,22 @@ const Community: React.FC<CommunityProps> = ({ currentUser, isDark }) => {
       comments: []
     }
   ]);
-  const [bookmarks, setBookmarks] = useState<Record<number, number[]>>({});
+  const [bookmarks, setBookmarks] = useState<Record<number, boolean>>({});
 
   const isBookmarked = (postId: number) => {
-    const uid = currentUser?.id;
-    if (!uid) return false;
-    const list = bookmarks[uid] || [];
-    return list.includes(postId);
+    return bookmarks[postId] || false;
   };
 
   const toggleBookmark = (postId: number) => {
-    const uid = currentUser?.id;
-    if (!uid) return;
-    setBookmarks(prev => {
-      const list = prev[uid] || [];
-      const nextList = list.includes(postId) ? list.filter(id => id !== postId) : [...list, postId];
-      return { ...prev, [uid]: nextList };
-    });
+    if (!currentUser) return;
+    setBookmarks(prev => ({
+      ...prev,
+      [postId]: !prev[postId]
+    }));
+  };
+
+  const isBookmarked = (postId: number) => {
+    return bookmarks[postId] || false;
   };
 
   const toggleLike = (postId: number) => {

@@ -1,227 +1,339 @@
-// Investments component - exact reproduction of current investments structure
-import React from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+// Investments component - exact reproduction of original investment logic
+import React, { useState } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { formatCurrencyCustom, parseNumberSafe } from '../../services/format';
 import type { InvestmentTransaction } from '../../state/types';
-import { formatCurrencyCustom } from '../../services/format';
-import { calculateInvestmentBalance, getInvestHoldingBalance } from '../../services/calc';
 
 interface InvestmentsProps {
-  currentUser: any;
-  isDark: boolean;
   investmentBalance: number;
   investTx: InvestmentTransaction[];
   investHoldings: Array<{ destination: string; currency: string; balance: number }>;
   newInvestTx: any;
-  showInvestDestinationDropdown: boolean;
+  showDestinationDropdown: boolean;
   investDestinations: string[];
+  isDark: boolean;
   onNewInvestTxChange: (tx: any) => void;
   onAddInvestmentTransaction: () => void;
-  onShowInvestDestinationDropdown: (show: boolean) => void;
-  onInvestDestinationSelect: (destination: string) => void;
+  onShowDestinationDropdown: (show: boolean) => void;
+  onDestinationSelect: (destination: string, currency: string) => void;
   onDeleteInvestTx: (id: number) => void;
 }
 
 const Investments: React.FC<InvestmentsProps> = ({
-  currentUser,
-  isDark,
   investmentBalance,
   investTx,
   investHoldings,
   newInvestTx,
-  showInvestDestinationDropdown,
+  showDestinationDropdown,
   investDestinations,
+  isDark,
   onNewInvestTxChange,
   onAddInvestmentTransaction,
-  onShowInvestDestinationDropdown,
-  onInvestDestinationSelect,
+  onShowDestinationDropdown,
+  onDestinationSelect,
   onDeleteInvestTx
 }) => {
-  if (!currentUser) {
-    return (
-      <View style={[
-        { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
-        isDark ? { backgroundColor: '#121820' } : null
-      ]}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#e6edf3' }}>📈 Инвестиции</Text>
-        <Text style={{ fontSize: 12, color: '#9fb0c0', fontStyle: 'italic' }}>
-          Войдите или зарегистрируйтесь, чтобы управлять инвестициями
-        </Text>
-      </View>
-    );
-  }
+  const styles = StyleSheet.create({
+    container: {
+      backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: isDark ? '#333' : '#e5e5e5'
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : '#000000',
+      marginBottom: 16
+    },
+    balanceRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#333' : '#e5e5e5'
+    },
+    balanceLabel: {
+      fontSize: 16,
+      color: isDark ? '#cccccc' : '#666666'
+    },
+    balanceValue: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: investmentBalance >= 0 ? '#22c55e' : '#ef4444'
+    },
+    holdingsSection: {
+      marginBottom: 16
+    },
+    holdingsTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : '#000000',
+      marginBottom: 12
+    },
+    holdingItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#333' : '#e5e5e5'
+    },
+    holdingName: {
+      fontSize: 14,
+      color: isDark ? '#ffffff' : '#000000'
+    },
+    holdingBalance: {
+      fontSize: 14,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : '#000000'
+    },
+    transactionForm: {
+      marginTop: 16,
+      paddingTop: 16,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? '#333' : '#e5e5e5'
+    },
+    formTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : '#000000',
+      marginBottom: 12
+    },
+    formRow: {
+      flexDirection: 'row',
+      marginBottom: 8,
+      alignItems: 'center'
+    },
+    formLabel: {
+      fontSize: 14,
+      color: isDark ? '#cccccc' : '#666666',
+      width: 80,
+      marginRight: 8
+    },
+    formInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: isDark ? '#555' : '#ccc',
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      fontSize: 14,
+      color: isDark ? '#ffffff' : '#000000',
+      backgroundColor: isDark ? '#2a2a2a' : '#ffffff'
+    },
+    dropdown: {
+      position: 'absolute',
+      top: 40,
+      left: 0,
+      right: 0,
+      backgroundColor: isDark ? '#2a2a2a' : '#ffffff',
+      borderWidth: 1,
+      borderColor: isDark ? '#555' : '#ccc',
+      borderRadius: 6,
+      maxHeight: 150,
+      zIndex: 1000
+    },
+    dropdownItem: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#333' : '#e5e5e5'
+    },
+    dropdownItemText: {
+      fontSize: 14,
+      color: isDark ? '#ffffff' : '#000000'
+    },
+    addButton: {
+      backgroundColor: '#3b82f6',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 6,
+      marginTop: 8,
+      alignSelf: 'flex-start'
+    },
+    addButtonText: {
+      color: '#ffffff',
+      fontSize: 14,
+      fontWeight: '600'
+    },
+    transactionList: {
+      marginTop: 16
+    },
+    transactionItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#333' : '#e5e5e5'
+    },
+    transactionInfo: {
+      flex: 1
+    },
+    transactionDate: {
+      fontSize: 12,
+      color: isDark ? '#888' : '#666'
+    },
+    transactionDetails: {
+      fontSize: 14,
+      color: isDark ? '#ffffff' : '#000000',
+      marginTop: 2
+    },
+    deleteButton: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      backgroundColor: '#ef4444',
+      borderRadius: 4
+    },
+    deleteButtonText: {
+      color: '#ffffff',
+      fontSize: 12
+    }
+  });
 
   return (
-    <View style={[
-      { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
-      isDark ? { backgroundColor: '#121820' } : null
-    ]}>
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#e6edf3' }}>📈 Инвестиции</Text>
-      <Text style={{ fontSize: 14, color: '#9fb0c0', marginBottom: 16 }}>
-        Баланс: {formatCurrencyCustom(investmentBalance, (investTx?.[0]?.currency) || 'USD')}
-      </Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Инвестиции</Text>
+      
+      <View style={styles.balanceRow}>
+        <Text style={styles.balanceLabel}>Общий баланс:</Text>
+        <Text style={styles.balanceValue}>
+          {formatCurrencyCustom(investmentBalance, 'USD')}
+        </Text>
+      </View>
 
-      {/* Holdings summary */}
-      {currentUser && (
-        <View style={{ marginBottom: 8 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#9fb0c0' }}>Ваши направления/вклады</Text>
-          {investHoldings.length === 0 ? (
-            <Text style={{ fontSize: 12, color: '#9fb0c0', fontStyle: 'italic' }}>Нет активных инвестиций</Text>
-          ) : (
-            <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-              {investHoldings.map(holding => (
-                <View key={`${holding.destination}-${holding.currency}`} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: '#1b2430' }}>
-                  <Text style={{ fontSize: 12, color: '#9fb0c0' }}>
-                    {holding.destination} • {formatCurrencyCustom(holding.balance, holding.currency)}
-                  </Text>
-                </View>
-              ))}
+      {investHoldings.length > 0 && (
+        <View style={styles.holdingsSection}>
+          <Text style={styles.holdingsTitle}>Позиции</Text>
+          {investHoldings.map((holding, index) => (
+            <View key={index} style={styles.holdingItem}>
+              <Text style={styles.holdingName}>{holding.destination}</Text>
+              <Text style={styles.holdingBalance}>
+                {formatCurrencyCustom(holding.balance, holding.currency)}
+              </Text>
             </View>
-          )}
+          ))}
         </View>
       )}
 
-      {/* Add investment transaction form */}
-      <View style={{ marginTop: 16 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Добавить транзакцию</Text>
+      <View style={styles.transactionForm}>
+        <Text style={styles.formTitle}>Новая операция</Text>
         
-        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Тип</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <Pressable
-                style={[
-                  { flex: 1, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6, backgroundColor: '#1b2430', alignItems: 'center' },
-                  newInvestTx.type === 'in' ? { backgroundColor: '#1f6feb' } : null
-                ]}
-                onPress={() => onNewInvestTxChange({ ...newInvestTx, type: 'in' })}
-              >
-                <Text style={[
-                  { fontSize: 12, color: '#9fb0c0' },
-                  newInvestTx.type === 'in' ? { color: '#fff', fontWeight: '600' } : null
-                ]}>
-                  Вложение
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  { flex: 1, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6, backgroundColor: '#1b2430', alignItems: 'center' },
-                  newInvestTx.type === 'out' ? { backgroundColor: '#1f6feb' } : null
-                ]}
-                onPress={() => onNewInvestTxChange({ ...newInvestTx, type: 'out' })}
-              >
-                <Text style={[
-                  { fontSize: 12, color: '#9fb0c0' },
-                  newInvestTx.type === 'out' ? { color: '#fff', fontWeight: '600' } : null
-                ]}>
-                  Вывод
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-          
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Сумма</Text>
-            <TextInput
-              style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' }}
-              value={newInvestTx.amount}
-              onChangeText={(text) => onNewInvestTxChange({ ...newInvestTx, amount: text })}
-              placeholder="0"
-              keyboardType="numeric"
-            />
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Тип:</Text>
+          <View style={{ flex: 1, flexDirection: 'row' }}>
+            <Pressable
+              style={[
+                { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6, marginRight: 4 },
+                newInvestTx.type === 'in' ? { backgroundColor: '#22c55e' } : { backgroundColor: isDark ? '#333' : '#f0f0f0' }
+              ]}
+              onPress={() => onNewInvestTxChange({ ...newInvestTx, type: 'in' })}
+            >
+              <Text style={[styles.formLabel, { color: newInvestTx.type === 'in' ? '#ffffff' : (isDark ? '#cccccc' : '#666666') }]}>
+                Вложение
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6, marginLeft: 4 },
+                newInvestTx.type === 'out' ? { backgroundColor: '#ef4444' } : { backgroundColor: isDark ? '#333' : '#f0f0f0' }
+              ]}
+              onPress={() => onNewInvestTxChange({ ...newInvestTx, type: 'out' })}
+            >
+              <Text style={[styles.formLabel, { color: newInvestTx.type === 'out' ? '#ffffff' : (isDark ? '#cccccc' : '#666666') }]}>
+                Вывод
+              </Text>
+            </Pressable>
           </View>
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Направление</Text>
-            <View style={{ position: 'relative' }}>
-              <TextInput
-                style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' }}
-                value={newInvestTx.destination}
-                onChangeText={(text) => onNewInvestTxChange({ ...newInvestTx, destination: text })}
-                placeholder="Например: Акции, Криптовалюта"
-                onFocus={() => onShowInvestDestinationDropdown(true)}
-              />
-              
-              {showInvestDestinationDropdown && (
-                <View style={{ position: 'absolute', top: 48, left: 0, right: 0, maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 }}>
-                  {investDestinations.length === 0 ? (
-                    <Text style={{ color: '#9fb0c0', fontSize: 12, padding: 10 }}>Нет совпадений</Text>
-                  ) : (
-                    <View style={{ maxHeight: 200 }}>
-                      {investDestinations.map(destination => (
-                        <Pressable
-                          key={destination}
-                          style={{ paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1f2a36' }}
-                          onPress={() => {
-                            onNewInvestTxChange({ ...newInvestTx, destination });
-                            onShowInvestDestinationDropdown(false);
-                          }}
-                        >
-                          <Text style={{ color: '#e6edf3', fontSize: 14 }}>{destination}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              )}
-            </View>
-          </View>
-          
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Валюта</Text>
-            <TextInput
-              style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' }}
-              value={newInvestTx.currency}
-              onChangeText={(text) => onNewInvestTxChange({ ...newInvestTx, currency: text })}
-              placeholder="USD"
-            />
-          </View>
-        </View>
-
-        <View style={{ marginBottom: 12 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Примечание</Text>
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Сумма:</Text>
           <TextInput
-            style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3', height: 80, textAlignVertical: 'top' }}
-            value={newInvestTx.note}
-            onChangeText={(text) => onNewInvestTxChange({ ...newInvestTx, note: text })}
-            placeholder="Опционально"
-            multiline
+            style={styles.formInput}
+            value={newInvestTx.amount}
+            onChangeText={(value) => onNewInvestTxChange({ ...newInvestTx, amount: value })}
+            placeholder="0"
+            keyboardType="numeric"
           />
         </View>
 
-        <Pressable
-          style={{ backgroundColor: '#10b981', borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 8 }}
-          onPress={onAddInvestmentTransaction}
-        >
-          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Добавить транзакцию</Text>
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Валюта:</Text>
+          <TextInput
+            style={styles.formInput}
+            value={newInvestTx.currency}
+            onChangeText={(value) => onNewInvestTxChange({ ...newInvestTx, currency: value })}
+            placeholder="USD"
+          />
+        </View>
+
+        <View style={[styles.formRow, { position: 'relative' }]}>
+          <Text style={styles.formLabel}>Направление:</Text>
+          <TextInput
+            style={styles.formInput}
+            value={newInvestTx.destination}
+            onChangeText={(value) => onNewInvestTxChange({ ...newInvestTx, destination: value })}
+            onFocus={() => onShowDestinationDropdown(true)}
+            placeholder="Выберите направление"
+          />
+          {showDestinationDropdown && (
+            <ScrollView style={styles.dropdown}>
+              {investDestinations.map((destination, index) => (
+                <Pressable
+                  key={index}
+                  style={styles.dropdownItem}
+                  onPress={() => onDestinationSelect(destination, newInvestTx.currency)}
+                >
+                  <Text style={styles.dropdownItemText}>{destination}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Заметка:</Text>
+          <TextInput
+            style={styles.formInput}
+            value={newInvestTx.note}
+            onChangeText={(value) => onNewInvestTxChange({ ...newInvestTx, note: value })}
+            placeholder="Опционально"
+          />
+        </View>
+
+        <Pressable style={styles.addButton} onPress={onAddInvestmentTransaction}>
+          <Text style={styles.addButtonText}>Добавить операцию</Text>
         </Pressable>
       </View>
 
-      {/* Transaction history */}
       {investTx.length > 0 && (
-        <View style={{ marginTop: 16 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#9fb0c0' }}>История транзакций</Text>
-          <View style={{ maxHeight: 200 }}>
-            {investTx.map(tx => (
-              <View key={tx.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1f2a36' }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12, color: '#e6edf3' }}>
-                    {tx.date}: {tx.type === 'in' ? 'Вложение' : 'Вывод'} {formatCurrencyCustom(tx.amount, tx.currency)}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: '#9fb0c0' }}>
-                    {tx.destination} {tx.note ? `— ${tx.note}` : ''}
-                  </Text>
-                </View>
-                <Pressable 
-                  style={{ backgroundColor: '#dc3545', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}
-                  onPress={() => onDeleteInvestTx(tx.id)}
-                >
-                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>×</Text>
-                </Pressable>
+        <View style={styles.transactionList}>
+          <Text style={styles.formTitle}>История операций</Text>
+          {investTx.slice(-5).reverse().map((tx) => (
+            <View key={tx.id} style={styles.transactionItem}>
+              <View style={styles.transactionInfo}>
+                <Text style={styles.transactionDate}>{tx.date}</Text>
+                <Text style={styles.transactionDetails}>
+                  {tx.type === 'in' ? '+' : '-'}{formatCurrencyCustom(tx.amount, tx.currency)} - {tx.destination}
+                </Text>
+                {tx.note && (
+                  <Text style={[styles.transactionDate, { marginTop: 2 }]}>{tx.note}</Text>
+                )}
               </View>
-            ))}
-          </View>
+              <Pressable
+                style={styles.deleteButton}
+                onPress={() => onDeleteInvestTx(tx.id)}
+              >
+                <Text style={styles.deleteButtonText}>Удалить</Text>
+              </Pressable>
+            </View>
+          ))}
         </View>
       )}
     </View>

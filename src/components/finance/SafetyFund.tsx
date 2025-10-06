@@ -1,256 +1,405 @@
-// Safety Fund component - exact reproduction of current safety fund structure
-import React from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+// Safety Fund component - exact reproduction of original emergency fund logic
+import React, { useState } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { formatCurrencyCustom, parseNumberSafe } from '../../services/format';
 import type { EmergencyTransaction } from '../../state/types';
-import { formatCurrency, formatCurrencyCustom } from '../../services/format';
-import { calculateEmergencyMonths } from '../../services/calc';
 
 interface SafetyFundProps {
-  currentUser: any;
-  isDark: boolean;
-  monthlyExpenses: number;
   cashReserve: number;
-  emergencyTx: EmergencyTransaction[];
+  monthlyExpenses: number;
   emergencyMonths: number;
+  emergencyTx: EmergencyTransaction[];
   newEmergencyTx: any;
-  showEmergencyLocationDropdown: boolean;
+  showLocationDropdown: boolean;
   emergencyLocations: string[];
-  onMonthlyExpensesChange: (value: number) => void;
+  isDark: boolean;
   onCashReserveChange: (value: number) => void;
+  onMonthlyExpensesChange: (value: number) => void;
   onNewEmergencyTxChange: (tx: any) => void;
   onAddEmergencyTransaction: () => void;
-  onShowEmergencyLocationDropdown: (show: boolean) => void;
-  onEmergencyLocationSelect: (location: string) => void;
+  onShowLocationDropdown: (show: boolean) => void;
+  onLocationSelect: (location: string, currency: string) => void;
   onDeleteEmergencyTx: (id: number) => void;
 }
 
 const SafetyFund: React.FC<SafetyFundProps> = ({
-  currentUser,
-  isDark,
-  monthlyExpenses,
   cashReserve,
-  emergencyTx,
+  monthlyExpenses,
   emergencyMonths,
+  emergencyTx,
   newEmergencyTx,
-  showEmergencyLocationDropdown,
+  showLocationDropdown,
   emergencyLocations,
-  onMonthlyExpensesChange,
+  isDark,
   onCashReserveChange,
+  onMonthlyExpensesChange,
   onNewEmergencyTxChange,
   onAddEmergencyTransaction,
-  onShowEmergencyLocationDropdown,
-  onEmergencyLocationSelect,
+  onShowLocationDropdown,
+  onLocationSelect,
   onDeleteEmergencyTx
 }) => {
-  if (!currentUser) {
-    return (
-      <View style={[
-        { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
-        isDark ? { backgroundColor: '#121820' } : null
-      ]}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#e6edf3' }}>🛡️ Подушка безопасности</Text>
-        <Text style={{ fontSize: 12, color: '#9fb0c0', fontStyle: 'italic' }}>
-          Войдите или зарегистрируйтесь, чтобы управлять подушкой безопасности
-        </Text>
-      </View>
-    );
-  }
+  const [editingReserve, setEditingReserve] = useState(false);
+  const [editingExpenses, setEditingExpenses] = useState(false);
+  const [tempReserve, setTempReserve] = useState('');
+  const [tempExpenses, setTempExpenses] = useState('');
+
+  const handleReserveEdit = () => {
+    setEditingReserve(true);
+    setTempReserve(cashReserve.toString());
+  };
+
+  const handleReserveSave = () => {
+    const value = parseNumberSafe(tempReserve);
+    if (!isNaN(value)) {
+      onCashReserveChange(value);
+    }
+    setEditingReserve(false);
+  };
+
+  const handleExpensesEdit = () => {
+    setEditingExpenses(true);
+    setTempExpenses(monthlyExpenses.toString());
+  };
+
+  const handleExpensesSave = () => {
+    const value = parseNumberSafe(tempExpenses);
+    if (!isNaN(value)) {
+      onMonthlyExpensesChange(value);
+    }
+    setEditingExpenses(false);
+  };
+
+  const styles = StyleSheet.create({
+    container: {
+      backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: isDark ? '#333' : '#e5e5e5'
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : '#000000',
+      marginBottom: 16
+    },
+    statRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12
+    },
+    statLabel: {
+      fontSize: 14,
+      color: isDark ? '#cccccc' : '#666666'
+    },
+    statValue: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : '#000000'
+    },
+    editButton: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      backgroundColor: isDark ? '#333' : '#f0f0f0',
+      borderRadius: 6,
+      marginLeft: 8
+    },
+    editButtonText: {
+      fontSize: 12,
+      color: isDark ? '#ffffff' : '#000000'
+    },
+    input: {
+      borderWidth: 1,
+      borderColor: isDark ? '#555' : '#ccc',
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      fontSize: 14,
+      color: isDark ? '#ffffff' : '#000000',
+      backgroundColor: isDark ? '#2a2a2a' : '#ffffff',
+      minWidth: 100
+    },
+    transactionForm: {
+      marginTop: 16,
+      paddingTop: 16,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? '#333' : '#e5e5e5'
+    },
+    formTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : '#000000',
+      marginBottom: 12
+    },
+    formRow: {
+      flexDirection: 'row',
+      marginBottom: 8,
+      alignItems: 'center'
+    },
+    formLabel: {
+      fontSize: 14,
+      color: isDark ? '#cccccc' : '#666666',
+      width: 80,
+      marginRight: 8
+    },
+    formInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: isDark ? '#555' : '#ccc',
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      fontSize: 14,
+      color: isDark ? '#ffffff' : '#000000',
+      backgroundColor: isDark ? '#2a2a2a' : '#ffffff'
+    },
+    dropdown: {
+      position: 'absolute',
+      top: 40,
+      left: 0,
+      right: 0,
+      backgroundColor: isDark ? '#2a2a2a' : '#ffffff',
+      borderWidth: 1,
+      borderColor: isDark ? '#555' : '#ccc',
+      borderRadius: 6,
+      maxHeight: 150,
+      zIndex: 1000
+    },
+    dropdownItem: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#333' : '#e5e5e5'
+    },
+    dropdownItemText: {
+      fontSize: 14,
+      color: isDark ? '#ffffff' : '#000000'
+    },
+    addButton: {
+      backgroundColor: '#22c55e',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 6,
+      marginTop: 8,
+      alignSelf: 'flex-start'
+    },
+    addButtonText: {
+      color: '#ffffff',
+      fontSize: 14,
+      fontWeight: '600'
+    },
+    transactionList: {
+      marginTop: 16
+    },
+    transactionItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 8,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#333' : '#e5e5e5'
+    },
+    transactionInfo: {
+      flex: 1
+    },
+    transactionDate: {
+      fontSize: 12,
+      color: isDark ? '#888' : '#666'
+    },
+    transactionDetails: {
+      fontSize: 14,
+      color: isDark ? '#ffffff' : '#000000',
+      marginTop: 2
+    },
+    deleteButton: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      backgroundColor: '#ef4444',
+      borderRadius: 4
+    },
+    deleteButtonText: {
+      color: '#ffffff',
+      fontSize: 12
+    }
+  });
 
   return (
-    <View style={[
-      { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
-      isDark ? { backgroundColor: '#121820' } : null
-    ]}>
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#e6edf3' }}>🛡️ Подушка безопасности</Text>
-      <Text style={{ fontSize: 14, color: '#9fb0c0', marginBottom: 16 }}>
-        Резерв на случай непредвиденных расходов
-      </Text>
-
-      {/* Emergency fund settings */}
-      <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Месячные расходы ($)</Text>
-          <TextInput 
-            style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' }} 
-            value={String(monthlyExpenses)} 
-            onChangeText={(t) => onMonthlyExpensesChange(Number(t) || 0)} 
-            keyboardType="numeric" 
-          />
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Текущий резерв ($)</Text>
-          <TextInput 
-            style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' }} 
-            value={String(cashReserve)} 
-            onChangeText={(t) => onCashReserveChange(Number(t) || 0)} 
-            keyboardType="numeric" 
-          />
-        </View>
-      </View>
+    <View style={styles.container}>
+      <Text style={styles.title}>Резервный фонд</Text>
       
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 8 }}>
-        <View style={[
-          { borderRadius: 20, paddingHorizontal: 12, paddingVertical: 4 },
-          emergencyMonths >= 6 ? { backgroundColor: '#28a745' } : { backgroundColor: '#ffc107' }
-        ]}>
-          <Text style={[
-            { fontSize: 13, fontWeight: '600' },
-            emergencyMonths >= 6 ? { color: '#fff' } : { color: '#000' }
-          ]}>
-            {emergencyMonths.toFixed(1)} мес.
-          </Text>
-        </View>
-        <Text style={{ fontSize: 13, color: '#666' }}>Цель: 6 месяцев</Text>
-      </View>
-      
-      {emergencyMonths < 6 && (
-        <Text style={{ fontSize: 12, color: '#666', marginTop: 6, fontStyle: 'italic' }}>
-          Рекомендация: доведите резерв до {formatCurrency(monthlyExpenses * 6)} ({(6 - emergencyMonths).toFixed(1)} мес. до цели)
-        </Text>
-      )}
-
-      {/* Add transaction form */}
-      <View style={{ marginTop: 16 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Добавить транзакцию</Text>
-        
-        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Тип</Text>
-            <View style={{ flexDirection: 'row', gap: 6 }}>
-              <Pressable
-                style={[
-                  { flex: 1, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6, backgroundColor: '#1b2430', alignItems: 'center' },
-                  newEmergencyTx.type === 'deposit' ? { backgroundColor: '#1f6feb' } : null
-                ]}
-                onPress={() => onNewEmergencyTxChange({ ...newEmergencyTx, type: 'deposit' })}
-              >
-                <Text style={[
-                  { fontSize: 12, color: '#9fb0c0' },
-                  newEmergencyTx.type === 'deposit' ? { color: '#fff', fontWeight: '600' } : null
-                ]}>
-                  Пополнение
-                </Text>
-              </Pressable>
-              <Pressable
-                style={[
-                  { flex: 1, paddingVertical: 8, paddingHorizontal: 10, borderRadius: 6, backgroundColor: '#1b2430', alignItems: 'center' },
-                  newEmergencyTx.type === 'withdraw' ? { backgroundColor: '#1f6feb' } : null
-                ]}
-                onPress={() => onNewEmergencyTxChange({ ...newEmergencyTx, type: 'withdraw' })}
-              >
-                <Text style={[
-                  { fontSize: 12, color: '#9fb0c0' },
-                  newEmergencyTx.type === 'withdraw' ? { color: '#fff', fontWeight: '600' } : null
-                ]}>
-                  Изъятие
-                </Text>
-              </Pressable>
-            </View>
-          </View>
-          
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Сумма</Text>
+      <View style={styles.statRow}>
+        <Text style={styles.statLabel}>Текущий резерв:</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {editingReserve ? (
             <TextInput
-              style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' }}
-              value={newEmergencyTx.amount}
-              onChangeText={(text) => onNewEmergencyTxChange({ ...newEmergencyTx, amount: text })}
-              placeholder="0"
+              style={styles.input}
+              value={tempReserve}
+              onChangeText={setTempReserve}
+              onBlur={handleReserveSave}
               keyboardType="numeric"
+              autoFocus
             />
-          </View>
+          ) : (
+            <Text style={styles.statValue}>
+              {formatCurrencyCustom(cashReserve, 'USD')}
+            </Text>
+          )}
+          <Pressable style={styles.editButton} onPress={editingReserve ? handleReserveSave : handleReserveEdit}>
+            <Text style={styles.editButtonText}>
+              {editingReserve ? '✓' : '✏️'}
+            </Text>
+          </Pressable>
         </View>
+      </View>
 
-        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Место хранения</Text>
-            <View style={{ position: 'relative' }}>
-              <TextInput
-                style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' }}
-                value={newEmergencyTx.location}
-                onChangeText={(text) => onNewEmergencyTxChange({ ...newEmergencyTx, location: text })}
-                placeholder="Например: Банк, Наличные"
-                onFocus={() => onShowEmergencyLocationDropdown(true)}
-              />
-              
-              {showEmergencyLocationDropdown && (
-                <View style={{ position: 'absolute', top: 48, left: 0, right: 0, maxHeight: 200, borderWidth: 1, borderColor: '#1f2a36', backgroundColor: '#0f1520', borderRadius: 8, zIndex: 50, opacity: 1 }}>
-                  {emergencyLocations.length === 0 ? (
-                    <Text style={{ color: '#9fb0c0', fontSize: 12, padding: 10 }}>Нет совпадений</Text>
-                  ) : (
-                    <View style={{ maxHeight: 200 }}>
-                      {emergencyLocations.map(location => (
-                        <Pressable
-                          key={location}
-                          style={{ paddingHorizontal: 10, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: '#1f2a36' }}
-                          onPress={() => {
-                            onNewEmergencyTxChange({ ...newEmergencyTx, location });
-                            onShowEmergencyLocationDropdown(false);
-                          }}
-                        >
-                          <Text style={{ color: '#e6edf3', fontSize: 14 }}>{location}</Text>
-                        </Pressable>
-                      ))}
-                    </View>
-                  )}
-                </View>
-              )}
-            </View>
-          </View>
-          
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Валюта</Text>
+      <View style={styles.statRow}>
+        <Text style={styles.statLabel}>Месячные расходы:</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          {editingExpenses ? (
             <TextInput
-              style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' }}
-              value={newEmergencyTx.currency}
-              onChangeText={(text) => onNewEmergencyTxChange({ ...newEmergencyTx, currency: text })}
-              placeholder="USD"
+              style={styles.input}
+              value={tempExpenses}
+              onChangeText={setTempExpenses}
+              onBlur={handleExpensesSave}
+              keyboardType="numeric"
+              autoFocus
             />
+          ) : (
+            <Text style={styles.statValue}>
+              {formatCurrencyCustom(monthlyExpenses, 'USD')}
+            </Text>
+          )}
+          <Pressable style={styles.editButton} onPress={editingExpenses ? handleExpensesSave : handleExpensesEdit}>
+            <Text style={styles.editButtonText}>
+              {editingExpenses ? '✓' : '✏️'}
+            </Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.statRow}>
+        <Text style={styles.statLabel}>Месяцев на резерв:</Text>
+        <Text style={[styles.statValue, { color: emergencyMonths >= 6 ? '#22c55e' : emergencyMonths >= 3 ? '#f59e0b' : '#ef4444' }]}>
+          {emergencyMonths.toFixed(1)}
+        </Text>
+      </View>
+
+      <View style={styles.transactionForm}>
+        <Text style={styles.formTitle}>Новая операция</Text>
+        
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Тип:</Text>
+          <View style={{ flex: 1, flexDirection: 'row' }}>
+            <Pressable
+              style={[
+                { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6, marginRight: 4 },
+                newEmergencyTx.type === 'deposit' ? { backgroundColor: '#22c55e' } : { backgroundColor: isDark ? '#333' : '#f0f0f0' }
+              ]}
+              onPress={() => onNewEmergencyTxChange({ ...newEmergencyTx, type: 'deposit' })}
+            >
+              <Text style={[styles.formLabel, { color: newEmergencyTx.type === 'deposit' ? '#ffffff' : (isDark ? '#cccccc' : '#666666') }]}>
+                Пополнение
+              </Text>
+            </Pressable>
+            <Pressable
+              style={[
+                { flex: 1, paddingVertical: 8, alignItems: 'center', borderRadius: 6, marginLeft: 4 },
+                newEmergencyTx.type === 'withdraw' ? { backgroundColor: '#ef4444' } : { backgroundColor: isDark ? '#333' : '#f0f0f0' }
+              ]}
+              onPress={() => onNewEmergencyTxChange({ ...newEmergencyTx, type: 'withdraw' })}
+            >
+              <Text style={[styles.formLabel, { color: newEmergencyTx.type === 'withdraw' ? '#ffffff' : (isDark ? '#cccccc' : '#666666') }]}>
+                Снятие
+              </Text>
+            </Pressable>
           </View>
         </View>
 
-        <View style={{ marginBottom: 12 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Примечание</Text>
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Сумма:</Text>
           <TextInput
-            style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3', height: 80, textAlignVertical: 'top' }}
-            value={newEmergencyTx.note}
-            onChangeText={(text) => onNewEmergencyTxChange({ ...newEmergencyTx, note: text })}
-            placeholder="Опционально"
-            multiline
+            style={styles.formInput}
+            value={newEmergencyTx.amount}
+            onChangeText={(value) => onNewEmergencyTxChange({ ...newEmergencyTx, amount: value })}
+            placeholder="0"
+            keyboardType="numeric"
           />
         </View>
 
-        <Pressable
-          style={{ backgroundColor: '#10b981', borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 8 }}
-          onPress={onAddEmergencyTransaction}
-        >
-          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Добавить транзакцию</Text>
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Валюта:</Text>
+          <TextInput
+            style={styles.formInput}
+            value={newEmergencyTx.currency}
+            onChangeText={(value) => onNewEmergencyTxChange({ ...newEmergencyTx, currency: value })}
+            placeholder="USD"
+          />
+        </View>
+
+        <View style={[styles.formRow, { position: 'relative' }]}>
+          <Text style={styles.formLabel}>Место:</Text>
+          <TextInput
+            style={styles.formInput}
+            value={newEmergencyTx.location}
+            onChangeText={(value) => onNewEmergencyTxChange({ ...newEmergencyTx, location: value })}
+            onFocus={() => onShowLocationDropdown(true)}
+            placeholder="Выберите место"
+          />
+          {showLocationDropdown && (
+            <ScrollView style={styles.dropdown}>
+              {emergencyLocations.map((location, index) => (
+                <Pressable
+                  key={index}
+                  style={styles.dropdownItem}
+                  onPress={() => onLocationSelect(location, newEmergencyTx.currency)}
+                >
+                  <Text style={styles.dropdownItemText}>{location}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          )}
+        </View>
+
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Заметка:</Text>
+          <TextInput
+            style={styles.formInput}
+            value={newEmergencyTx.note}
+            onChangeText={(value) => onNewEmergencyTxChange({ ...newEmergencyTx, note: value })}
+            placeholder="Опционально"
+          />
+        </View>
+
+        <Pressable style={styles.addButton} onPress={onAddEmergencyTransaction}>
+          <Text style={styles.addButtonText}>Добавить операцию</Text>
         </Pressable>
       </View>
 
-      {/* Transaction history */}
       {emergencyTx.length > 0 && (
-        <View style={{ marginTop: 16 }}>
-          <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#9fb0c0' }}>История транзакций</Text>
-          <View style={{ maxHeight: 200 }}>
-            {emergencyTx.map(tx => (
-              <View key={tx.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: '#1f2a36' }}>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: 12, color: '#e6edf3' }}>
-                    {tx.date}: {tx.type === 'deposit' ? 'Пополнение' : 'Изъятие'} {formatCurrencyCustom(tx.amount, tx.currency)}
-                  </Text>
-                  <Text style={{ fontSize: 11, color: '#9fb0c0' }}>
-                    {tx.location} {tx.note ? `— ${tx.note}` : ''}
-                  </Text>
-                </View>
-                <Pressable 
-                  style={{ backgroundColor: '#dc3545', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}
-                  onPress={() => onDeleteEmergencyTx(tx.id)}
-                >
-                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>×</Text>
-                </Pressable>
+        <View style={styles.transactionList}>
+          <Text style={styles.formTitle}>История операций</Text>
+          {emergencyTx.slice(-5).reverse().map((tx) => (
+            <View key={tx.id} style={styles.transactionItem}>
+              <View style={styles.transactionInfo}>
+                <Text style={styles.transactionDate}>{tx.date}</Text>
+                <Text style={styles.transactionDetails}>
+                  {tx.type === 'deposit' ? '+' : '-'}{formatCurrencyCustom(tx.amount, tx.currency)} - {tx.location}
+                </Text>
+                {tx.note && (
+                  <Text style={[styles.transactionDate, { marginTop: 2 }]}>{tx.note}</Text>
+                )}
               </View>
-            ))}
-          </View>
+              <Pressable
+                style={styles.deleteButton}
+                onPress={() => onDeleteEmergencyTx(tx.id)}
+              >
+                <Text style={styles.deleteButtonText}>Удалить</Text>
+              </Pressable>
+            </View>
+          ))}
         </View>
       )}
     </View>

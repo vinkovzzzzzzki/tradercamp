@@ -1,6 +1,8 @@
 // Journal feature component - exact reproduction of original trading journal functionality
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { exportTradesToCSV, downloadCSV, generateFilename } from '../../services/export';
+import { formatCurrencyCustom } from '../../services/format';
 import type { User } from '../../state/types';
 
 interface JournalProps {
@@ -23,6 +25,31 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
     notes: ''
   });
   const [trades, setTrades] = useState<any[]>([]);
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    asset: '',
+    market: '',
+    style: '',
+    side: '',
+    dateFrom: '',
+    dateTo: '',
+    status: ''
+  });
+  
+  // Filtered trades
+  const filteredTrades = useMemo(() => {
+    return trades.filter(trade => {
+      if (filters.asset && !trade.asset.toLowerCase().includes(filters.asset.toLowerCase())) return false;
+      if (filters.market && trade.market !== filters.market) return false;
+      if (filters.style && trade.style !== filters.style) return false;
+      if (filters.side && trade.side !== filters.side) return false;
+      if (filters.status && trade.status !== filters.status) return false;
+      if (filters.dateFrom && trade.date < filters.dateFrom) return false;
+      if (filters.dateTo && trade.date > filters.dateTo) return false;
+      return true;
+    });
+  }, [trades, filters]);
 
   const addTrade = () => {
     if (!currentUser) return;
@@ -51,6 +78,28 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
 
   const deleteTrade = (id: number) => {
     setTrades(prev => prev.filter(t => t.id !== id));
+  };
+
+  const exportToCSV = () => {
+    const csvContent = exportTradesToCSV(filteredTrades);
+    const filename = generateFilename('trading_journal');
+    downloadCSV(csvContent, filename);
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      asset: '',
+      market: '',
+      style: '',
+      side: '',
+      dateFrom: '',
+      dateTo: '',
+      status: ''
+    });
+  };
+
+  const getUniqueValues = (field: string) => {
+    return [...new Set(trades.map(trade => trade[field]))].filter(Boolean);
   };
 
   return (
@@ -246,17 +295,95 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
 
       {journalView === 'list' && (
         <View style={[styles.card, isDark ? styles.cardDark : null]}>
-          <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
-            📊 История сделок
-          </Text>
+          <View style={styles.listHeader}>
+            <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
+              📊 История сделок ({filteredTrades.length})
+            </Text>
+            <Pressable style={styles.exportButton} onPress={exportToCSV}>
+              <Text style={styles.exportButtonText}>📥 Экспорт CSV</Text>
+            </Pressable>
+          </View>
+
+          {/* Filters */}
+          <View style={styles.filtersContainer}>
+            <View style={styles.filterRow}>
+              <TextInput
+                style={[styles.filterInput, isDark ? styles.filterInputDark : null]}
+                value={filters.asset}
+                onChangeText={(text) => setFilters(prev => ({ ...prev, asset: text }))}
+                placeholder="Фильтр по активу"
+              />
+              <TextInput
+                style={[styles.filterInput, isDark ? styles.filterInputDark : null]}
+                value={filters.dateFrom}
+                onChangeText={(text) => setFilters(prev => ({ ...prev, dateFrom: text }))}
+                placeholder="Дата от (YYYY-MM-DD)"
+              />
+              <TextInput
+                style={[styles.filterInput, isDark ? styles.filterInputDark : null]}
+                value={filters.dateTo}
+                onChangeText={(text) => setFilters(prev => ({ ...prev, dateTo: text }))}
+                placeholder="Дата до (YYYY-MM-DD)"
+              />
+            </View>
+            <View style={styles.filterRow}>
+              <View style={styles.pickerContainer}>
+                <Text style={[styles.filterLabel, isDark ? styles.filterLabelDark : null]}>Рынок:</Text>
+                {['', ...getUniqueValues('market')].map(market => (
+                  <Pressable
+                    key={market || 'all'}
+                    style={[
+                      styles.filterOption,
+                      isDark ? styles.filterOptionDark : null,
+                      filters.market === market ? styles.filterOptionActive : null
+                    ]}
+                    onPress={() => setFilters(prev => ({ ...prev, market }))}
+                  >
+                    <Text style={[
+                      styles.filterOptionText,
+                      isDark ? styles.filterOptionTextDark : null,
+                      filters.market === market ? styles.filterOptionTextActive : null
+                    ]}>
+                      {market || 'Все'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <View style={styles.pickerContainer}>
+                <Text style={[styles.filterLabel, isDark ? styles.filterLabelDark : null]}>Стиль:</Text>
+                {['', ...getUniqueValues('style')].map(style => (
+                  <Pressable
+                    key={style || 'all'}
+                    style={[
+                      styles.filterOption,
+                      isDark ? styles.filterOptionDark : null,
+                      filters.style === style ? styles.filterOptionActive : null
+                    ]}
+                    onPress={() => setFilters(prev => ({ ...prev, style }))}
+                  >
+                    <Text style={[
+                      styles.filterOptionText,
+                      isDark ? styles.filterOptionTextDark : null,
+                      filters.style === style ? styles.filterOptionTextActive : null
+                    ]}>
+                      {style || 'Все'}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable style={styles.clearFiltersButton} onPress={clearFilters}>
+                <Text style={styles.clearFiltersButtonText}>Очистить фильтры</Text>
+              </Pressable>
+            </View>
+          </View>
           
-          {trades.length === 0 ? (
+          {filteredTrades.length === 0 ? (
             <Text style={[styles.noteText, isDark ? styles.noteTextDark : null]}>
-              Пока нет сделок
+              {trades.length === 0 ? 'Пока нет сделок' : 'Нет сделок, соответствующих фильтрам'}
             </Text>
           ) : (
             <ScrollView style={styles.tradesList}>
-              {trades.map(trade => (
+              {filteredTrades.map(trade => (
                 <View key={trade.id} style={[styles.tradeItem, isDark ? styles.tradeItemDark : null]}>
                   <View style={styles.tradeHeader}>
                     <Text style={[styles.tradeAsset, isDark ? styles.tradeAssetDark : null]}>
@@ -523,6 +650,100 @@ const styles = StyleSheet.create({
   deleteButtonText: {
     color: '#ffffff',
     fontSize: 12,
+    fontWeight: '600',
+  },
+  // New styles for filters and export
+  listHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  exportButton: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  exportButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  filtersContainer: {
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e5e7eb',
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+    alignItems: 'center',
+  },
+  filterInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    fontSize: 12,
+    color: '#1f2937',
+    backgroundColor: '#ffffff',
+  },
+  filterInputDark: {
+    borderColor: '#374151',
+    backgroundColor: '#1f2937',
+    color: '#e6edf3',
+  },
+  filterLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#374151',
+    marginRight: 4,
+  },
+  filterLabelDark: {
+    color: '#d1d5db',
+  },
+  filterOption: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    marginRight: 4,
+  },
+  filterOptionDark: {
+    backgroundColor: '#374151',
+    borderColor: '#4b5563',
+  },
+  filterOptionActive: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
+  },
+  filterOptionText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  filterOptionTextDark: {
+    color: '#d1d5db',
+  },
+  filterOptionTextActive: {
+    color: '#ffffff',
+  },
+  clearFiltersButton: {
+    backgroundColor: '#6b7280',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  clearFiltersButtonText: {
+    color: '#ffffff',
+    fontSize: 11,
     fontWeight: '600',
   },
 });

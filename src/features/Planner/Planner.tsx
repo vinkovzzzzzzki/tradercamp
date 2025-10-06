@@ -1,6 +1,13 @@
 // Planner feature component - exact reproduction of original functionality
-import React, { useState } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
+import { 
+  scheduleWorkoutReminder, 
+  scheduleEventReminder, 
+  cancelNotification,
+  requestNotificationPermissions,
+  areNotificationsEnabled
+} from '../../services/notifications';
 import type { User } from '../../state/types';
 
 interface PlannerProps {
@@ -27,8 +34,18 @@ const Planner: React.FC<PlannerProps> = ({ currentUser, isDark }) => {
   });
   const [workouts, setWorkouts] = useState<any[]>([]);
   const [events, setEvents] = useState<any[]>([]);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
-  const addWorkout = () => {
+  // Check notification permissions on component mount
+  useEffect(() => {
+    const checkNotifications = async () => {
+      const enabled = await areNotificationsEnabled();
+      setNotificationsEnabled(enabled);
+    };
+    checkNotifications();
+  }, []);
+
+  const addWorkout = async () => {
     if (!currentUser || !newWorkout.type) return;
 
     const workout = {
@@ -36,6 +53,14 @@ const Planner: React.FC<PlannerProps> = ({ currentUser, isDark }) => {
       userId: currentUser.id,
       ...newWorkout
     };
+
+    // Schedule notification if enabled
+    if (notificationsEnabled && newWorkout.remindBefore > 0) {
+      const notificationId = await scheduleWorkoutReminder(workout);
+      if (notificationId) {
+        workout.notificationId = notificationId;
+      }
+    }
 
     setWorkouts(prev => [workout, ...prev]);
     setNewWorkout({
@@ -47,7 +72,7 @@ const Planner: React.FC<PlannerProps> = ({ currentUser, isDark }) => {
     });
   };
 
-  const addEvent = () => {
+  const addEvent = async () => {
     if (!currentUser || !newEvent.title) return;
 
     const event = {
@@ -55,6 +80,14 @@ const Planner: React.FC<PlannerProps> = ({ currentUser, isDark }) => {
       userId: currentUser.id,
       ...newEvent
     };
+
+    // Schedule notification if enabled
+    if (notificationsEnabled && newEvent.remindBefore > 0) {
+      const notificationId = await scheduleEventReminder(event);
+      if (notificationId) {
+        event.notificationId = notificationId;
+      }
+    }
 
     setEvents(prev => [event, ...prev]);
     setNewEvent({
@@ -67,12 +100,30 @@ const Planner: React.FC<PlannerProps> = ({ currentUser, isDark }) => {
     });
   };
 
-  const deleteWorkout = (id: number) => {
+  const deleteWorkout = async (id: number) => {
+    const workout = workouts.find(w => w.id === id);
+    if (workout && workout.notificationId) {
+      await cancelNotification(workout.notificationId);
+    }
     setWorkouts(prev => prev.filter(w => w.id !== id));
   };
 
-  const deleteEvent = (id: number) => {
+  const deleteEvent = async (id: number) => {
+    const event = events.find(e => e.id === id);
+    if (event && event.notificationId) {
+      await cancelNotification(event.notificationId);
+    }
     setEvents(prev => prev.filter(e => e.id !== id));
+  };
+
+  const enableNotifications = async () => {
+    const granted = await requestNotificationPermissions();
+    if (granted) {
+      setNotificationsEnabled(true);
+      Alert.alert('Уведомления включены', 'Теперь вы будете получать напоминания о тренировках и событиях.');
+    } else {
+      Alert.alert('Ошибка', 'Не удалось получить разрешение на уведомления. Проверьте настройки приложения.');
+    }
   };
 
   return (
@@ -107,9 +158,21 @@ const Planner: React.FC<PlannerProps> = ({ currentUser, isDark }) => {
 
       {calendarView === 'workouts' && (
         <View style={[styles.card, isDark ? styles.cardDark : null]}>
-          <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
-            🏃‍♂️ Планировщик тренировок
-          </Text>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
+              🏃‍♂️ Планировщик тренировок
+            </Text>
+            {!notificationsEnabled && (
+              <Pressable style={styles.notificationButton} onPress={enableNotifications}>
+                <Text style={styles.notificationButtonText}>🔔 Включить уведомления</Text>
+              </Pressable>
+            )}
+            {notificationsEnabled && (
+              <Text style={[styles.notificationStatus, isDark ? styles.notificationStatusDark : null]}>
+                🔔 Уведомления включены
+              </Text>
+            )}
+          </View>
           {!currentUser && (
             <Text style={[styles.noteText, isDark ? styles.noteTextDark : null]}>
               Войдите, чтобы планировать тренировки
@@ -218,9 +281,21 @@ const Planner: React.FC<PlannerProps> = ({ currentUser, isDark }) => {
 
       {calendarView === 'events' && (
         <View style={[styles.card, isDark ? styles.cardDark : null]}>
-          <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
-            📅 Планировщик событий
-          </Text>
+          <View style={styles.cardHeader}>
+            <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
+              📅 Планировщик событий
+            </Text>
+            {!notificationsEnabled && (
+              <Pressable style={styles.notificationButton} onPress={enableNotifications}>
+                <Text style={styles.notificationButtonText}>🔔 Включить уведомления</Text>
+              </Pressable>
+            )}
+            {notificationsEnabled && (
+              <Text style={[styles.notificationStatus, isDark ? styles.notificationStatusDark : null]}>
+                🔔 Уведомления включены
+              </Text>
+            )}
+          </View>
           {!currentUser && (
             <Text style={[styles.noteText, isDark ? styles.noteTextDark : null]}>
               Войдите, чтобы планировать события
@@ -545,6 +620,32 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 12,
     fontWeight: '600',
+  },
+  // New styles for notifications
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  notificationButton: {
+    backgroundColor: '#3b82f6',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+  },
+  notificationButtonText: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  notificationStatus: {
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '600',
+  },
+  notificationStatusDark: {
+    color: '#34d399',
   },
 });
 

@@ -72,7 +72,8 @@ const App: React.FC = () => {
     deleteDebt,
     repayDebt,
     resetAllFinancialData,
-    getComprehensiveChartData
+    getComprehensiveChartData,
+    logout
   } = useAppState();
 
   // Animation refs
@@ -139,8 +140,7 @@ const App: React.FC = () => {
   };
 
   const handleLogout = () => {
-    // Logout logic will be implemented here
-    console.log('Logout clicked');
+    logout();
   };
 
   return (

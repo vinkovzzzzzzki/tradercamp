@@ -1,32 +1,29 @@
-// Debts component - exact reproduction of current debts structure
-import React from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+// Debts component - exact reproduction of original debt management logic
+import React, { useState } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { formatCurrencyCustom, parseNumberSafe } from '../../services/format';
 import type { Debt } from '../../state/types';
-import { formatCurrencyCustom } from '../../services/format';
-import { calculateTotalDebt } from '../../services/calc';
 
 interface DebtsProps {
-  currentUser: any;
-  isDark: boolean;
-  debts: Debt[];
-  totalDebt: number;
+  sortedDebts: Debt[];
   newDebt: any;
   repayDrafts: Record<number, string>;
+  totalDebt: number;
+  isDark: boolean;
   onNewDebtChange: (debt: any) => void;
   onAddDebt: () => void;
   onRepayDraftChange: (debtId: number, amount: string) => void;
-  onRepayDebt: (debtId: number) => void;
+  onRepayDebt: (debtId: number, amount: number) => void;
   onDeleteDebt: (debtId: number) => void;
   onDeleteDebtTx: (debtId: number, txId: number) => void;
 }
 
 const Debts: React.FC<DebtsProps> = ({
-  currentUser,
-  isDark,
-  debts,
-  totalDebt,
+  sortedDebts,
   newDebt,
   repayDrafts,
+  totalDebt,
+  isDark,
   onNewDebtChange,
   onAddDebt,
   onRepayDraftChange,
@@ -34,140 +31,248 @@ const Debts: React.FC<DebtsProps> = ({
   onDeleteDebt,
   onDeleteDebtTx
 }) => {
-  if (!currentUser) {
-    return (
-      <View style={[
-        { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
-        isDark ? { backgroundColor: '#121820' } : null
-      ]}>
-        <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#e6edf3' }}>💳 Долги</Text>
-        <Text style={{ fontSize: 12, color: '#9fb0c0', fontStyle: 'italic' }}>
-          Войдите или зарегистрируйтесь, чтобы управлять долгами
-        </Text>
-      </View>
-    );
-  }
+  const styles = StyleSheet.create({
+    container: {
+      backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 16,
+      borderWidth: 1,
+      borderColor: isDark ? '#333' : '#e5e5e5'
+    },
+    title: {
+      fontSize: 18,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : '#000000',
+      marginBottom: 16
+    },
+    totalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 16,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#333' : '#e5e5e5'
+    },
+    totalLabel: {
+      fontSize: 16,
+      color: isDark ? '#cccccc' : '#666666'
+    },
+    totalValue: {
+      fontSize: 20,
+      fontWeight: '700',
+      color: '#ef4444'
+    },
+    debtItem: {
+      marginBottom: 16,
+      padding: 12,
+      backgroundColor: isDark ? '#2a2a2a' : '#f8f8f8',
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: isDark ? '#444' : '#e0e0e0'
+    },
+    debtHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 8
+    },
+    debtName: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : '#000000'
+    },
+    debtAmount: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: '#ef4444'
+    },
+    repaySection: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 8
+    },
+    repayInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: isDark ? '#555' : '#ccc',
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      fontSize: 14,
+      color: isDark ? '#ffffff' : '#000000',
+      backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
+      marginRight: 8
+    },
+    repayButton: {
+      backgroundColor: '#22c55e',
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 6
+    },
+    repayButtonText: {
+      color: '#ffffff',
+      fontSize: 14,
+      fontWeight: '600'
+    },
+    deleteDebtButton: {
+      backgroundColor: '#ef4444',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 4,
+      alignSelf: 'flex-start'
+    },
+    deleteDebtButtonText: {
+      color: '#ffffff',
+      fontSize: 12
+    },
+    transactionList: {
+      marginTop: 8
+    },
+    transactionItem: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingVertical: 4,
+      borderBottomWidth: 1,
+      borderBottomColor: isDark ? '#333' : '#e5e5e5'
+    },
+    transactionInfo: {
+      flex: 1
+    },
+    transactionDate: {
+      fontSize: 12,
+      color: isDark ? '#888' : '#666'
+    },
+    transactionDetails: {
+      fontSize: 14,
+      color: isDark ? '#ffffff' : '#000000',
+      marginTop: 2
+    },
+    deleteTxButton: {
+      paddingHorizontal: 6,
+      paddingVertical: 2,
+      backgroundColor: '#ef4444',
+      borderRadius: 3
+    },
+    deleteTxButtonText: {
+      color: '#ffffff',
+      fontSize: 10
+    },
+    addDebtForm: {
+      marginTop: 16,
+      paddingTop: 16,
+      borderTopWidth: 1,
+      borderTopColor: isDark ? '#333' : '#e5e5e5'
+    },
+    formTitle: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: isDark ? '#ffffff' : '#000000',
+      marginBottom: 12
+    },
+    formRow: {
+      flexDirection: 'row',
+      marginBottom: 8,
+      alignItems: 'center'
+    },
+    formLabel: {
+      fontSize: 14,
+      color: isDark ? '#cccccc' : '#666666',
+      width: 80,
+      marginRight: 8
+    },
+    formInput: {
+      flex: 1,
+      borderWidth: 1,
+      borderColor: isDark ? '#555' : '#ccc',
+      borderRadius: 6,
+      paddingHorizontal: 8,
+      paddingVertical: 6,
+      fontSize: 14,
+      color: isDark ? '#ffffff' : '#000000',
+      backgroundColor: isDark ? '#2a2a2a' : '#ffffff'
+    },
+    addButton: {
+      backgroundColor: '#ef4444',
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 6,
+      marginTop: 8,
+      alignSelf: 'flex-start'
+    },
+    addButtonText: {
+      color: '#ffffff',
+      fontSize: 14,
+      fontWeight: '600'
+    }
+  });
 
   return (
-    <View style={[
-      { backgroundColor: '#121820', borderRadius: 12, padding: 20, marginBottom: 20, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.15, shadowRadius: 6, elevation: 3 },
-      isDark ? { backgroundColor: '#121820' } : null
-    ]}>
-      <Text style={{ fontSize: 18, fontWeight: 'bold', marginBottom: 8, color: '#e6edf3' }}>💳 Долги</Text>
-      <Text style={{ fontSize: 14, color: '#9fb0c0', marginBottom: 16 }}>
-        Общая сумма долгов: {formatCurrencyCustom(totalDebt, 'USD')}
-      </Text>
-
-      {/* Add new debt form */}
-      <View style={{ marginBottom: 16 }}>
-        <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Добавить долг</Text>
-        
-        <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Название</Text>
-            <TextInput
-              style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' }}
-              value={newDebt.name}
-              onChangeText={(text) => onNewDebtChange({ ...newDebt, name: text })}
-              placeholder="Например: Кредитная карта"
-            />
-          </View>
-          
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Сумма</Text>
-            <TextInput
-              style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' }}
-              value={newDebt.amount}
-              onChangeText={(text) => onNewDebtChange({ ...newDebt, amount: text })}
-              placeholder="0"
-              keyboardType="numeric"
-            />
-          </View>
-          
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#e6edf3' }}>Валюта</Text>
-            <TextInput
-              style={{ borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 10, fontSize: 15, backgroundColor: '#0f1520', color: '#e6edf3' }}
-              value={newDebt.currency}
-              onChangeText={(text) => onNewDebtChange({ ...newDebt, currency: text })}
-              placeholder="USD"
-            />
-          </View>
-        </View>
-
-        <Pressable
-          style={{ backgroundColor: '#10b981', borderRadius: 8, padding: 12, alignItems: 'center', marginTop: 8 }}
-          onPress={onAddDebt}
-        >
-          <Text style={{ color: '#fff', fontSize: 15, fontWeight: '600' }}>Добавить долг</Text>
-        </Pressable>
+    <View style={styles.container}>
+      <Text style={styles.title}>Долги</Text>
+      
+      <View style={styles.totalRow}>
+        <Text style={styles.totalLabel}>Общий долг:</Text>
+        <Text style={styles.totalValue}>
+          {formatCurrencyCustom(totalDebt, 'USD')}
+        </Text>
       </View>
 
-      {/* Current debts */}
-      {debts.length > 0 && (
-        <View>
-          <Text style={{ fontSize: 13, fontWeight: '600', marginBottom: 6, color: '#9fb0c0' }}>Текущие долги</Text>
-          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-            {debts.map(debt => (
-              <View key={debt.id} style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 16, backgroundColor: '#1b2430' }}>
-                <Text style={{ fontSize: 12, color: '#9fb0c0' }}>
-                  {debt.name} • {formatCurrencyCustom(debt.amount, debt.currency)}
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-      )}
-
-      {/* Debt management */}
-      {debts.map(debt => (
-        <View key={debt.id} style={{ marginBottom: 16, borderWidth: 1, borderColor: '#1f2a36', borderRadius: 8, padding: 12 }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-            <Text style={{ fontSize: 15, fontWeight: 'bold', color: '#e6edf3' }}>{debt.name}</Text>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Text style={{ fontSize: 14, color: '#e6edf3' }}>
-                {formatCurrencyCustom(debt.amount, debt.currency)}
-              </Text>
-              <Pressable 
-                style={{ backgroundColor: '#dc3545', borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center' }}
-                onPress={() => onDeleteDebt(debt.id)}
-              >
-                <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>×</Text>
-              </Pressable>
-            </View>
+      {sortedDebts.map((debt) => (
+        <View key={debt.id} style={styles.debtItem}>
+          <View style={styles.debtHeader}>
+            <Text style={styles.debtName}>{debt.name}</Text>
+            <Text style={styles.debtAmount}>
+              {formatCurrencyCustom(debt.amount, debt.currency)}
+            </Text>
           </View>
 
-          {/* Repay form */}
-          <View style={{ flexDirection: 'row', gap: 8, marginBottom: 8 }}>
+          <View style={styles.repaySection}>
             <TextInput
-              style={{ flex: 1, borderWidth: 1, borderColor: '#1f2a36', borderRadius: 6, padding: 8, fontSize: 14, backgroundColor: '#0f1520', color: '#e6edf3' }}
+              style={styles.repayInput}
               value={repayDrafts[debt.id] || ''}
-              onChangeText={(text) => onRepayDraftChange(debt.id, text)}
+              onChangeText={(value) => onRepayDraftChange(debt.id, value)}
               placeholder="Сумма погашения"
               keyboardType="numeric"
             />
             <Pressable
-              style={{ backgroundColor: '#1f6feb', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 6 }}
-              onPress={() => onRepayDebt(debt.id)}
+              style={styles.repayButton}
+              onPress={() => {
+                const amount = parseNumberSafe(repayDrafts[debt.id] || '0');
+                if (!isNaN(amount) && amount > 0) {
+                  onRepayDebt(debt.id, amount);
+                }
+              }}
             >
-              <Text style={{ color: '#fff', fontSize: 12, fontWeight: '600' }}>Погасить</Text>
+              <Text style={styles.repayButtonText}>Погасить</Text>
             </Pressable>
           </View>
 
-          {/* Transaction history */}
-          {debt.history && debt.history.length > 0 && (
-            <View style={{ marginTop: 8 }}>
-              <Text style={{ fontSize: 12, color: '#9fb0c0', marginBottom: 4 }}>История</Text>
-              {debt.history.map(tx => (
-                <View key={tx.id} style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-                  <Text style={{ fontSize: 11, color: '#e6edf3' }}>
-                    • {tx.date}: {tx.type === 'add' ? 'Создание' : tx.type === 'repay' ? 'Погашение' : 'Закрытие'} {formatCurrencyCustom(tx.amount, debt.currency)} {tx.note ? `— ${tx.note}` : ''}
-                  </Text>
-                  <Pressable 
-                    style={{ backgroundColor: '#dc3545', borderRadius: 10, width: 20, height: 20, alignItems: 'center', justifyContent: 'center' }}
+          <Pressable
+            style={styles.deleteDebtButton}
+            onPress={() => onDeleteDebt(debt.id)}
+          >
+            <Text style={styles.deleteDebtButtonText}>Удалить долг</Text>
+          </Pressable>
+
+          {debt.tx.length > 0 && (
+            <View style={styles.transactionList}>
+              <Text style={[styles.formLabel, { marginBottom: 4 }]}>История:</Text>
+              {debt.tx.slice(-3).reverse().map((tx) => (
+                <View key={tx.id} style={styles.transactionItem}>
+                  <View style={styles.transactionInfo}>
+                    <Text style={styles.transactionDate}>{tx.date}</Text>
+                    <Text style={styles.transactionDetails}>
+                      {tx.type === 'add' ? '+' : '-'}{formatCurrencyCustom(tx.amount, debt.currency)} - {tx.note}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.deleteTxButton}
                     onPress={() => onDeleteDebtTx(debt.id, tx.id)}
                   >
-                    <Text style={{ color: '#fff', fontSize: 16, fontWeight: 'bold' }}>×</Text>
+                    <Text style={styles.deleteTxButtonText}>×</Text>
                   </Pressable>
                 </View>
               ))}
@@ -175,6 +280,45 @@ const Debts: React.FC<DebtsProps> = ({
           )}
         </View>
       ))}
+
+      <View style={styles.addDebtForm}>
+        <Text style={styles.formTitle}>Добавить долг</Text>
+        
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Название:</Text>
+          <TextInput
+            style={styles.formInput}
+            value={newDebt.name}
+            onChangeText={(value) => onNewDebtChange({ ...newDebt, name: value })}
+            placeholder="Название долга"
+          />
+        </View>
+
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Сумма:</Text>
+          <TextInput
+            style={styles.formInput}
+            value={newDebt.amount}
+            onChangeText={(value) => onNewDebtChange({ ...newDebt, amount: value })}
+            placeholder="0"
+            keyboardType="numeric"
+          />
+        </View>
+
+        <View style={styles.formRow}>
+          <Text style={styles.formLabel}>Валюта:</Text>
+          <TextInput
+            style={styles.formInput}
+            value={newDebt.currency}
+            onChangeText={(value) => onNewDebtChange({ ...newDebt, currency: value })}
+            placeholder="USD"
+          />
+        </View>
+
+        <Pressable style={styles.addButton} onPress={onAddDebt}>
+          <Text style={styles.addButtonText}>Добавить долг</Text>
+        </Pressable>
+      </View>
     </View>
   );
 };

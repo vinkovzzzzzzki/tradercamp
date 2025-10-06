@@ -4,6 +4,22 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { Animated } from 'react-native';
 import { storage, STORAGE_KEYS } from '../../services/persist';
+import { 
+  calculateEmergencyMonths, 
+  calculateInvestmentBalance, 
+  calculateTotalDebt,
+  generateComprehensiveChartData 
+} from '../../services/calc';
+import { 
+  signUp, 
+  signIn, 
+  signOut, 
+  getCurrentSession,
+  getUserProfile,
+  updateUserProfile,
+  resetPassword,
+  onAuthStateChange
+} from '../../services/auth';
 import type { 
   TabType, 
   ProfileTabType, 
@@ -228,6 +244,15 @@ export const useAppState = () => {
     return list.reduce((sum, it) => sum + (it.type === 'in' ? it.amount : -it.amount), 0);
   }, [currentFinance]);
   
+  // Use services for calculations
+  const emergencyMonths = useMemo(() => {
+    return calculateEmergencyMonths(cashReserve, monthlyExpenses);
+  }, [cashReserve, monthlyExpenses]);
+  
+  const totalDebt = useMemo(() => {
+    return calculateTotalDebt(debtsHistory);
+  }, [debtsHistory]);
+  
   // Business logic functions
   const addEmergencyTransaction = () => {
     if (!currentUser || !newEmergencyTx.amount || !newEmergencyTx.currency || !newEmergencyTx.location) return;
@@ -342,34 +367,121 @@ export const useAppState = () => {
     setMonthlyExpenses(0);
   };
   
-  const getComprehensiveChartData = () => {
-    // Simple chart data for now
-    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'];
-    const emergencyData = cushionHistory.length > 0 ? cushionHistory.map(d => d.value) : [0, 0, 0, 0, 0, 0];
-    const investmentData = investmentHistory.length > 0 ? investmentHistory.map(d => d.value) : [0, 0, 0, 0, 0, 0];
-    const debtData = debtsHistory.length > 0 ? debtsHistory.map(d => d.value) : [0, 0, 0, 0, 0, 0];
-    
-    return {
-      labels,
-      datasets: [
-        {
-          data: emergencyData,
-          color: (opacity = 1) => `rgba(34, 197, 94, ${opacity})`,
-          strokeWidth: 2
-        },
-        {
-          data: investmentData,
-          color: (opacity = 1) => `rgba(59, 130, 246, ${opacity})`,
-          strokeWidth: 2
-        },
-        {
-          data: debtData,
-          color: (opacity = 1) => `rgba(239, 68, 68, ${opacity})`,
-          strokeWidth: 2
-        }
-      ]
-    };
+  const getComprehensiveChartData = (timePeriod: '1M' | '3M' | '6M' | '1Y' | 'ALL' = 'ALL') => {
+    return generateComprehensiveChartData(
+      cushionHistory,
+      investmentHistory,
+      debtsHistory,
+      timePeriod
+    );
   };
+  
+  // Auth helpers
+  const logout = async () => {
+    try {
+      const result = await signOut();
+      if (result.success) {
+        setSupaAuth(null);
+        setToast({ msg: 'Вы вышли из аккаунта', kind: 'info' } as any);
+        setTab('finance');
+        setOpenDropdown(null);
+      } else {
+        setToast({ msg: result.error || 'Ошибка выхода', kind: 'error' } as any);
+      }
+    } catch (error) {
+      setToast({ msg: 'Ошибка выхода', kind: 'error' } as any);
+    }
+  };
+
+  const handleSignIn = async () => {
+    if (!authEmail || !authPassword) {
+      setToast({ msg: 'Заполните все поля', kind: 'error' } as any);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await signIn(authEmail, authPassword);
+      if (result.success && result.auth) {
+        setSupaAuth(result.auth);
+        setToast({ msg: 'Успешный вход', kind: 'success' } as any);
+        setAuthEmail('');
+        setAuthPassword('');
+      } else {
+        setToast({ msg: result.error || 'Ошибка входа', kind: 'error' } as any);
+      }
+    } catch (error) {
+      setToast({ msg: 'Ошибка входа', kind: 'error' } as any);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSignUp = async () => {
+    if (!authEmail || !authPassword) {
+      setToast({ msg: 'Заполните все поля', kind: 'error' } as any);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await signUp(authEmail, authPassword);
+      if (result.success) {
+        setToast({ msg: 'Регистрация успешна. Проверьте email для подтверждения.', kind: 'success' } as any);
+        setAuthEmail('');
+        setAuthPassword('');
+        setAuthMode('login');
+      } else {
+        setToast({ msg: result.error || 'Ошибка регистрации', kind: 'error' } as any);
+      }
+    } catch (error) {
+      setToast({ msg: 'Ошибка регистрации', kind: 'error' } as any);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!authEmail) {
+      setToast({ msg: 'Введите email', kind: 'error' } as any);
+      return;
+    }
+
+    setIsLoading(true);
+    try {
+      const result = await resetPassword(authEmail);
+      if (result.success) {
+        setToast({ msg: 'Ссылка для сброса пароля отправлена на email', kind: 'success' } as any);
+      } else {
+        setToast({ msg: result.error || 'Ошибка сброса пароля', kind: 'error' } as any);
+      }
+    } catch (error) {
+      setToast({ msg: 'Ошибка сброса пароля', kind: 'error' } as any);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Initialize auth state on mount
+  useEffect(() => {
+    const initializeAuth = async () => {
+      const result = await getCurrentSession();
+      if (result.success && result.auth) {
+        setSupaAuth(result.auth);
+      }
+    };
+
+    initializeAuth();
+
+    // Listen to auth state changes
+    const { data: { subscription } } = onAuthStateChange((auth) => {
+      setSupaAuth(auth);
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
   
   return {
     // Navigation
@@ -385,6 +497,9 @@ export const useAppState = () => {
     authPassword, setAuthPassword,
     isLoading, setIsLoading,
     passwordStrength, setPasswordStrength,
+    handleSignIn,
+    handleSignUp,
+    handleResetPassword,
     
     // Theme and UI
     appTheme, setAppTheme,
@@ -451,6 +566,7 @@ export const useAppState = () => {
   currentFinance,
   emergencyMonths,
   investmentBalance,
+  totalDebt,
   
     // Additional states for Dashboard
     newEmergencyTx, setNewEmergencyTx,
@@ -475,6 +591,7 @@ export const useAppState = () => {
     deleteDebt,
     repayDebt,
     resetAllFinancialData,
-    getComprehensiveChartData
+    getComprehensiveChartData,
+    logout
   };
 };

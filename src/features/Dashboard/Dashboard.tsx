@@ -1,7 +1,7 @@
 // Dashboard feature component - exact reproduction of current finance tab structure
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { SummaryBalance } from '../../components/finance';
+import { SummaryBalance, SafetyFund, Investments, Debts } from '../../components/finance';
 import type {
   User,
   ChartVisibility,
@@ -262,30 +262,53 @@ const Dashboard: React.FC<DashboardProps> = ({
         formatCurrencyCustom={formatCurrencyCustom}
       />
       
-      {/* Additional financial components will be added here */}
-      <View style={[styles.card, isDark ? styles.cardDark : null]}>
-        <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
-          💼 Финансовый обзор
-        </Text>
-        <Text style={[styles.text, isDark ? styles.darkText : null]}>
-          Добро пожаловать, {currentUser?.nickname || 'Гость'}!
-        </Text>
-        <Text style={[styles.text, isDark ? styles.darkText : null]}>
-          Текущий баланс: {formatCurrencyCustom(cashReserve, 'USD')}
-        </Text>
-        <Text style={[styles.text, isDark ? styles.darkText : null]}>
-          Инвестиции: {formatCurrencyCustom(investmentBalance, 'USD')}
-        </Text>
-        <Text style={[styles.text, isDark ? styles.darkText : null]}>
-          Месячные расходы: {formatCurrencyCustom(monthlyExpenses, 'USD')}
-        </Text>
-        <Text style={[styles.text, isDark ? styles.darkText : null]}>
-          Месяцев резерва: {emergencyMonths.toFixed(2)}
-        </Text>
-        <Text style={[styles.text, isDark ? styles.darkText : null]}>
-          Долги: {sortedDebts.length}
-        </Text>
-      </View>
+      {/* Financial management components */}
+      <SafetyFund
+        cashReserve={cashReserve}
+        monthlyExpenses={monthlyExpenses}
+        emergencyMonths={emergencyMonths}
+        emergencyTx={emergencyTx}
+        newEmergencyTx={newEmergencyTx}
+        showLocationDropdown={showEmergencyLocationDropdown}
+        emergencyLocations={emergencyLocations}
+        isDark={isDark}
+        onCashReserveChange={onCashReserveChange}
+        onMonthlyExpensesChange={onMonthlyExpensesChange}
+        onNewEmergencyTxChange={onNewEmergencyTxChange}
+        onAddEmergencyTransaction={onAddEmergencyTransaction}
+        onShowLocationDropdown={onShowEmergencyLocationDropdown}
+        onLocationSelect={onEmergencyLocationSelect}
+        onDeleteEmergencyTx={onDeleteEmergencyTx}
+      />
+
+      <Investments
+        investmentBalance={investmentBalance}
+        investTx={investTx}
+        investHoldings={investHoldings}
+        newInvestTx={newInvestTx}
+        showDestinationDropdown={showInvestDestinationDropdown}
+        investDestinations={investDestinations}
+        isDark={isDark}
+        onNewInvestTxChange={onNewInvestTxChange}
+        onAddInvestmentTransaction={onAddInvestmentTransaction}
+        onShowDestinationDropdown={onShowInvestDestinationDropdown}
+        onDestinationSelect={onInvestDestinationSelect}
+        onDeleteInvestTx={onDeleteInvestTx}
+      />
+
+      <Debts
+        sortedDebts={sortedDebts}
+        newDebt={newDebt}
+        repayDrafts={repayDrafts}
+        totalDebt={totalDebt}
+        isDark={isDark}
+        onNewDebtChange={onNewDebtChange}
+        onAddDebt={onAddDebt}
+        onRepayDraftChange={onRepayDraftChange}
+        onRepayDebt={onRepayDebt}
+        onDeleteDebt={onDeleteDebt}
+        onDeleteDebtTx={onDeleteDebtTx}
+      />
     </View>
   );
 };
