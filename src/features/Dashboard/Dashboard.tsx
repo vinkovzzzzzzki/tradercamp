@@ -115,21 +115,22 @@ const Dashboard: React.FC<DashboardProps> = ({
   });
 
   // Format currency function
-  const formatCurrencyCustom = (value: number, currency: string) => {
-    const num = Number(value);
-    const cur = (currency || '').toString().trim();
-    if (!Number.isFinite(num)) return `0,0${cur ? ' ' + cur : ''}`;
-    const sign = num < 0 ? '-' : '';
-    const abs = Math.abs(num);
-    const fixed = abs.toFixed(10);
-    const parts = fixed.split('.');
-    const intPart = parts[0] || '0';
-    let fracPart = parts[1] || '';
-    while (fracPart.endsWith('0')) fracPart = fracPart.slice(0, -1);
-    if (fracPart.length === 0) fracPart = '0';
-    const intWithSpaces = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-    return `${sign}${intWithSpaces},${fracPart}${cur ? ' ' + cur : ''}`;
-  };
+      // Local utility intentionally named differently to avoid clashing with services export
+      const formatCurrencyLocal = (value: number, currency: string) => {
+        const num = Number(value);
+        const cur = (currency || '').toString().trim();
+        if (!Number.isFinite(num)) return `0,0${cur ? ' ' + cur : ''}`;
+        const sign = num < 0 ? '-' : '';
+        const abs = Math.abs(num);
+        const fixed = abs.toFixed(10);
+        const parts = fixed.split('.');
+        const intPart = parts[0] || '0';
+        let fracPart = parts[1] || '';
+        while (fracPart.endsWith('0')) fracPart = fracPart.slice(0, -1);
+        if (fracPart.length === 0) fracPart = '0';
+        const intWithSpaces = intPart.replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+        return `${sign}${intWithSpaces},${fracPart}${cur ? ' ' + cur : ''}`;
+      };
 
   // Chart mouse move handler
   const handleChartMouseMove = (event: any) => {
@@ -259,7 +260,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         onResetAllFinancialData={onResetAllFinancialData}
         getComprehensiveChartData={getComprehensiveChartData}
         getChartStatistics={getChartStatistics}
-        formatCurrencyCustom={formatCurrencyCustom}
+            formatCurrencyCustom={formatCurrencyLocal}
       />
       
       {/* Financial management components */}
