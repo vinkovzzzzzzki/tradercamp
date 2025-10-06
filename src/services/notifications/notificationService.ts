@@ -179,11 +179,11 @@ export async function areNotificationsEnabled(): Promise<boolean> {
 }
 
 // Get notification settings
-export async function getNotificationSettings(): Promise<Notifications.NotificationPermissionsStatus> {
+export async function getNotificationSettings(): Promise<Notifications.NotificationPermissionsStatus | null> {
   try {
     return await Notifications.getPermissionsAsync();
   } catch (error) {
     console.error('Error getting notification settings:', error);
-    return { status: 'undetermined', canAskAgain: false, expires: 'never' };
+    return null;
   }
 }

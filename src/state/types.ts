@@ -2,7 +2,7 @@
 // Exact reproduction of current state structure
 
 export interface User {
-  id: string;
+  id: string | number;
   nickname: string;
   bio: string;
   avatar: string;
