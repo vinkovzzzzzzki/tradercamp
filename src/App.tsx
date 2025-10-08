@@ -173,7 +173,7 @@ const App: React.FC = () => {
         if (!isHoveringDropdown.current && !isHoveringTab.current) {
           setOpenDropdown(null);
         }
-      }, 150);
+      }, 300);
     }
   };
   
@@ -189,7 +189,7 @@ const App: React.FC = () => {
     isHoveringDropdown.current = false;
     hoverTimeout.current = setTimeout(() => {
       setOpenDropdown(null);
-    }, 150);
+    }, 300);
   };
 
   const handleLogout = () => {

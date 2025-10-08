@@ -140,7 +140,7 @@ const Header: React.FC<HeaderProps> = ({
       
       {/* Static navigation tabs with dropdowns */}
       <View style={[
-        { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 10, overflow: 'visible' },
+        { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 150, overflow: 'visible' },
         isDark ? { backgroundColor: '#1b2430' } : null
       ]}>
         {tabs.map(({ key, label, dropdown }) => (
@@ -176,6 +176,7 @@ const Header: React.FC<HeaderProps> = ({
                     styles.dropdownAbsolute,
                     isDark ? styles.dropdownDark : null
                   ],
+                  pointerEvents: 'auto',
                   onMouseEnter: onDropdownEnter,
                   onMouseLeave: onDropdownLeave,
                 } as any)}
@@ -183,11 +184,13 @@ const Header: React.FC<HeaderProps> = ({
                 {dropdown.map((item, index) => (
                   <Pressable
                     key={index}
-                    style={({ pressed }) => [
+                    style={({ pressed, hovered }: any) => [
                       styles.dropdownItem,
-                      pressed && { backgroundColor: '#374151' }
+                      (pressed || hovered) && { backgroundColor: '#374151' }
                     ]}
                     onPress={item.action}
+                    onHoverIn={() => {}}
+                    onHoverOut={() => {}}
                   >
                     <Text style={[
                       styles.dropdownText,
@@ -277,6 +280,7 @@ const styles = StyleSheet.create({
     top: '100%',
     left: 0,
     right: 0,
+    minWidth: 150,
     backgroundColor: '#1a202c',
     borderRadius: 8,
     padding: 4,
@@ -285,7 +289,7 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 10,
+    elevation: 999,
     zIndex: 999999,
   },
   dropdownDark: {
