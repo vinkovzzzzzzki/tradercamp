@@ -57,39 +57,36 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
     <View style={[styles.card, isDark ? styles.cardDark : null]}>
       <View style={styles.compactSummaryHeader}>
         <Text style={styles.cardTitle}>💰 Сводный баланс</Text>
-        {currentUser && (
-          <View style={styles.compactToggles}>
-            <Pressable 
-              style={[styles.compactToggle, chartVisibility.cushion ? styles.compactToggleActive : null]} 
-              onPress={() => setChartVisibilitySafe(v => ({ ...v, cushion: !v.cushion }))}
-            >
-              <Text style={[styles.compactToggleText, chartVisibility.cushion ? styles.compactToggleTextActive : null]}>Подушка</Text>
-            </Pressable>
-            <Pressable 
-              style={[styles.compactToggle, chartVisibility.investments ? styles.compactToggleActive : null]} 
-              onPress={() => setChartVisibilitySafe(v => ({ ...v, investments: !v.investments }))}
-            >
-              <Text style={[styles.compactToggleText, chartVisibility.investments ? styles.compactToggleTextActive : null]}>Инвестиции</Text>
-            </Pressable>
-            <Pressable 
-              style={[styles.compactToggle, chartVisibility.debts ? styles.compactToggleActive : null]} 
-              onPress={() => setChartVisibilitySafe(v => ({ ...v, debts: !v.debts }))}
-            >
-              <Text style={[styles.compactToggleText, chartVisibility.debts ? styles.compactToggleTextActive : null]}>Долги</Text>
-            </Pressable>
-            <Pressable 
-              style={[styles.compactToggle, chartVisibility.total ? styles.compactToggleActive : null]} 
-              onPress={() => setChartVisibilitySafe(v => ({ ...v, total: !v.total }))}
-            >
-              <Text style={[styles.compactToggleText, chartVisibility.total ? styles.compactToggleTextActive : null]}>Итого</Text>
-            </Pressable>
-          </View>
-        )}
+        <View style={styles.compactToggles}>
+          <Pressable 
+            style={[styles.compactToggle, chartVisibility.cushion ? styles.compactToggleActive : null]} 
+            onPress={() => setChartVisibilitySafe(v => ({ ...v, cushion: !v.cushion }))}
+          >
+            <Text style={[styles.compactToggleText, chartVisibility.cushion ? styles.compactToggleTextActive : null]}>Подушка</Text>
+          </Pressable>
+          <Pressable 
+            style={[styles.compactToggle, chartVisibility.investments ? styles.compactToggleActive : null]} 
+            onPress={() => setChartVisibilitySafe(v => ({ ...v, investments: !v.investments }))}
+          >
+            <Text style={[styles.compactToggleText, chartVisibility.investments ? styles.compactToggleTextActive : null]}>Инвестиции</Text>
+          </Pressable>
+          <Pressable 
+            style={[styles.compactToggle, chartVisibility.debts ? styles.compactToggleActive : null]} 
+            onPress={() => setChartVisibilitySafe(v => ({ ...v, debts: !v.debts }))}
+          >
+            <Text style={[styles.compactToggleText, chartVisibility.debts ? styles.compactToggleTextActive : null]}>Долги</Text>
+          </Pressable>
+          <Pressable 
+            style={[styles.compactToggle, chartVisibility.total ? styles.compactToggleActive : null]} 
+            onPress={() => setChartVisibilitySafe(v => ({ ...v, total: !v.total }))}
+          >
+            <Text style={[styles.compactToggleText, chartVisibility.total ? styles.compactToggleTextActive : null]}>Итого</Text>
+          </Pressable>
+        </View>
       </View>
       
-      {currentUser ? (
-        <>
-          {(() => {
+      <>
+        {(() => {
             const totalDebt = (sortedDebts || []).reduce((s, d) => s + (d.amount || 0), 0);
             const cushion = cashReserve;
             const invest = investmentBalance;
@@ -281,10 +278,7 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
               </View>
             );
           })()}
-        </>
-      ) : (
-        <Text style={styles.noteText}>Войдите, чтобы видеть сводку</Text>
-      )}
+      </>
     </View>
   );
 };
