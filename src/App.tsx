@@ -161,7 +161,6 @@ const App: React.FC = () => {
     if (dropdownTabs.includes(tabKey)) {
       // Mark that we're no longer hovering over tab
       isHoveringTab.current = false;
-      isHoveringDropdown.current = false;
       
       // Clear any existing timeout
       if (hoverTimeout.current) {
@@ -169,10 +168,28 @@ const App: React.FC = () => {
       }
       
       // Set a new timeout to close the dropdown
+      // Only close if not hovering over dropdown
       hoverTimeout.current = setTimeout(() => {
-        setOpenDropdown(null);
-      }, 200);
+        if (!isHoveringDropdown.current && !isHoveringTab.current) {
+          setOpenDropdown(null);
+        }
+      }, 300);
     }
+  };
+  
+  const handleDropdownEnter = () => {
+    isHoveringDropdown.current = true;
+    if (hoverTimeout.current) {
+      clearTimeout(hoverTimeout.current);
+      hoverTimeout.current = null;
+    }
+  };
+  
+  const handleDropdownLeave = () => {
+    isHoveringDropdown.current = false;
+    hoverTimeout.current = setTimeout(() => {
+      setOpenDropdown(null);
+    }, 200);
   };
 
   const handleLogout = () => {
@@ -194,6 +211,8 @@ const App: React.FC = () => {
         onTabClick={handleTabClick}
         onTabHover={handleTabHover}
         onTabLeave={handleTabLeave}
+        onDropdownEnter={handleDropdownEnter}
+        onDropdownLeave={handleDropdownLeave}
         onLogout={handleLogout}
         onFinanceViewChange={setFinanceView}
         onJournalViewChange={setJournalView}

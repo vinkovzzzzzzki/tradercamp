@@ -12,6 +12,8 @@ interface HeaderProps {
   onTabClick: (tab: TabType) => void;
   onTabHover: (tab: TabType) => void;
   onTabLeave: (tab: TabType) => void;
+  onDropdownEnter: () => void;
+  onDropdownLeave: () => void;
   onLogout: () => void;
   onFinanceViewChange?: (view: FinanceViewType) => void;
   onJournalViewChange?: (view: JournalViewType) => void;
@@ -29,6 +31,8 @@ const Header: React.FC<HeaderProps> = ({
   onTabClick,
   onTabHover,
   onTabLeave,
+  onDropdownEnter,
+  onDropdownLeave,
   onLogout,
   onFinanceViewChange,
   onJournalViewChange,
@@ -145,14 +149,14 @@ const Header: React.FC<HeaderProps> = ({
                   styles.dropdown,
                   isDark ? styles.dropdownDark : null
                 ]}
+                onMouseEnter={onDropdownEnter}
+                onMouseLeave={onDropdownLeave}
               >
                 {dropdown.map((item, index) => (
                   <Pressable
                     key={index}
                     style={styles.dropdownItem}
                     onPress={item.action}
-                    onHoverIn={() => onTabHover(key)}
-                    onHoverOut={() => onTabLeave(key)}
                   >
                     <Text style={[
                       styles.dropdownText,
