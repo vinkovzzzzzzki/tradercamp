@@ -102,7 +102,7 @@ export const useAppState = () => {
   });
   
   // Views
-  const [financeView, setFinanceView] = useState<FinanceViewType>(null);
+  const [financeView, setFinanceView] = useState<FinanceViewType>('summary');
   const [journalView, setJournalView] = useState<JournalViewType>(null);
   const [calendarView, setCalendarView] = useState<CalendarViewType>(null);
   const [chartTimePeriod, setChartTimePeriod] = useState<ChartTimePeriodType>('days');

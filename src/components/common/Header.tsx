@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, Image, Pressable, Animated, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
-import type { TabType, User } from '../../state/types';
+import type { TabType, User, FinanceViewType, JournalViewType, CalendarViewType } from '../../state/types';
 
 interface HeaderProps {
   tab: TabType;
@@ -13,6 +13,9 @@ interface HeaderProps {
   onTabHover: (tab: TabType) => void;
   onTabLeave: (tab: TabType) => void;
   onLogout: () => void;
+  onFinanceViewChange?: (view: FinanceViewType) => void;
+  onJournalViewChange?: (view: JournalViewType) => void;
+  onPlannerViewChange?: (view: CalendarViewType) => void;
   tabAnimation: Animated.Value;
   dropdownAnimations: Record<string, Animated.Value>;
   buttonAnimations: Record<string, Animated.Value>;
@@ -27,6 +30,9 @@ const Header: React.FC<HeaderProps> = ({
   onTabHover,
   onTabLeave,
   onLogout,
+  onFinanceViewChange,
+  onJournalViewChange,
+  onPlannerViewChange,
   tabAnimation,
   dropdownAnimations,
   buttonAnimations
@@ -36,11 +42,10 @@ const Header: React.FC<HeaderProps> = ({
       key: 'finance' as TabType, 
       label: 'Финансы',
       dropdown: [
-        { label: 'Обзор', action: () => onTabClick('finance') },
-        { label: 'Резервный фонд', action: () => onTabClick('finance') },
-        { label: 'Инвестиции', action: () => onTabClick('finance') },
-        { label: 'Долги', action: () => onTabClick('finance') },
-        { label: 'Аналитика', action: () => onTabClick('finance') }
+        { label: 'Обзор', action: () => { onTabClick('finance'); onFinanceViewChange?.('summary'); } },
+        { label: 'Подушка безопасности', action: () => { onTabClick('finance'); onFinanceViewChange?.('fund'); } },
+        { label: 'Инвестиции', action: () => { onTabClick('finance'); onFinanceViewChange?.('invest'); } },
+        { label: 'Долги', action: () => { onTabClick('finance'); onFinanceViewChange?.('debts'); } }
       ]
     },
     { 

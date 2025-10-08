@@ -215,7 +215,7 @@ export interface ChartData {
 export type TabType = 'finance' | 'journal' | 'planner' | 'community' | 'profile';
 export type ProfileTabType = 'overview' | 'friends' | 'achievements' | 'settings';
 export type AuthModeType = 'login' | 'register';
-export type FinanceViewType = 'fund' | 'invest' | 'debts' | null;
+export type FinanceViewType = 'summary' | 'fund' | 'invest' | 'debts' | null;
 export type JournalViewType = 'new' | 'list' | null;
 export type CalendarViewType = 'news' | 'workouts' | 'events' | null;
 export type ChartTimePeriodType = 'days' | 'weeks' | 'months';

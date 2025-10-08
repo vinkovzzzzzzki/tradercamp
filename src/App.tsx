@@ -34,6 +34,12 @@ const App: React.FC = () => {
     dropdownAnimations,
     buttonAnimations,
     
+    // Views
+    financeView,
+    setFinanceView,
+    setJournalView,
+    setCalendarView,
+    
     // Finance
     chartVisibility,
     setChartVisibility,
@@ -184,6 +190,9 @@ const App: React.FC = () => {
         onTabHover={handleTabHover}
         onTabLeave={handleTabLeave}
         onLogout={handleLogout}
+        onFinanceViewChange={setFinanceView}
+        onJournalViewChange={setJournalView}
+        onPlannerViewChange={setCalendarView}
         tabAnimation={tabAnimation}
         dropdownAnimations={dropdownAnimations}
         buttonAnimations={buttonAnimations}
@@ -195,6 +204,7 @@ const App: React.FC = () => {
           <Dashboard
             currentUser={currentUser}
             isDark={isDark}
+            financeView={financeView || 'summary'}
             chartVisibility={chartVisibility}
             chartTimePeriod={chartTimePeriod}
             cashReserve={cashReserve}

@@ -1,7 +1,7 @@
 // Dashboard feature component - exact reproduction of current finance tab structure
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { SummaryBalance, SafetyFund, Investments, Debts, Transactions } from '../../components/finance';
+import { SummaryBalance, SafetyFund, Investments, Debts } from '../../components/finance';
 import type {
   User,
   ChartVisibility,
@@ -15,6 +15,7 @@ import type {
 interface DashboardProps {
   currentUser: User | null;
   isDark: boolean;
+  financeView: string;
   chartVisibility: ChartVisibility;
   chartTimePeriod: ChartTimePeriodType;
   cashReserve: number;
@@ -64,6 +65,7 @@ interface DashboardProps {
 const Dashboard: React.FC<DashboardProps> = ({
   currentUser,
   isDark,
+  financeView,
   chartVisibility,
   chartTimePeriod,
   cashReserve,
@@ -242,8 +244,9 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   return (
     <View style={[styles.container, isDark ? styles.darkContainer : null]}>
-      {/* Summary chart (compact vertical) */}
-      <SummaryBalance
+      {/* Show only summary view by default */}
+      {(!financeView || financeView === 'summary') && (
+        <SummaryBalance
         isDark={isDark}
         currentUser={currentUser}
         chartVisibility={chartVisibility}
@@ -263,10 +266,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         getComprehensiveChartData={getComprehensiveChartData}
         getChartStatistics={getChartStatistics}
             formatCurrencyCustom={formatCurrencyLocal}
-      />
+        />
+      )}
       
-      {/* Financial management components */}
-      <SafetyFund
+      {/* Safety Fund - show only when selected */}
+      {financeView === 'fund' && (
+        <SafetyFund
         cashReserve={cashReserve}
         monthlyExpenses={monthlyExpenses}
         emergencyMonths={emergencyMonths}
@@ -282,9 +287,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         onShowLocationDropdown={onShowEmergencyLocationDropdown}
         onLocationSelect={onEmergencyLocationSelect}
         onDeleteEmergencyTx={onDeleteEmergencyTx}
-      />
+        />
+      )}
 
-      <Investments
+      {/* Investments - show only when selected */}
+      {financeView === 'invest' && (
+        <Investments
         investmentBalance={investmentBalance}
         investTx={investTx}
         investHoldings={investHoldings}
@@ -297,9 +305,12 @@ const Dashboard: React.FC<DashboardProps> = ({
         onShowDestinationDropdown={onShowInvestDestinationDropdown}
         onDestinationSelect={onInvestDestinationSelect}
         onDeleteInvestTx={onDeleteInvestTx}
-      />
+        />
+      )}
 
-      <Debts
+      {/* Debts - show only when selected */}
+      {financeView === 'debts' && (
+        <Debts
         sortedDebts={sortedDebts}
         newDebt={newDebt}
         repayDrafts={repayDrafts}
@@ -311,14 +322,8 @@ const Dashboard: React.FC<DashboardProps> = ({
         onRepayDebt={onRepayDebt}
         onDeleteDebt={onDeleteDebt}
         onDeleteDebtTx={onDeleteDebtTx}
-      />
-
-      <Transactions
-        isDark={isDark}
-        emergencyTx={emergencyTx}
-        investTx={investTx}
-        debts={sortedDebts}
-      />
+        />
+      )}
     </View>
   );
 };
