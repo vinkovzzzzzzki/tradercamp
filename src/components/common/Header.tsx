@@ -1,5 +1,5 @@
-// Header component - exact reproduction of current header structure
-import React, { useRef, useEffect, useState } from 'react';
+// Header component - simple and reliable dropdown implementation
+import React from 'react';
 import { View, Text, Image, Pressable, Animated, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { TabType, User, FinanceViewType, JournalViewType, CalendarViewType } from '../../state/types';
@@ -10,10 +10,7 @@ interface HeaderProps {
   currentUser: User | null;
   isDark: boolean;
   onTabClick: (tab: TabType) => void;
-  onTabHover: (tab: TabType) => void;
-  onTabLeave: (tab: TabType) => void;
-  onDropdownEnter: () => void;
-  onDropdownLeave: () => void;
+  onOpenDropdown: (tab: string | null) => void;
   onLogout: () => void;
   onFinanceViewChange?: (view: FinanceViewType) => void;
   onJournalViewChange?: (view: JournalViewType) => void;
@@ -29,10 +26,7 @@ const Header: React.FC<HeaderProps> = ({
   currentUser,
   isDark,
   onTabClick,
-  onTabHover,
-  onTabLeave,
-  onDropdownEnter,
-  onDropdownLeave,
+  onOpenDropdown,
   onLogout,
   onFinanceViewChange,
   onJournalViewChange,
@@ -41,95 +35,75 @@ const Header: React.FC<HeaderProps> = ({
   dropdownAnimations,
   buttonAnimations
 }) => {
-  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
-  const buttonRefs = useRef<Record<string, any>>({});
-
   const tabs = [
     { 
       key: 'finance' as TabType, 
       label: 'Финансы',
       dropdown: [
-        { label: 'Обзор', action: () => { onTabClick('finance'); onFinanceViewChange?.('summary'); } },
-        { label: 'Подушка безопасности', action: () => { onTabClick('finance'); onFinanceViewChange?.('fund'); } },
-        { label: 'Инвестиции', action: () => { onTabClick('finance'); onFinanceViewChange?.('invest'); } },
-        { label: 'Долги', action: () => { onTabClick('finance'); onFinanceViewChange?.('debts'); } }
+        { label: 'Обзор', action: () => { onTabClick('finance'); onFinanceViewChange?.('summary'); onOpenDropdown(null); } },
+        { label: 'Подушка безопасности', action: () => { onTabClick('finance'); onFinanceViewChange?.('fund'); onOpenDropdown(null); } },
+        { label: 'Инвестиции', action: () => { onTabClick('finance'); onFinanceViewChange?.('invest'); onOpenDropdown(null); } },
+        { label: 'Долги', action: () => { onTabClick('finance'); onFinanceViewChange?.('debts'); onOpenDropdown(null); } }
       ]
     },
     { 
       key: 'journal' as TabType, 
       label: 'Дневник',
       dropdown: [
-        { label: 'Записи', action: () => onTabClick('journal') },
-        { label: 'Цели', action: () => onTabClick('journal') },
-        { label: 'Достижения', action: () => onTabClick('journal') },
-        { label: 'Рефлексия', action: () => onTabClick('journal') }
+        { label: 'Записи', action: () => { onTabClick('journal'); onOpenDropdown(null); } },
+        { label: 'Цели', action: () => { onTabClick('journal'); onOpenDropdown(null); } },
+        { label: 'Достижения', action: () => { onTabClick('journal'); onOpenDropdown(null); } },
+        { label: 'Рефлексия', action: () => { onTabClick('journal'); onOpenDropdown(null); } }
       ]
     },
     { 
       key: 'planner' as TabType, 
       label: 'Планер',
       dropdown: [
-        { label: 'Календарь', action: () => onTabClick('planner') },
-        { label: 'Задачи', action: () => onTabClick('planner') },
-        { label: 'Привычки', action: () => onTabClick('planner') },
-        { label: 'Планы', action: () => onTabClick('planner') }
+        { label: 'Календарь', action: () => { onTabClick('planner'); onOpenDropdown(null); } },
+        { label: 'Задачи', action: () => { onTabClick('planner'); onOpenDropdown(null); } },
+        { label: 'Привычки', action: () => { onTabClick('planner'); onOpenDropdown(null); } },
+        { label: 'Планы', action: () => { onTabClick('planner'); onOpenDropdown(null); } }
       ]
     },
     { 
       key: 'community' as TabType, 
       label: 'Сообщество',
       dropdown: [
-        { label: 'Лента', action: () => onTabClick('community') },
-        { label: 'Друзья', action: () => onTabClick('community') },
-        { label: 'Группы', action: () => onTabClick('community') },
-        { label: 'Чат', action: () => onTabClick('community') }
+        { label: 'Лента', action: () => { onTabClick('community'); onOpenDropdown(null); } },
+        { label: 'Друзья', action: () => { onTabClick('community'); onOpenDropdown(null); } },
+        { label: 'Группы', action: () => { onTabClick('community'); onOpenDropdown(null); } },
+        { label: 'Чат', action: () => { onTabClick('community'); onOpenDropdown(null); } }
       ]
     },
     { 
       key: 'profile' as TabType, 
       label: 'Профиль',
       dropdown: [
-        { label: 'Настройки', action: () => onTabClick('profile') },
-        { label: 'Статистика', action: () => onTabClick('profile') },
-        { label: 'Безопасность', action: () => onTabClick('profile') },
-        { label: 'Выйти', action: onLogout }
+        { label: 'Настройки', action: () => { onTabClick('profile'); onOpenDropdown(null); } },
+        { label: 'Статистика', action: () => { onTabClick('profile'); onOpenDropdown(null); } },
+        { label: 'Безопасность', action: () => { onTabClick('profile'); onOpenDropdown(null); } },
+        { label: 'Выйти', action: () => { onLogout(); onOpenDropdown(null); } }
       ]
     },
   ];
 
-  // Update dropdown position when it opens
-  useEffect(() => {
-    if (openDropdown && buttonRefs.current[openDropdown]) {
-      const button = buttonRefs.current[openDropdown];
-      if (button && button.measure) {
-        button.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
-          setDropdownPosition({
-            top: pageY + height,
-            left: pageX,
-            width: width
-          });
-        });
-      }
+  const handleButtonClick = (key: string) => {
+    if (openDropdown === key) {
+      onOpenDropdown(null); // Close if already open
+    } else {
+      onOpenDropdown(key); // Open dropdown
     }
-  }, [openDropdown]);
+  };
 
   return (
     <View style={[
       styles.header,
-      { overflow: 'visible' },
       isDark ? styles.headerDark : null
     ]}>
       <StatusBar style="dark" />
       
-      {/* Sticky top bar */}
-      <View style={[
-        styles.stickyTopBar,
-        isDark ? styles.stickyTopBarDark : null
-      ]}>
-        <View style={{ flex: 1 }} />
-      </View>
-      
-      {/* Static logo in header (does not scroll) */}
+      {/* Static logo in header */}
       <View style={{ alignItems: 'center', marginTop: 4 }}>
         <Image
           source={require('../../../assets/investcamp-logo.png')}
@@ -140,57 +114,44 @@ const Header: React.FC<HeaderProps> = ({
       
       {/* Static navigation tabs with dropdowns */}
       <View style={[
-        { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 150, overflow: 'visible' },
+        styles.tabsContainer,
         isDark ? { backgroundColor: '#1b2430' } : null
       ]}>
         {tabs.map(({ key, label, dropdown }) => (
           <View 
             key={key} 
-            style={{ flex: 1, position: 'relative', overflow: 'visible' }}
-            {...({
-              onMouseEnter: () => onTabHover(key),
-              onMouseLeave: () => onTabLeave(key),
-            } as any)}
+            style={styles.tabWrapper}
           >
+            {/* Tab button */}
             <Pressable 
-              ref={ref => buttonRefs.current[key] = ref}
               style={[
-                { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center' },
-                tab === key ? { backgroundColor: '#1f6feb' } : { backgroundColor: 'transparent' }
+                styles.tabButton,
+                tab === key ? styles.tabButtonActive : null
               ]} 
-              onPress={() => onTabClick(key)}
+              onPress={() => handleButtonClick(key)}
             >
               <Text style={[
-                { fontSize: 12, fontWeight: '600' },
-                tab === key ? { color: '#fff' } : { color: '#9fb0c0' }
+                styles.tabButtonText,
+                tab === key ? styles.tabButtonTextActive : null
               ]}>
                 {label}
               </Text>
             </Pressable>
             
-            {/* Dropdown menu - positioned absolutely relative to parent */}
+            {/* Dropdown menu */}
             {openDropdown === key && (
-              <View
-                {...({
-                  style: [
-                    styles.dropdownAbsolute,
-                    isDark ? styles.dropdownDark : null
-                  ],
-                  pointerEvents: 'auto',
-                  onMouseEnter: onDropdownEnter,
-                  onMouseLeave: onDropdownLeave,
-                } as any)}
-              >
+              <View style={[
+                styles.dropdown,
+                isDark ? styles.dropdownDark : null
+              ]}>
                 {dropdown.map((item, index) => (
                   <Pressable
                     key={index}
-                    style={({ pressed, hovered }: any) => [
+                    style={({ pressed }) => [
                       styles.dropdownItem,
-                      (pressed || hovered) && { backgroundColor: '#374151' }
+                      pressed && styles.dropdownItemPressed
                     ]}
                     onPress={item.action}
-                    onHoverIn={() => {}}
-                    onHoverOut={() => {}}
                   >
                     <Text style={[
                       styles.dropdownText,
@@ -234,20 +195,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#121820',
     borderBottomColor: '#1f2a36',
   },
-  stickyTopBar: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 8,
-  },
-  stickyTopBarDark: {
-    backgroundColor: '#121820',
-  },
   authStatus: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -275,31 +222,63 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 0,
   },
-  dropdownAbsolute: {
+  tabsContainer: {
+    flexDirection: 'row',
+    backgroundColor: '#1b2430',
+    borderRadius: 10,
+    padding: 4,
+    marginHorizontal: 20,
+    marginBottom: 180,
+  },
+  tabWrapper: {
+    flex: 1,
+    position: 'relative',
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: 'transparent',
+  },
+  tabButtonActive: {
+    backgroundColor: '#1f6feb',
+  },
+  tabButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#9fb0c0',
+  },
+  tabButtonTextActive: {
+    color: '#fff',
+  },
+  dropdown: {
     position: 'absolute',
     top: '100%',
     left: 0,
     right: 0,
-    minWidth: 150,
     backgroundColor: '#1a202c',
     borderRadius: 8,
     padding: 4,
-    marginTop: 0,
+    marginTop: 4,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 999,
-    zIndex: 999999,
+    elevation: 10,
+    zIndex: 10000,
   },
   dropdownDark: {
     backgroundColor: '#1a202c',
   },
   dropdownItem: {
-    paddingVertical: 8,
+    paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 6,
-    cursor: 'pointer',
+  },
+  dropdownItemPressed: {
+    backgroundColor: '#374151',
   },
   dropdownText: {
     fontSize: 12,

@@ -1,5 +1,5 @@
 // Main App component - exact reproduction of current app structure
-import React, { useRef, useEffect } from 'react';
+import React from 'react';
 import { View, Text, Animated, Platform, UIManager } from 'react-native';
 import { useAppState } from './state';
 import { Header, Toast } from './components/common';
@@ -99,20 +99,6 @@ const App: React.FC = () => {
     logout
   } = useAppState();
 
-  // Animation refs
-  const hoverTimeout = useRef<NodeJS.Timeout | null>(null);
-  const isHoveringDropdown = useRef(false);
-  const isHoveringTab = useRef(false);
-
-  // Cleanup timeout on unmount
-  useEffect(() => {
-    return () => {
-      if (hoverTimeout.current) {
-        clearTimeout(hoverTimeout.current);
-      }
-    };
-  }, []);
-
   // Animation functions
   const animateTabChange = (newTab: string) => {
     Animated.timing(tabAnimation, {
@@ -129,7 +115,6 @@ const App: React.FC = () => {
     
     animateTabChange(tabKey);
     setTab(tabKey as any);
-    setOpenDropdown(null);
     
     // Reset to default view when switching tabs
     if (tabKey === 'finance') {
@@ -137,59 +122,8 @@ const App: React.FC = () => {
     }
   };
 
-  const handleTabHover = (tabKey: string) => {
-    const dropdownTabs = ['finance', 'journal', 'planner', 'community', 'profile'];
-    
-    if (dropdownTabs.includes(tabKey)) {
-      // Clear any pending timeout
-      if (hoverTimeout.current) {
-        clearTimeout(hoverTimeout.current);
-        hoverTimeout.current = null;
-      }
-      
-      // Mark that we're hovering over tab
-      isHoveringTab.current = true;
-      
-      // Open dropdown for any dropdown tab, regardless of current active tab
-      setOpenDropdown(tabKey);
-    }
-  };
-
-  const handleTabLeave = (tabKey: string) => {
-    const dropdownTabs = ['finance', 'journal', 'planner', 'community', 'profile'];
-    
-    if (dropdownTabs.includes(tabKey)) {
-      // Mark that we're no longer hovering over tab
-      isHoveringTab.current = false;
-      
-      // Clear any existing timeout
-      if (hoverTimeout.current) {
-        clearTimeout(hoverTimeout.current);
-      }
-      
-      // Set a new timeout to close the dropdown
-      // Only close if not hovering over dropdown
-      hoverTimeout.current = setTimeout(() => {
-        if (!isHoveringDropdown.current && !isHoveringTab.current) {
-          setOpenDropdown(null);
-        }
-      }, 300);
-    }
-  };
-  
-  const handleDropdownEnter = () => {
-    isHoveringDropdown.current = true;
-    if (hoverTimeout.current) {
-      clearTimeout(hoverTimeout.current);
-      hoverTimeout.current = null;
-    }
-  };
-  
-  const handleDropdownLeave = () => {
-    isHoveringDropdown.current = false;
-    hoverTimeout.current = setTimeout(() => {
-      setOpenDropdown(null);
-    }, 300);
+  const handleOpenDropdown = (dropdown: string | null) => {
+    setOpenDropdown(dropdown);
   };
 
   const handleLogout = () => {
@@ -209,10 +143,7 @@ const App: React.FC = () => {
         currentUser={currentUser}
         isDark={isDark}
         onTabClick={handleTabClick}
-        onTabHover={handleTabHover}
-        onTabLeave={handleTabLeave}
-        onDropdownEnter={handleDropdownEnter}
-        onDropdownLeave={handleDropdownLeave}
+        onOpenDropdown={handleOpenDropdown}
         onLogout={handleLogout}
         onFinanceViewChange={setFinanceView}
         onJournalViewChange={setJournalView}
