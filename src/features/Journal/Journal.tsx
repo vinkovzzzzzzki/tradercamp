@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   viewSelector: {
     flexDirection: 'row',
     marginBottom: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1f2a36',
     borderRadius: 8,
     padding: 4,
   },
@@ -394,7 +394,7 @@ const styles = StyleSheet.create({
   viewButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#9fb0c0',
   },
   viewButtonTextActive: {
     color: '#ffffff',

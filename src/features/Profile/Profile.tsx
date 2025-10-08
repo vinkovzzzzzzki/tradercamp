@@ -333,7 +333,7 @@ const styles = StyleSheet.create({
   tabSelector: {
     flexDirection: 'row',
     marginBottom: 20,
-    backgroundColor: '#ffffff',
+    backgroundColor: '#1f2a36',
     borderRadius: 8,
     padding: 4,
   },
@@ -350,7 +350,7 @@ const styles = StyleSheet.create({
   tabButtonText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#9fb0c0',
   },
   tabButtonTextActive: {
     color: '#ffffff',
@@ -577,14 +577,14 @@ const styles = StyleSheet.create({
     borderColor: '#374151',
   },
   achievementEarned: {
-    backgroundColor: '#f0fdf4',
+    backgroundColor: '#1a3d2a',
     borderColor: '#22c55e',
   },
   achievementIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#374151',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,

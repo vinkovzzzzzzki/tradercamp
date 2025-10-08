@@ -487,7 +487,7 @@ const styles = StyleSheet.create({
   plannerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#1f2937',
+    color: '#e6edf3',
     marginRight: 8,
   },
   plannerTitleDark: {
@@ -495,18 +495,18 @@ const styles = StyleSheet.create({
   },
   navButton: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#374151',
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: '#fff',
+    backgroundColor: '#1f2a36',
   },
   navButtonDark: {
     borderColor: '#374151',
     backgroundColor: '#1f2937',
   },
   navButtonText: {
-    color: '#374151',
+    color: '#9fb0c0',
     fontWeight: '700',
   },
   navButtonTextDark: {
@@ -514,18 +514,18 @@ const styles = StyleSheet.create({
   },
   todayButton: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#374151',
     borderRadius: 6,
     paddingHorizontal: 10,
     paddingVertical: 6,
-    backgroundColor: '#fff',
+    backgroundColor: '#1f2a36',
   },
   todayButtonDark: {
     borderColor: '#374151',
     backgroundColor: '#1f2937',
   },
   todayText: {
-    color: '#374151',
+    color: '#9fb0c0',
     fontWeight: '600',
   },
   todayTextDark: {
@@ -535,7 +535,7 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 18,
     fontWeight: '700',
-    color: '#1f2937',
+    color: '#e6edf3',
   },
   monthLabelDark: {
     color: '#e6edf3',
@@ -546,8 +546,8 @@ const styles = StyleSheet.create({
   },
   viewModeBtn: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
-    backgroundColor: '#fff',
+    borderColor: '#374151',
+    backgroundColor: '#1f2a36',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
@@ -557,7 +557,7 @@ const styles = StyleSheet.create({
     borderColor: '#3b82f6',
   },
   viewModeText: {
-    color: '#374151',
+    color: '#9fb0c0',
     fontWeight: '600',
   },
   viewModeTextActive: {
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   weekday: {
     width: `${100 / 7}%`,
     textAlign: 'center',
-    color: '#6b7280',
+    color: '#9fb0c0',
     fontSize: 12,
     fontWeight: '600',
   },
@@ -621,8 +621,8 @@ const styles = StyleSheet.create({
     minHeight: 50,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
-    backgroundColor: '#f9fafb',
+    borderColor: '#374151',
+    backgroundColor: '#1f2a36',
     padding: 4,
     position: 'relative',
   },
@@ -631,11 +631,11 @@ const styles = StyleSheet.create({
   },
   dayCellSelected: {
     borderColor: '#3b82f6',
-    backgroundColor: '#eff6ff',
+    backgroundColor: '#1e3a5f',
     borderWidth: 2,
   },
   dayNum: {
-    color: '#1f2937',
+    color: '#e6edf3',
     fontWeight: '700',
     fontSize: 12,
   },
@@ -849,10 +849,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   cancelButton: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: '#374151',
   },
   cancelButtonText: {
-    color: '#374151',
+    color: '#e6edf3',
     fontSize: 14,
     fontWeight: '600',
   },

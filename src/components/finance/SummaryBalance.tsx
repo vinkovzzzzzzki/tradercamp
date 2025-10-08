@@ -311,7 +311,7 @@ const styles = StyleSheet.create({
   cardTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#e6edf3',
   },
   compactToggles: {
     flexDirection: 'row',
@@ -321,9 +321,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#1f2a36',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#374151',
   },
   compactToggleActive: {
     backgroundColor: '#3b82f6',
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
   compactToggleText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#9fb0c0',
   },
   compactToggleTextActive: {
     color: '#ffffff',
@@ -349,9 +349,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 6,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: '#1f2a36',
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#374151',
   },
   timePeriodButtonActive: {
     backgroundColor: '#3b82f6',
@@ -360,7 +360,7 @@ const styles = StyleSheet.create({
   timePeriodText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#6b7280',
+    color: '#9fb0c0',
   },
   timePeriodTextActive: {
     color: '#ffffff',
@@ -372,12 +372,12 @@ const styles = StyleSheet.create({
     height: 220,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#1f2a36',
     borderRadius: 12,
   },
   emptyChartText: {
     fontSize: 14,
-    color: '#6b7280',
+    color: '#9fb0c0',
     textAlign: 'center',
   },
   chartWrapper: {
@@ -453,18 +453,18 @@ const styles = StyleSheet.create({
   },
   legendText: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#9fb0c0',
   },
   chartStatistics: {
     marginTop: 16,
     padding: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#1f2a36',
     borderRadius: 8,
   },
   statisticsTitle: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#e6edf3',
     marginBottom: 12,
   },
   statisticsGrid: {
@@ -478,13 +478,13 @@ const styles = StyleSheet.create({
   },
   statisticLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: '#9fb0c0',
     marginBottom: 4,
   },
   statisticValue: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#1f2937',
+    color: '#e6edf3',
   },
   noteText: {
     fontSize: 14,

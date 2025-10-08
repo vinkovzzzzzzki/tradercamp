@@ -201,18 +201,18 @@ const styles = StyleSheet.create({
   },
   typeBtn: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: '#374151',
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
-    backgroundColor: '#fff',
+    backgroundColor: '#1f2a36',
   },
   typeBtnActive: {
     backgroundColor: '#3b82f6',
     borderColor: '#3b82f6',
   },
   typeText: {
-    color: '#374151',
+    color: '#9fb0c0',
     fontWeight: '600',
   },
   typeTextActive: {

@@ -89,7 +89,7 @@ const Header: React.FC<HeaderProps> = ({
       styles.header,
       isDark ? styles.headerDark : null
     ]}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       
       {/* Static logo in header */}
       <View style={{ alignItems: 'center', marginTop: 4 }}>
