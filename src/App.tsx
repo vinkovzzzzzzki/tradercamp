@@ -130,6 +130,11 @@ const App: React.FC = () => {
     animateTabChange(tabKey);
     setTab(tabKey as any);
     setOpenDropdown(null);
+    
+    // Reset to default view when switching tabs
+    if (tabKey === 'finance') {
+      setFinanceView('summary');
+    }
   };
 
   const handleTabHover = (tabKey: string) => {
@@ -201,7 +206,12 @@ const App: React.FC = () => {
       {/* Content will be rendered here based on tab */}
       <View style={{ flex: 1, padding: 20 }}>
         {tab === 'finance' && (
-          <Dashboard
+          <>
+            {/* Debug info */}
+            <Text style={{ color: '#fff', fontSize: 10, marginBottom: 5 }}>
+              Current view: {financeView || 'not set'}
+            </Text>
+            <Dashboard
             currentUser={currentUser}
             isDark={isDark}
             financeView={financeView || 'summary'}
@@ -262,6 +272,7 @@ const App: React.FC = () => {
             getComprehensiveChartData={getComprehensiveChartData}
             totalDebt={totalDebt}
           />
+          </>
         )}
         {tab === 'journal' && (
           <Journal
