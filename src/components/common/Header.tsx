@@ -120,11 +120,11 @@ const Header: React.FC<HeaderProps> = ({
       
       {/* Static navigation tabs with dropdowns */}
       <View style={[
-        { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 10, position: 'relative' },
+        { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 10, position: 'relative', overflow: 'visible' },
         isDark ? { backgroundColor: '#1b2430' } : null
       ]}>
         {tabs.map(({ key, label, dropdown }) => (
-          <View key={key} style={{ flex: 1, position: 'relative' }}>
+          <View key={key} style={{ flex: 1, position: 'relative', overflow: 'visible' }}>
             <Pressable 
               style={[
                 { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center' },
@@ -144,18 +144,23 @@ const Header: React.FC<HeaderProps> = ({
             
             {/* Dropdown menu */}
             {openDropdown === key && (
-              <Pressable
+              <View
                 style={[
                   styles.dropdown,
                   isDark ? styles.dropdownDark : null
                 ]}
-                onHoverIn={onDropdownEnter}
-                onHoverOut={onDropdownLeave}
+                // @ts-ignore - onMouseEnter/Leave work in react-native-web
+                onMouseEnter={onDropdownEnter}
+                // @ts-ignore
+                onMouseLeave={onDropdownLeave}
               >
                 {dropdown.map((item, index) => (
                   <Pressable
                     key={index}
-                    style={styles.dropdownItem}
+                    style={({ pressed }) => [
+                      styles.dropdownItem,
+                      pressed && { backgroundColor: '#374151' }
+                    ]}
                     onPress={item.action}
                   >
                     <Text style={[
@@ -166,7 +171,7 @@ const Header: React.FC<HeaderProps> = ({
                     </Text>
                   </Pressable>
                 ))}
-              </Pressable>
+              </View>
             )}
           </View>
         ))}
@@ -195,6 +200,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#1f2a36',
+    overflow: 'visible',
   },
   headerDark: {
     backgroundColor: '#121820',
@@ -249,13 +255,13 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a202c',
     borderRadius: 8,
     padding: 4,
-    marginTop: 0,
+    marginTop: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
-    elevation: 8,
-    zIndex: 1000,
+    elevation: 10,
+    zIndex: 9999,
   },
   dropdownDark: {
     backgroundColor: '#1a202c',
@@ -264,6 +270,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 6,
+    cursor: 'pointer',
   },
   dropdownText: {
     fontSize: 12,
