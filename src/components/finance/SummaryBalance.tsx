@@ -47,6 +47,8 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
   getChartStatistics,
   formatCurrencyCustom
 }) => {
+  // Match commit e6bcf81: clamp chart width and center layout
+  const chartWidth = Math.min(Dimensions.get('window').width - 60, 500);
   const setChartVisibilitySafe = (updater: (v: ChartVisibility) => ChartVisibility) => {
     onChartVisibilityChange(updater(chartVisibility));
   };
@@ -146,12 +148,12 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                     }
                     
                     return (
-                      <View 
+              <View 
                         style={styles.chartWrapper}
                       >
                         <LineChart
                           data={chartData}
-                          width={Dimensions.get('window').width - 60}
+                          width={chartWidth}
                           height={220}
                           chartConfig={{
                             backgroundColor: isDark ? '#121820' : '#ffffff',
@@ -339,11 +341,15 @@ const styles = StyleSheet.create({
   },
   chartContainer: {
     marginTop: 16,
+    alignItems: 'center',
+    alignSelf: 'center',
+    width: '100%',
   },
   timePeriodSelector: {
     flexDirection: 'row',
     gap: 8,
     marginBottom: 16,
+    justifyContent: 'center',
   },
   timePeriodButton: {
     paddingHorizontal: 12,
@@ -367,6 +373,7 @@ const styles = StyleSheet.create({
   },
   lineChartContainer: {
     marginBottom: 16,
+    alignItems: 'center',
   },
   emptyChartContainer: {
     height: 220,
@@ -439,7 +446,8 @@ const styles = StyleSheet.create({
   },
   legendRow: {
     flexDirection: 'row',
-    gap: 16,
+    justifyContent: 'space-around',
+    width: '100%',
   },
   legendItem: {
     flexDirection: 'row',
