@@ -39,6 +39,7 @@ const Header: React.FC<HeaderProps> = ({
     { 
       key: 'finance' as TabType, 
       label: 'Финансы',
+      hasDropdown: true,
       dropdown: [
         { label: 'Обзор', action: () => { onTabClick('finance'); onFinanceViewChange?.('summary'); onOpenDropdown(null); } },
         { label: 'Подушка безопасности', action: () => { onTabClick('finance'); onFinanceViewChange?.('fund'); onOpenDropdown(null); } },
@@ -49,26 +50,17 @@ const Header: React.FC<HeaderProps> = ({
     { 
       key: 'journal' as TabType, 
       label: 'Дневник',
-      dropdown: [
-        { label: 'Записи', action: () => { onTabClick('journal'); onOpenDropdown(null); } },
-        { label: 'Цели', action: () => { onTabClick('journal'); onOpenDropdown(null); } },
-        { label: 'Достижения', action: () => { onTabClick('journal'); onOpenDropdown(null); } },
-        { label: 'Рефлексия', action: () => { onTabClick('journal'); onOpenDropdown(null); } }
-      ]
+      hasDropdown: false
     },
     { 
       key: 'planner' as TabType, 
       label: 'Планер',
-      dropdown: [
-        { label: 'Календарь', action: () => { onTabClick('planner'); onOpenDropdown(null); } },
-        { label: 'Задачи', action: () => { onTabClick('planner'); onOpenDropdown(null); } },
-        { label: 'Привычки', action: () => { onTabClick('planner'); onOpenDropdown(null); } },
-        { label: 'Планы', action: () => { onTabClick('planner'); onOpenDropdown(null); } }
-      ]
+      hasDropdown: false
     },
     { 
       key: 'community' as TabType, 
       label: 'Сообщество',
+      hasDropdown: true,
       dropdown: [
         { label: 'Лента', action: () => { onTabClick('community'); onOpenDropdown(null); } },
         { label: 'Друзья', action: () => { onTabClick('community'); onOpenDropdown(null); } },
@@ -79,6 +71,7 @@ const Header: React.FC<HeaderProps> = ({
     { 
       key: 'profile' as TabType, 
       label: 'Профиль',
+      hasDropdown: true,
       dropdown: [
         { label: 'Настройки', action: () => { onTabClick('profile'); onOpenDropdown(null); } },
         { label: 'Статистика', action: () => { onTabClick('profile'); onOpenDropdown(null); } },
@@ -88,11 +81,18 @@ const Header: React.FC<HeaderProps> = ({
     },
   ];
 
-  const handleButtonClick = (key: string) => {
-    if (openDropdown === key) {
-      onOpenDropdown(null); // Close if already open
+  const handleButtonClick = (key: string, hasDropdown: boolean) => {
+    if (!hasDropdown) {
+      // For tabs without dropdown, just switch tab
+      onTabClick(key as TabType);
+      onOpenDropdown(null);
     } else {
-      onOpenDropdown(key); // Open dropdown
+      // For tabs with dropdown, toggle dropdown
+      if (openDropdown === key) {
+        onOpenDropdown(null); // Close if already open
+      } else {
+        onOpenDropdown(key); // Open dropdown
+      }
     }
   };
 
@@ -117,7 +117,7 @@ const Header: React.FC<HeaderProps> = ({
         styles.tabsContainer,
         isDark ? { backgroundColor: '#1b2430' } : null
       ]}>
-        {tabs.map(({ key, label, dropdown }) => (
+        {tabs.map(({ key, label, hasDropdown, dropdown }) => (
           <View 
             key={key} 
             style={styles.tabWrapper}
@@ -128,7 +128,7 @@ const Header: React.FC<HeaderProps> = ({
                 styles.tabButton,
                 tab === key ? styles.tabButtonActive : null
               ]} 
-              onPress={() => handleButtonClick(key)}
+              onPress={() => handleButtonClick(key, hasDropdown)}
             >
               <Text style={[
                 styles.tabButtonText,
@@ -138,8 +138,8 @@ const Header: React.FC<HeaderProps> = ({
               </Text>
             </Pressable>
             
-            {/* Dropdown menu */}
-            {openDropdown === key && (
+            {/* Dropdown menu - only for tabs with hasDropdown */}
+            {hasDropdown && openDropdown === key && dropdown && (
               <View style={[
                 styles.dropdown,
                 isDark ? styles.dropdownDark : null
@@ -228,7 +228,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 4,
     marginHorizontal: 20,
-    marginBottom: 180,
+    marginBottom: 10,
   },
   tabWrapper: {
     flex: 1,
