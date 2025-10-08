@@ -266,9 +266,15 @@ export const useAppState = () => {
       avatar: (overlay as any).avatar || '',
       friends: Array.isArray((overlay as any).friends) ? (overlay as any).friends : []
     };
-  })() : null;
+  })() : {
+    id: 'demo',
+    nickname: 'Гость',
+    bio: '',
+    avatar: '',
+    friends: []
+  } as any;
   
-  const currentFinance = currentUser ? financeData[currentUser.id] : null;
+  const currentFinance = currentUser ? (financeData[currentUser.id] || {}) : null;
   
   const investmentBalance = useMemo(() => {
     const list = currentFinance?.investTx || [];
@@ -286,7 +292,7 @@ export const useAppState = () => {
   
   // Business logic functions
   const addEmergencyTransaction = () => {
-    if (!currentUser || !newEmergencyTx.amount || !newEmergencyTx.currency || !newEmergencyTx.location) return;
+    if (!newEmergencyTx.amount || !newEmergencyTx.currency || !newEmergencyTx.location) return;
     
     const newTx = {
       id: Date.now(),
@@ -325,7 +331,7 @@ export const useAppState = () => {
   };
   
   const addInvestmentTransaction = () => {
-    if (!currentUser || !newInvestTx.amount || !newInvestTx.currency || !newInvestTx.destination) return;
+    if (!newInvestTx.amount || !newInvestTx.currency || !newInvestTx.destination) return;
     
     const newTx = {
       id: Date.now(),
@@ -365,7 +371,7 @@ export const useAppState = () => {
   };
   
   const addDebt = () => {
-    if (!currentUser || !newDebt.name || !newDebt.amount || !newDebt.currency) return;
+    if (!newDebt.name || !newDebt.amount || !newDebt.currency) return;
     
     const newDebtObj = {
       id: Date.now(),
@@ -550,11 +556,10 @@ export const useAppState = () => {
   };
   
   const addWorkout = (workout: Omit<Workout, 'id' | 'userId'>) => {
-    if (!currentUser) return;
     
     const newWorkout = {
       id: Date.now(),
-      userId: currentUser.id,
+      userId: currentUser?.id || 'demo',
       ...workout
     };
     
@@ -566,11 +571,10 @@ export const useAppState = () => {
   };
   
   const addEvent = (event: Omit<Event, 'id' | 'userId'>) => {
-    if (!currentUser) return;
     
     const newEvent = {
       id: Date.now(),
-      userId: currentUser.id,
+      userId: currentUser?.id || 'demo',
       ...event
     };
     
@@ -582,11 +586,10 @@ export const useAppState = () => {
   };
   
   const addPost = (post: Omit<Post, 'id' | 'userId' | 'date' | 'likes' | 'comments'>) => {
-    if (!currentUser) return;
     
     const newPost = {
       id: Date.now(),
-      userId: currentUser.id,
+      userId: currentUser?.id || 'demo',
       date: new Date().toISOString(),
       likes: [],
       comments: [],
