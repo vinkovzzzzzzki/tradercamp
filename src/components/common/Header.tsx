@@ -116,6 +116,7 @@ const Header: React.FC<HeaderProps> = ({
   return (
     <View style={[
       styles.header,
+      { overflow: 'visible' },
       isDark ? styles.headerDark : null
     ]}>
       <StatusBar style="dark" />
@@ -139,11 +140,18 @@ const Header: React.FC<HeaderProps> = ({
       
       {/* Static navigation tabs with dropdowns */}
       <View style={[
-        { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 10 },
+        { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 10, overflow: 'visible' },
         isDark ? { backgroundColor: '#1b2430' } : null
       ]}>
-        {tabs.map(({ key, label }) => (
-          <View key={key} style={{ flex: 1 }}>
+        {tabs.map(({ key, label, dropdown }) => (
+          <View 
+            key={key} 
+            style={{ flex: 1, position: 'relative', overflow: 'visible' }}
+            {...({
+              onMouseEnter: () => onTabHover(key),
+              onMouseLeave: () => onTabLeave(key),
+            } as any)}
+          >
             <Pressable 
               ref={ref => buttonRefs.current[key] = ref}
               style={[
@@ -151,8 +159,6 @@ const Header: React.FC<HeaderProps> = ({
                 tab === key ? { backgroundColor: '#1f6feb' } : { backgroundColor: 'transparent' }
               ]} 
               onPress={() => onTabClick(key)}
-              onHoverIn={() => onTabHover(key)}
-              onHoverOut={() => onTabLeave(key)}
             >
               <Text style={[
                 { fontSize: 12, fontWeight: '600' },
@@ -161,47 +167,41 @@ const Header: React.FC<HeaderProps> = ({
                 {label}
               </Text>
             </Pressable>
+            
+            {/* Dropdown menu - positioned absolutely relative to parent */}
+            {openDropdown === key && (
+              <View
+                {...({
+                  style: [
+                    styles.dropdownAbsolute,
+                    isDark ? styles.dropdownDark : null
+                  ],
+                  onMouseEnter: onDropdownEnter,
+                  onMouseLeave: onDropdownLeave,
+                } as any)}
+              >
+                {dropdown.map((item, index) => (
+                  <Pressable
+                    key={index}
+                    style={({ pressed }) => [
+                      styles.dropdownItem,
+                      pressed && { backgroundColor: '#374151' }
+                    ]}
+                    onPress={item.action}
+                  >
+                    <Text style={[
+                      styles.dropdownText,
+                      isDark ? styles.dropdownTextDark : null
+                    ]}>
+                      {item.label}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            )}
           </View>
         ))}
       </View>
-      
-      {/* Render dropdown at root level with fixed positioning */}
-      {openDropdown && tabs.find(t => t.key === openDropdown) && (
-        <View
-          {...({
-            style: [
-              styles.dropdownPortal,
-              {
-                position: 'fixed' as any,
-                top: dropdownPosition.top,
-                left: dropdownPosition.left,
-                width: dropdownPosition.width,
-              },
-              isDark ? styles.dropdownDark : null
-            ],
-            onMouseEnter: onDropdownEnter,
-            onMouseLeave: onDropdownLeave,
-          } as any)}
-        >
-          {tabs.find(t => t.key === openDropdown)?.dropdown.map((item, index) => (
-            <Pressable
-              key={index}
-              style={({ pressed }) => [
-                styles.dropdownItem,
-                pressed && { backgroundColor: '#374151' }
-              ]}
-              onPress={item.action}
-            >
-              <Text style={[
-                styles.dropdownText,
-                isDark ? styles.dropdownTextDark : null
-              ]}>
-                {item.label}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      )}
       
       {/* Auth status */}
       {currentUser && (
@@ -272,10 +272,15 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 0,
   },
-  dropdownPortal: {
+  dropdownAbsolute: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
     backgroundColor: '#1a202c',
     borderRadius: 8,
     padding: 4,
+    marginTop: 0,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
