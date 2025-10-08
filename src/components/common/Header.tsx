@@ -60,24 +60,12 @@ const Header: React.FC<HeaderProps> = ({
     { 
       key: 'community' as TabType, 
       label: 'Сообщество',
-      hasDropdown: true,
-      dropdown: [
-        { label: 'Лента', action: () => { onTabClick('community'); onOpenDropdown(null); } },
-        { label: 'Друзья', action: () => { onTabClick('community'); onOpenDropdown(null); } },
-        { label: 'Группы', action: () => { onTabClick('community'); onOpenDropdown(null); } },
-        { label: 'Чат', action: () => { onTabClick('community'); onOpenDropdown(null); } }
-      ]
+      hasDropdown: false
     },
     { 
       key: 'profile' as TabType, 
       label: 'Профиль',
-      hasDropdown: true,
-      dropdown: [
-        { label: 'Настройки', action: () => { onTabClick('profile'); onOpenDropdown(null); } },
-        { label: 'Статистика', action: () => { onTabClick('profile'); onOpenDropdown(null); } },
-        { label: 'Безопасность', action: () => { onTabClick('profile'); onOpenDropdown(null); } },
-        { label: 'Выйти', action: () => { onLogout(); onOpenDropdown(null); } }
-      ]
+      hasDropdown: false
     },
   ];
 
@@ -190,6 +178,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#1f2a36',
+    position: 'relative',
+    zIndex: 1000,
   },
   headerDark: {
     backgroundColor: '#121820',
@@ -229,6 +219,8 @@ const styles = StyleSheet.create({
     padding: 4,
     marginHorizontal: 20,
     marginBottom: 10,
+    position: 'relative',
+    zIndex: 1001,
   },
   tabWrapper: {
     flex: 1,
