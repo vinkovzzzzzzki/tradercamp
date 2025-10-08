@@ -144,13 +144,13 @@ const Header: React.FC<HeaderProps> = ({
             
             {/* Dropdown menu */}
             {openDropdown === key && (
-              <View 
+              <Pressable
                 style={[
                   styles.dropdown,
                   isDark ? styles.dropdownDark : null
                 ]}
-                onMouseEnter={onDropdownEnter}
-                onMouseLeave={onDropdownLeave}
+                onHoverIn={onDropdownEnter}
+                onHoverOut={onDropdownLeave}
               >
                 {dropdown.map((item, index) => (
                   <Pressable
@@ -166,7 +166,7 @@ const Header: React.FC<HeaderProps> = ({
                     </Text>
                   </Pressable>
                 ))}
-              </View>
+              </Pressable>
             )}
           </View>
         ))}
