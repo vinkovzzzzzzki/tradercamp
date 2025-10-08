@@ -47,8 +47,8 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
   getChartStatistics,
   formatCurrencyCustom
 }) => {
-  // Match commit e6bcf81: clamp chart width and center layout
-  const chartWidth = Math.min(Dimensions.get('window').width - 60, 500);
+  // Make the chart wider horizontally (near full viewport width with padding)
+  const chartWidth = Math.max(320, Dimensions.get('window').width - 120);
   const setChartVisibilitySafe = (updater: (v: ChartVisibility) => ChartVisibility) => {
     onChartVisibilityChange(updater(chartVisibility));
   };
@@ -336,7 +336,7 @@ const styles = StyleSheet.create({
   chartContainer: {
     marginTop: 16,
     alignItems: 'center',
-    alignSelf: 'center',
+    alignSelf: 'stretch',
     width: '100%',
   },
   timePeriodSelector: {
@@ -368,6 +368,8 @@ const styles = StyleSheet.create({
   lineChartContainer: {
     marginBottom: 16,
     alignItems: 'center',
+    alignSelf: 'stretch',
+    width: '100%',
   },
   emptyChartContainer: {
     height: 220,
