@@ -20,6 +20,8 @@ export interface SupaAuth {
 export interface Toast {
   msg: string;
   kind: 'info' | 'warning' | 'error';
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 export interface FinanceForm {

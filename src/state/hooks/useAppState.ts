@@ -411,6 +411,7 @@ export const useAppState = () => {
   
   const deleteEmergencyTx = (id: number) => {
     setEmergencyTx(prev => {
+      const removed = prev.find(tx => tx.id === id);
       const updated = prev.filter(tx => tx.id !== id);
       // Recalculate cash reserve
       const newCashReserve = updated.reduce((sum, tx) => 
@@ -427,13 +428,25 @@ export const useAppState = () => {
           y: newCashReserve
         }
       ]);
-      
+      if (removed) {
+        setToast({
+          msg: 'Операция подушки удалена',
+          kind: 'info',
+          actionLabel: 'Отменить',
+          onAction: () => {
+            setEmergencyTx(v => [...v, removed]);
+            const reverted = updated.reduce((sum, tx) => sum + (tx.type === 'deposit' ? tx.amount : -tx.amount), 0) + (removed.type === 'deposit' ? removed.amount : -removed.amount);
+            setCashReserve(reverted);
+          }
+        } as any);
+      }
       return updated;
     });
   };
   
   const deleteInvestTx = (id: number) => {
     setInvestTx(prev => {
+      const removed = prev.find(tx => tx.id === id);
       const updated = prev.filter(tx => tx.id !== id);
       // Recalculate investment balance
       const newBalance = updated.reduce((sum, it) => sum + (it.type === 'in' ? it.amount : -it.amount), 0);
@@ -448,13 +461,16 @@ export const useAppState = () => {
           y: newBalance
         }
       ]);
-      
+      if (removed) {
+        setToast({ msg: 'Инвест-транзакция удалена', kind: 'info', actionLabel: 'Отменить', onAction: () => setInvestTx(v => [...v, removed]) } as any);
+      }
       return updated;
     });
   };
   
   const deleteDebt = (id: number) => {
     setSortedDebts(prev => {
+      const removed = prev.find(debt => debt.id === id);
       const updated = prev.filter(debt => debt.id !== id);
       // Recalculate total debt
       const totalDebt = updated.reduce((s, d) => s + (d.amount || 0), 0);
@@ -469,7 +485,9 @@ export const useAppState = () => {
           y: totalDebt
         }
       ]);
-      
+      if (removed) {
+        setToast({ msg: 'Долг удалён', kind: 'info', actionLabel: 'Отменить', onAction: () => setSortedDebts(v => [...v, removed]) } as any);
+      }
       return updated;
     });
   };
@@ -552,7 +570,12 @@ export const useAppState = () => {
   };
   
   const deleteTrade = (id: number) => {
-    setTrades(prev => prev.filter(t => t.id !== id));
+    setTrades(prev => {
+      const removed = prev.find(t => t.id === id);
+      const updated = prev.filter(t => t.id !== id);
+      if (removed) setToast({ msg: 'Сделка удалена', kind: 'info', actionLabel: 'Отменить', onAction: () => setTrades(v => [removed, ...v]) } as any);
+      return updated;
+    });
   };
   
   const addWorkout = (workout: Omit<Workout, 'id' | 'userId'>) => {
@@ -567,7 +590,12 @@ export const useAppState = () => {
   };
   
   const deleteWorkout = (id: number) => {
-    setWorkouts(prev => prev.filter(w => w.id !== id));
+    setWorkouts(prev => {
+      const removed = prev.find(w => w.id === id);
+      const updated = prev.filter(w => w.id !== id);
+      if (removed) setToast({ msg: 'Тренировка удалена', kind: 'info', actionLabel: 'Отменить', onAction: () => setWorkouts(v => [...v, removed]) } as any);
+      return updated;
+    });
   };
   
   const addEvent = (event: Omit<Event, 'id' | 'userId'>) => {
@@ -582,7 +610,12 @@ export const useAppState = () => {
   };
   
   const deleteEvent = (id: number) => {
-    setEvents(prev => prev.filter(e => e.id !== id));
+    setEvents(prev => {
+      const removed = prev.find(e => e.id === id);
+      const updated = prev.filter(e => e.id !== id);
+      if (removed) setToast({ msg: 'Событие удалено', kind: 'info', actionLabel: 'Отменить', onAction: () => setEvents(v => [...v, removed]) } as any);
+      return updated;
+    });
   };
   
   const addPost = (post: Omit<Post, 'id' | 'userId' | 'date' | 'likes' | 'comments'>) => {
