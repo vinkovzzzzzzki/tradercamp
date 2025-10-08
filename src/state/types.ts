@@ -2,7 +2,7 @@
 // Exact reproduction of current state structure
 
 export interface User {
-  id: string | number;
+  id: string;
   nickname: string;
   bio: string;
   avatar: string;
@@ -162,16 +162,16 @@ export interface Recurring {
 
 export interface Post {
   id: number;
-  userId: string;
+  userId: string | number;  // Может быть и string и number
   title: string;
   content: string;
   market: string;
   images: string[];
   date: string;
-  likes: number[];
+  likes: (string | number)[];  // Может быть и string и number
   comments: Array<{
     id: number;
-    userId: string;
+    userId: string | number;
     text: string;
     date: string;
   }>;
@@ -201,6 +201,8 @@ export interface ChartTooltip {
 export interface DataPoint {
   date: string;
   value: number;
+  amount?: number;  // Alias для совместимости
+  y?: number;        // Для графиков
 }
 
 export interface ChartData {

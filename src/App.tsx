@@ -74,6 +74,22 @@ const App: React.FC = () => {
     repayDebt,
     resetAllFinancialData,
     getComprehensiveChartData,
+    addTrade,
+    deleteTrade,
+    addWorkout,
+    deleteWorkout,
+    addEvent,
+    deleteEvent,
+    workouts,
+    events,
+    trades,
+    posts,
+    bookmarks,
+    addPost,
+    deletePost,
+    toggleLike,
+    addComment,
+    toggleBookmark,
     logout
   } = useAppState();
 
@@ -111,9 +127,15 @@ const App: React.FC = () => {
   };
 
   const handleTabHover = (tabKey: string) => {
-    const dropdownTabs = ['finance', 'journal', 'planner'];
+    const dropdownTabs = ['finance', 'journal', 'planner', 'community', 'profile'];
     
     if (dropdownTabs.includes(tabKey)) {
+      // Clear any pending timeout
+      if (hoverTimeout.current) {
+        clearTimeout(hoverTimeout.current);
+        hoverTimeout.current = null;
+      }
+      
       // Mark that we're hovering over tab
       isHoveringTab.current = true;
       
@@ -123,20 +145,22 @@ const App: React.FC = () => {
   };
 
   const handleTabLeave = (tabKey: string) => {
-    const dropdownTabs = ['finance', 'journal', 'planner'];
+    const dropdownTabs = ['finance', 'journal', 'planner', 'community', 'profile'];
     
     if (dropdownTabs.includes(tabKey)) {
       // Mark that we're no longer hovering over tab
       isHoveringTab.current = false;
+      isHoveringDropdown.current = false;
       
-      // Only close if we're not hovering over either tab or dropdown
-      if (!isHoveringDropdown.current) {
-        hoverTimeout.current = setTimeout(() => {
-          if (!isHoveringTab.current && !isHoveringDropdown.current) {
-            setOpenDropdown(null);
-          }
-        }, 300);
+      // Clear any existing timeout
+      if (hoverTimeout.current) {
+        clearTimeout(hoverTimeout.current);
       }
+      
+      // Set a new timeout to close the dropdown
+      hoverTimeout.current = setTimeout(() => {
+        setOpenDropdown(null);
+      }, 200);
     }
   };
 
@@ -233,18 +257,34 @@ const App: React.FC = () => {
           <Journal
             currentUser={currentUser}
             isDark={isDark}
+            trades={trades}
+            onAddTrade={addTrade}
+            onDeleteTrade={deleteTrade}
           />
         )}
         {tab === 'planner' && (
           <Planner
             currentUser={currentUser}
             isDark={isDark}
+            workouts={workouts}
+            events={events}
+            onAddWorkout={addWorkout}
+            onAddEvent={addEvent}
+            onDeleteWorkout={deleteWorkout}
+            onDeleteEvent={deleteEvent}
           />
         )}
         {tab === 'community' && (
           <Community
             currentUser={currentUser}
             isDark={isDark}
+            posts={posts}
+            bookmarks={bookmarks}
+            onAddPost={addPost}
+            onDeletePost={deletePost}
+            onToggleLike={toggleLike}
+            onAddComment={addComment}
+            onToggleBookmark={toggleBookmark}
           />
         )}
         {tab === 'profile' && (

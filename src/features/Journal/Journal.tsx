@@ -1,50 +1,52 @@
 // Journal feature component - exact reproduction of original trading journal functionality
 import React, { useState, useMemo } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { exportTradesToCSV, downloadCSV, generateFilename } from '../../services/export';
 import { formatCurrencyCustom } from '../../services/format';
-import type { User } from '../../state/types';
+import type { User, Trade } from '../../state/types';
 
 interface JournalProps {
   currentUser: User | null;
   isDark: boolean;
+  trades: Trade[];
+  onAddTrade: (trade: Omit<Trade, 'id' | 'userId'>) => void;
+  onDeleteTrade: (id: number) => void;
 }
 
-const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
+const Journal: React.FC<JournalProps> = ({ 
+  currentUser, 
+  isDark, 
+  trades,
+  onAddTrade,
+  onDeleteTrade
+}) => {
   const [journalView, setJournalView] = useState<'new' | 'list'>('new');
   const [newTrade, setNewTrade] = useState({
-    asset: '',
-    side: 'BUY',
+    symbol: '',
+    side: 'BUY' as 'BUY' | 'SELL',
     qty: '',
     price: '',
     stopLoss: '',
     takeProfit: '',
     market: 'Crypto',
-    style: 'Скальпинг',
     date: new Date().toISOString().slice(0, 10),
-    notes: ''
+    note: ''
   });
-  const [trades, setTrades] = useState<any[]>([]);
   
   // Filter states
   const [filters, setFilters] = useState({
-    asset: '',
+    symbol: '',
     market: '',
-    style: '',
     side: '',
     dateFrom: '',
-    dateTo: '',
-    status: ''
+    dateTo: ''
   });
   
   // Filtered trades
   const filteredTrades = useMemo(() => {
     return trades.filter(trade => {
-      if (filters.asset && !trade.asset.toLowerCase().includes(filters.asset.toLowerCase())) return false;
+      if (filters.symbol && !trade.symbol.toLowerCase().includes(filters.symbol.toLowerCase())) return false;
       if (filters.market && trade.market !== filters.market) return false;
-      if (filters.style && trade.style !== filters.style) return false;
       if (filters.side && trade.side !== filters.side) return false;
-      if (filters.status && trade.status !== filters.status) return false;
       if (filters.dateFrom && trade.date < filters.dateFrom) return false;
       if (filters.dateTo && trade.date > filters.dateTo) return false;
       return true;
@@ -53,52 +55,40 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
 
   const addTrade = () => {
     if (!currentUser) return;
-    if (!newTrade.asset || !newTrade.qty || !newTrade.price) return;
+    if (!newTrade.symbol || !newTrade.qty || !newTrade.price) return;
 
-    const trade = {
-      id: Date.now(),
-      userId: currentUser.id,
-      ...newTrade
-    };
-
-    setTrades(prev => [trade, ...prev]);
+    onAddTrade({
+      ...newTrade,
+      qty: Number(newTrade.qty),
+      price: Number(newTrade.price),
+      stopLoss: newTrade.stopLoss ? Number(newTrade.stopLoss) : undefined,
+      takeProfit: newTrade.takeProfit ? Number(newTrade.takeProfit) : undefined
+    });
+    
     setNewTrade({
-      asset: '',
-      side: 'BUY',
+      symbol: '',
+      side: 'BUY' as 'BUY' | 'SELL',
       qty: '',
       price: '',
       stopLoss: '',
       takeProfit: '',
       market: 'Crypto',
-      style: 'Скальпинг',
       date: new Date().toISOString().slice(0, 10),
-      notes: ''
+      note: ''
     });
-  };
-
-  const deleteTrade = (id: number) => {
-    setTrades(prev => prev.filter(t => t.id !== id));
-  };
-
-  const exportToCSV = () => {
-    const csvContent = exportTradesToCSV(filteredTrades);
-    const filename = generateFilename('trading_journal');
-    downloadCSV(csvContent, filename);
   };
 
   const clearFilters = () => {
     setFilters({
-      asset: '',
+      symbol: '',
       market: '',
-      style: '',
       side: '',
       dateFrom: '',
-      dateTo: '',
-      status: ''
+      dateTo: ''
     });
   };
 
-  const getUniqueValues = (field: string) => {
+  const getUniqueValues = (field: keyof Trade) => {
     return [...new Set(trades.map(trade => trade[field]))].filter(Boolean);
   };
 
@@ -137,18 +127,18 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
 
           <View style={styles.inputRow}>
             <View style={styles.inputGroup}>
-              <Text style={[styles.label, isDark ? styles.labelDark : null]}>Инструмент</Text>
+              <Text style={[styles.label, isDark ? styles.labelDark : null]}>Символ</Text>
               <TextInput
                 style={[styles.input, isDark ? styles.inputDark : null]}
-                value={newTrade.asset}
-                onChangeText={(t) => setNewTrade(v => ({ ...v, asset: t }))}
+                value={newTrade.symbol}
+                onChangeText={(t) => setNewTrade(v => ({ ...v, symbol: t }))}
                 placeholder="BTCUSDT"
               />
             </View>
             <View style={styles.inputGroup}>
               <Text style={[styles.label, isDark ? styles.labelDark : null]}>Сторона</Text>
               <View style={styles.pickerContainer}>
-                {['BUY', 'SELL'].map(side => (
+                {(['BUY', 'SELL'] as const).map(side => (
                   <Pressable
                     key={side}
                     style={[
@@ -214,54 +204,28 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
             </View>
           </View>
 
-          <View style={styles.inputRow}>
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, isDark ? styles.labelDark : null]}>Рынок</Text>
-              <View style={styles.pickerContainer}>
-                {['Forex', 'Stock', 'Metals', 'Crypto'].map(market => (
-                  <Pressable
-                    key={market}
-                    style={[
-                      styles.pickerOption,
-                      isDark ? styles.pickerOptionDark : null,
-                      newTrade.market === market ? styles.pickerOptionActive : null
-                    ]}
-                    onPress={() => setNewTrade(v => ({ ...v, market }))}
-                  >
-                    <Text style={[
-                      styles.pickerText,
-                      isDark ? styles.pickerTextDark : null,
-                      newTrade.market === market ? styles.pickerTextActive : null
-                    ]}>
-                      {market}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-            <View style={styles.inputGroup}>
-              <Text style={[styles.label, isDark ? styles.labelDark : null]}>Стиль</Text>
-              <View style={styles.pickerContainer}>
-                {['Скальпинг', 'Интрадей', 'Среднесрок'].map(style => (
-                  <Pressable
-                    key={style}
-                    style={[
-                      styles.pickerOption,
-                      isDark ? styles.pickerOptionDark : null,
-                      newTrade.style === style ? styles.pickerOptionActive : null
-                    ]}
-                    onPress={() => setNewTrade(v => ({ ...v, style }))}
-                  >
-                    <Text style={[
-                      styles.pickerText,
-                      isDark ? styles.pickerTextDark : null,
-                      newTrade.style === style ? styles.pickerTextActive : null
-                    ]}>
-                      {style}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+          <View style={styles.inputGroup}>
+            <Text style={[styles.label, isDark ? styles.labelDark : null]}>Рынок</Text>
+            <View style={styles.pickerContainer}>
+              {['Forex', 'Stock', 'Metals', 'Crypto'].map(market => (
+                <Pressable
+                  key={market}
+                  style={[
+                    styles.pickerOption,
+                    isDark ? styles.pickerOptionDark : null,
+                    newTrade.market === market ? styles.pickerOptionActive : null
+                  ]}
+                  onPress={() => setNewTrade(v => ({ ...v, market }))}
+                >
+                  <Text style={[
+                    styles.pickerText,
+                    isDark ? styles.pickerTextDark : null,
+                    newTrade.market === market ? styles.pickerTextActive : null
+                  ]}>
+                    {market}
+                  </Text>
+                </Pressable>
+              ))}
             </View>
           </View>
 
@@ -279,8 +243,8 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
             <Text style={[styles.label, isDark ? styles.labelDark : null]}>Заметки</Text>
             <TextInput
               style={[styles.input, isDark ? styles.inputDark : null]}
-              value={newTrade.notes}
-              onChangeText={(t) => setNewTrade(v => ({ ...v, notes: t }))}
+              value={newTrade.note}
+              onChangeText={(t) => setNewTrade(v => ({ ...v, note: t }))}
               placeholder="Анализ и комментарии"
               multiline
               numberOfLines={3}
@@ -295,23 +259,18 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
 
       {journalView === 'list' && (
         <View style={[styles.card, isDark ? styles.cardDark : null]}>
-          <View style={styles.listHeader}>
-            <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
-              📊 История сделок ({filteredTrades.length})
-            </Text>
-            <Pressable style={styles.exportButton} onPress={exportToCSV}>
-              <Text style={styles.exportButtonText}>📥 Экспорт CSV</Text>
-            </Pressable>
-          </View>
+          <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
+            📊 История сделок ({filteredTrades.length})
+          </Text>
 
           {/* Filters */}
           <View style={styles.filtersContainer}>
             <View style={styles.filterRow}>
               <TextInput
                 style={[styles.filterInput, isDark ? styles.filterInputDark : null]}
-                value={filters.asset}
-                onChangeText={(text) => setFilters(prev => ({ ...prev, asset: text }))}
-                placeholder="Фильтр по активу"
+                value={filters.symbol}
+                onChangeText={(text) => setFilters(prev => ({ ...prev, symbol: text }))}
+                placeholder="Фильтр по символу"
               />
               <TextInput
                 style={[styles.filterInput, isDark ? styles.filterInputDark : null]}
@@ -329,7 +288,7 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
             <View style={styles.filterRow}>
               <View style={styles.pickerContainer}>
                 <Text style={[styles.filterLabel, isDark ? styles.filterLabelDark : null]}>Рынок:</Text>
-                {['', ...getUniqueValues('market')].map(market => (
+                {['', 'Forex', 'Stock', 'Metals', 'Crypto'].map(market => (
                   <Pressable
                     key={market || 'all'}
                     style={[
@@ -345,28 +304,6 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
                       filters.market === market ? styles.filterOptionTextActive : null
                     ]}>
                       {market || 'Все'}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              <View style={styles.pickerContainer}>
-                <Text style={[styles.filterLabel, isDark ? styles.filterLabelDark : null]}>Стиль:</Text>
-                {['', ...getUniqueValues('style')].map(style => (
-                  <Pressable
-                    key={style || 'all'}
-                    style={[
-                      styles.filterOption,
-                      isDark ? styles.filterOptionDark : null,
-                      filters.style === style ? styles.filterOptionActive : null
-                    ]}
-                    onPress={() => setFilters(prev => ({ ...prev, style }))}
-                  >
-                    <Text style={[
-                      styles.filterOptionText,
-                      isDark ? styles.filterOptionTextDark : null,
-                      filters.style === style ? styles.filterOptionTextActive : null
-                    ]}>
-                      {style || 'Все'}
                     </Text>
                   </Pressable>
                 ))}
@@ -387,7 +324,7 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
                 <View key={trade.id} style={[styles.tradeItem, isDark ? styles.tradeItemDark : null]}>
                   <View style={styles.tradeHeader}>
                     <Text style={[styles.tradeAsset, isDark ? styles.tradeAssetDark : null]}>
-                      {trade.asset}
+                      {trade.symbol}
                     </Text>
                     <Text style={[
                       styles.tradeSide,
@@ -406,18 +343,15 @@ const Journal: React.FC<JournalProps> = ({ currentUser, isDark }) => {
                     <Text style={[styles.tradeDetail, isDark ? styles.tradeDetailDark : null]}>
                       Рынок: {trade.market}
                     </Text>
-                    <Text style={[styles.tradeDetail, isDark ? styles.tradeDetailDark : null]}>
-                      Стиль: {trade.style}
-                    </Text>
                   </View>
-                  {trade.notes && (
+                  {trade.note && (
                     <Text style={[styles.tradeNotes, isDark ? styles.tradeNotesDark : null]}>
-                      {trade.notes}
+                      {trade.note}
                     </Text>
                   )}
                   <Pressable
                     style={styles.deleteButton}
-                    onPress={() => deleteTrade(trade.id)}
+                    onPress={() => onDeleteTrade(trade.id)}
                   >
                     <Text style={styles.deleteButtonText}>Удалить</Text>
                   </Pressable>

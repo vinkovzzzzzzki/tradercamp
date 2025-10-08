@@ -23,16 +23,16 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
 
   const searchUsers = () => {
     // Mock search results
-    const mockResults = [
-      { id: 2, nickname: 'trader_pro', bio: 'Опытный трейдер', avatar: '', friends: [] },
-      { id: 3, nickname: 'crypto_guru', bio: 'Эксперт по криптовалютам', avatar: '', friends: [] }
+    const mockResults: User[] = [
+      { id: '2', nickname: 'trader_pro', bio: 'Опытный трейдер', avatar: '', friends: [] },
+      { id: '3', nickname: 'crypto_guru', bio: 'Эксперт по криптовалютам', avatar: '', friends: [] }
     ];
     setSearchResults(mockResults.filter(user => 
       user.nickname.toLowerCase().includes(userSearch.toLowerCase())
     ));
   };
 
-  const sendFriendRequest = (userId: number) => {
+  const sendFriendRequest = (userId: string) => {
     Alert.alert('Запрос отправлен', 'Запрос в друзья отправлен пользователю');
   };
 

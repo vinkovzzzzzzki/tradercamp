@@ -133,7 +133,9 @@ export const useAppState = () => {
   );
   
   // Trades
-  const [trades, setTrades] = useState<Trade[]>([]);
+  const [trades, setTrades] = useState<Trade[]>(() => 
+    storage.get(STORAGE_KEYS.TRADES, [])
+  );
   
   // Planner
   const [plannerPrefs, setPlannerPrefs] = useState<PlannerPrefs>(() => 
@@ -196,14 +198,24 @@ export const useAppState = () => {
   const [repayDrafts, setRepayDrafts] = useState<Record<number, string>>({});
   const [showEmergencyLocationDropdown, setShowEmergencyLocationDropdown] = useState(false);
   const [showInvestDestinationDropdown, setShowInvestDestinationDropdown] = useState(false);
-  const [emergencyLocations, setEmergencyLocations] = useState<string[]>([]);
-  const [investDestinations, setInvestDestinations] = useState<string[]>([]);
-  const [sortedDebts, setSortedDebts] = useState<any[]>([]);
+  const [emergencyLocations, setEmergencyLocations] = useState<string[]>(() => 
+    storage.get(STORAGE_KEYS.EMERGENCY_LOCATIONS, [])
+  );
+  const [investDestinations, setInvestDestinations] = useState<string[]>(() => 
+    storage.get(STORAGE_KEYS.INVEST_DESTINATIONS, [])
+  );
+  const [sortedDebts, setSortedDebts] = useState<any[]>(() => 
+    storage.get(STORAGE_KEYS.SORTED_DEBTS, [])
+  );
   const [investHoldings, setInvestHoldings] = useState<Array<{ destination: string; currency: string; balance: number }>>([]);
   
-  // Additional states for Dashboard
-  const [emergencyTx, setEmergencyTx] = useState<EmergencyTransaction[]>([]);
-  const [investTx, setInvestTx] = useState<InvestmentTransaction[]>([]);
+  // Additional states for Dashboard  
+  const [emergencyTx, setEmergencyTx] = useState<EmergencyTransaction[]>(() => 
+    storage.get(STORAGE_KEYS.EMERGENCY_TX, [])
+  );
+  const [investTx, setInvestTx] = useState<InvestmentTransaction[]>(() => 
+    storage.get(STORAGE_KEYS.INVEST_TX, [])
+  );
   
   // Computed values (moved to services-calc below)
   
@@ -218,6 +230,14 @@ export const useAppState = () => {
   useEffect(() => storage.set(STORAGE_KEYS.PLANNER_PREFS, plannerPrefs), [plannerPrefs]);
   useEffect(() => storage.set(STORAGE_KEYS.POSTS, posts), [posts]);
   useEffect(() => storage.set(STORAGE_KEYS.BOOKMARKS, bookmarks), [bookmarks]);
+  useEffect(() => storage.set(STORAGE_KEYS.EMERGENCY_TX, emergencyTx), [emergencyTx]);
+  useEffect(() => storage.set(STORAGE_KEYS.INVEST_TX, investTx), [investTx]);
+  useEffect(() => storage.set(STORAGE_KEYS.SORTED_DEBTS, sortedDebts), [sortedDebts]);
+  useEffect(() => storage.set(STORAGE_KEYS.EMERGENCY_LOCATIONS, emergencyLocations), [emergencyLocations]);
+  useEffect(() => storage.set(STORAGE_KEYS.INVEST_DESTINATIONS, investDestinations), [investDestinations]);
+  useEffect(() => storage.set(STORAGE_KEYS.TRADES, trades), [trades]);
+  useEffect(() => storage.set(STORAGE_KEYS.WORKOUTS, workouts), [workouts]);
+  useEffect(() => storage.set(STORAGE_KEYS.EVENTS, events), [events]);
   
   // Computed values
   const isDark = appTheme === 'dark';
@@ -264,6 +284,23 @@ export const useAppState = () => {
     };
     
     setEmergencyTx(prev => [...prev, newTx]);
+    
+    // Update cashReserve based on transaction type
+    const amountChange = newTx.type === 'deposit' ? newTx.amount : -newTx.amount;
+    const newCashReserve = cashReserve + amountChange;
+    setCashReserve(newCashReserve);
+    
+      // Update cushion history for chart
+      setCushionHistory(prev => [
+        ...prev,
+        {
+          date: newTx.date,
+          value: newCashReserve,
+          amount: newCashReserve,
+          y: newCashReserve
+        }
+      ]);
+    
     setNewEmergencyTx({ type: 'deposit', amount: '', currency: 'USD', location: '', note: '' });
     
     // Update locations
@@ -285,7 +322,25 @@ export const useAppState = () => {
       note: newInvestTx.note
     };
     
-    setInvestTx(prev => [...prev, newTx]);
+    setInvestTx(prev => {
+      const updated = [...prev, newTx];
+      // Calculate new investment balance
+      const newBalance = updated.reduce((sum, it) => sum + (it.type === 'in' ? it.amount : -it.amount), 0);
+      
+      // Update investment history for chart
+      setInvestmentHistory(prev => [
+        ...prev,
+        {
+          date: newTx.date,
+          value: newBalance,
+          amount: newBalance,
+          y: newBalance
+        }
+      ]);
+      
+      return updated;
+    });
+    
     setNewInvestTx({ type: 'in', amount: '', currency: 'USD', destination: '', note: '' });
     
     // Update destinations
@@ -302,7 +357,7 @@ export const useAppState = () => {
       name: newDebt.name,
       amount: Number(newDebt.amount),
       currency: newDebt.currency,
-      tx: [{
+      history: [{
         id: Date.now(),
         date: new Date().toISOString().slice(0, 10),
         type: 'add' as const,
@@ -311,42 +366,131 @@ export const useAppState = () => {
       }]
     };
     
-    setSortedDebts(prev => [...prev, newDebtObj]);
+    setSortedDebts(prev => {
+      const updated = [...prev, newDebtObj];
+      // Calculate total debt
+      const totalDebt = updated.reduce((s, d) => s + (d.amount || 0), 0);
+      
+      // Update debts history for chart
+      setDebtsHistory(prev => [
+        ...prev,
+        {
+          date: newDebtObj.history[0].date,
+          value: totalDebt,
+          amount: totalDebt,
+          y: totalDebt
+        }
+      ]);
+      
+      return updated;
+    });
+    
     setNewDebt({ name: '', amount: '', currency: 'USD' });
   };
   
   const deleteEmergencyTx = (id: number) => {
-    setEmergencyTx(prev => prev.filter(tx => tx.id !== id));
+    setEmergencyTx(prev => {
+      const updated = prev.filter(tx => tx.id !== id);
+      // Recalculate cash reserve
+      const newCashReserve = updated.reduce((sum, tx) => 
+        sum + (tx.type === 'deposit' ? tx.amount : -tx.amount), 0);
+      setCashReserve(newCashReserve);
+      
+      // Update cushion history
+      setCushionHistory(prev => [
+        ...prev,
+        {
+          date: new Date().toISOString().slice(0, 10),
+          value: newCashReserve,
+          amount: newCashReserve,
+          y: newCashReserve
+        }
+      ]);
+      
+      return updated;
+    });
   };
   
   const deleteInvestTx = (id: number) => {
-    setInvestTx(prev => prev.filter(tx => tx.id !== id));
+    setInvestTx(prev => {
+      const updated = prev.filter(tx => tx.id !== id);
+      // Recalculate investment balance
+      const newBalance = updated.reduce((sum, it) => sum + (it.type === 'in' ? it.amount : -it.amount), 0);
+      
+      // Update investment history
+      setInvestmentHistory(prev => [
+        ...prev,
+        {
+          date: new Date().toISOString().slice(0, 10),
+          value: newBalance,
+          amount: newBalance,
+          y: newBalance
+        }
+      ]);
+      
+      return updated;
+    });
   };
   
   const deleteDebt = (id: number) => {
-    setSortedDebts(prev => prev.filter(debt => debt.id !== id));
+    setSortedDebts(prev => {
+      const updated = prev.filter(debt => debt.id !== id);
+      // Recalculate total debt
+      const totalDebt = updated.reduce((s, d) => s + (d.amount || 0), 0);
+      
+      // Update debts history
+      setDebtsHistory(prev => [
+        ...prev,
+        {
+          date: new Date().toISOString().slice(0, 10),
+          value: totalDebt,
+          amount: totalDebt,
+          y: totalDebt
+        }
+      ]);
+      
+      return updated;
+    });
   };
   
   const repayDebt = (debtId: number, amount: number) => {
     if (!amount || amount <= 0) return;
     
-    setSortedDebts(prev => prev.map(debt => {
-      if (debt.id === debtId) {
-        const newTx = {
-          id: Date.now(),
+    setSortedDebts(prev => {
+      const updated = prev.map(debt => {
+        if (debt.id === debtId) {
+          const newTx = {
+            id: Date.now(),
+            date: new Date().toISOString().slice(0, 10),
+            type: 'repay' as const,
+            amount: amount,
+            note: 'Debt repayment'
+          };
+          return {
+            ...debt,
+            amount: Math.max(0, debt.amount - amount),
+            history: [...(debt.history || []), newTx]
+          };
+        }
+        return debt;
+      });
+      
+      // Calculate new total debt
+      const totalDebt = updated.reduce((s, d) => s + (d.amount || 0), 0);
+      
+      // Update debts history for chart
+      setDebtsHistory(prev => [
+        ...prev,
+        {
           date: new Date().toISOString().slice(0, 10),
-          type: 'repay' as const,
-          amount: amount,
-          note: 'Debt repayment'
-        };
-        return {
-          ...debt,
-          amount: Math.max(0, debt.amount - amount),
-          history: [...(debt.history || []), newTx]
-        };
-      }
-      return debt;
-    }));
+          value: totalDebt,
+          amount: totalDebt,
+          y: totalDebt
+        }
+      ]);
+      
+      return updated;
+    });
     
     setRepayDrafts(prev => ({ ...prev, [debtId]: '' }));
   };
@@ -360,6 +504,128 @@ export const useAppState = () => {
     setDebtsHistory([]);
     setCashReserve(0);
     setMonthlyExpenses(0);
+  };
+  
+  const addTrade = (trade: Omit<Trade, 'id' | 'userId'>) => {
+    if (!currentUser) return;
+    
+    const newTrade = {
+      id: Date.now(),
+      userId: currentUser.id,
+      ...trade
+    };
+    
+    setTrades(prev => [newTrade, ...prev]);
+  };
+  
+  const deleteTrade = (id: number) => {
+    setTrades(prev => prev.filter(t => t.id !== id));
+  };
+  
+  const addWorkout = (workout: Omit<Workout, 'id' | 'userId'>) => {
+    if (!currentUser) return;
+    
+    const newWorkout = {
+      id: Date.now(),
+      userId: currentUser.id,
+      ...workout
+    };
+    
+    setWorkouts(prev => [...prev, newWorkout]);
+  };
+  
+  const deleteWorkout = (id: number) => {
+    setWorkouts(prev => prev.filter(w => w.id !== id));
+  };
+  
+  const addEvent = (event: Omit<Event, 'id' | 'userId'>) => {
+    if (!currentUser) return;
+    
+    const newEvent = {
+      id: Date.now(),
+      userId: currentUser.id,
+      ...event
+    };
+    
+    setEvents(prev => [...prev, newEvent]);
+  };
+  
+  const deleteEvent = (id: number) => {
+    setEvents(prev => prev.filter(e => e.id !== id));
+  };
+  
+  const addPost = (post: Omit<Post, 'id' | 'userId' | 'date' | 'likes' | 'comments'>) => {
+    if (!currentUser) return;
+    
+    const newPost = {
+      id: Date.now(),
+      userId: currentUser.id,
+      date: new Date().toISOString(),
+      likes: [],
+      comments: [],
+      ...post
+    };
+    
+    setPosts(prev => [newPost, ...prev]);
+  };
+  
+  const deletePost = (id: number) => {
+    setPosts(prev => prev.filter(p => p.id !== id));
+  };
+  
+  const toggleLike = (postId: number) => {
+    if (!currentUser) return;
+    
+    setPosts(prev => prev.map(post => {
+      if (post.id === postId) {
+        const likes = post.likes || [];
+        const isLiked = likes.includes(currentUser.id);
+        return {
+          ...post,
+          likes: isLiked 
+            ? likes.filter(id => id !== currentUser.id)
+            : [...likes, currentUser.id]
+        };
+      }
+      return post;
+    }));
+  };
+  
+  const addComment = (postId: number, text: string) => {
+    if (!currentUser) return;
+    
+    const newComment = {
+      id: Date.now(),
+      userId: currentUser.id,
+      text,
+      date: new Date().toISOString().slice(0, 10)
+    };
+    
+    setPosts(prev => prev.map(post => {
+      if (post.id === postId) {
+        return {
+          ...post,
+          comments: [...(post.comments || []), newComment]
+        };
+      }
+      return post;
+    }));
+  };
+  
+  const toggleBookmark = (postId: number) => {
+    if (!currentUser) return;
+    
+    setBookmarks(prev => {
+      const userBookmarks = prev[currentUser.id] || [];
+      const isBookmarked = userBookmarks.includes(postId);
+      
+      return {
+        ...prev,
+        [currentUser.id]: isBookmarked
+          ? userBookmarks.filter(id => id !== postId)
+          : [...userBookmarks, postId]
+      };
+    });
   };
   
   const getComprehensiveChartData = (timePeriod: '1M' | '3M' | '6M' | '1Y' | 'ALL' = 'ALL') => {
@@ -587,6 +853,17 @@ export const useAppState = () => {
     repayDebt,
     resetAllFinancialData,
     getComprehensiveChartData,
+    addTrade,
+    deleteTrade,
+    addWorkout,
+    deleteWorkout,
+    addEvent,
+    deleteEvent,
+    addPost,
+    deletePost,
+    toggleLike,
+    addComment,
+    toggleBookmark,
     logout
   };
 };

@@ -1,14 +1,31 @@
 // Community feature component - exact reproduction of original functionality
 import React, { useState, useMemo } from 'react';
-import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
-import type { User } from '../../state/types';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal, Image } from 'react-native';
+import type { User, Post } from '../../state/types';
 
 interface CommunityProps {
   currentUser: User | null;
   isDark: boolean;
+  posts: Post[];
+  bookmarks: Record<string, number[]>;
+  onAddPost: (post: Omit<Post, 'id' | 'userId' | 'date' | 'likes' | 'comments'>) => void;
+  onDeletePost: (id: number) => void;
+  onToggleLike: (postId: number) => void;
+  onAddComment: (postId: number, text: string) => void;
+  onToggleBookmark: (postId: number) => void;
 }
 
-const Community: React.FC<CommunityProps> = ({ currentUser, isDark }) => {
+const Community: React.FC<CommunityProps> = ({ 
+  currentUser, 
+  isDark,
+  posts,
+  bookmarks,
+  onAddPost,
+  onDeletePost,
+  onToggleLike,
+  onAddComment,
+  onToggleBookmark
+}) => {
   const [postFilterMarket, setPostFilterMarket] = useState('All');
   const [postSort, setPostSort] = useState('date_desc');
   const [showMine, setShowMine] = useState(false);
@@ -18,126 +35,65 @@ const Community: React.FC<CommunityProps> = ({ currentUser, isDark }) => {
     title: '',
     content: '',
     market: 'Crypto',
-    images: []
+    images: [] as string[]
   });
   const [commentDrafts, setCommentDrafts] = useState<Record<number, string>>({});
-  const [bookmarks, setBookmarks] = useState<Record<number, boolean>>({});
-  const [posts, setPosts] = useState([
-    {
-      id: 1,
-      userId: 1,
-      title: 'BTC: лонг после закрепления',
-      content: 'BTC: лонг после закрепления над ключевым уровнем. Риск 1%.',
-      market: 'Crypto',
-      likes: [2],
-      comments: [{ id: 1, userId: 2, text: 'Согласен!', date: '2025-01-20' }]
-    },
-    {
-      id: 2,
-      userId: 2,
-      title: 'NVDA анализ',
-      content: 'NVDA показывает признаки разворота. Рассматриваю вход на откате.',
-      market: 'Stocks',
-      likes: [],
-      comments: []
-    },
-    {
-      id: 3,
-      userId: 3,
-      title: 'ETH краткосрок',
-      content: 'Ожидаю откат к 0,5 Fibo и продолжение тренда. Управление риском 0.5%.',
-      market: 'Crypto',
-      likes: [],
-      comments: []
-    }
-  ]);
-  
-
-  
-
-  const toggleBookmark = (postId: number) => {
-    if (!currentUser) return;
-    setBookmarks(prev => ({
-      ...prev,
-      [postId]: !prev[postId]
-    }));
-  };
-
+  const [selectedUserProfile, setSelectedUserProfile] = useState<string | number | null>(null);
+  const [imageUrl, setImageUrl] = useState('');
   const isBookmarked = (postId: number) => {
-    return bookmarks[postId] || false;
+    if (!currentUser) return false;
+    return bookmarks[currentUser.id]?.includes(postId) || false;
   };
 
-  const toggleLike = (postId: number) => {
-    if (!currentUser) return;
-    setPosts(prev => prev.map(post => {
-      if (post.id === postId) {
-        const likes = post.likes || [];
-        const isLiked = likes.includes(currentUser.id);
-        return {
-          ...post,
-          likes: isLiked 
-            ? likes.filter(id => id !== currentUser.id)
-            : [...likes, currentUser.id]
-        };
-      }
-      return post;
+  const handleAddPost = () => {
+    if (!currentUser || !newPost.title || !newPost.content) return;
+    onAddPost(newPost);
+    setNewPost({ title: '', content: '', market: 'Crypto', images: [] });
+    setImageUrl('');
+  };
+
+  const handleAddImage = () => {
+    if (imageUrl.trim()) {
+      setNewPost(prev => ({
+        ...prev,
+        images: [...prev.images, imageUrl.trim()]
+      }));
+      setImageUrl('');
+    }
+  };
+
+  const removeImage = (index: number) => {
+    setNewPost(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
     }));
   };
 
-  const addComment = (postId: number) => {
-    if (!currentUser) return;
+  const handleAddComment = (postId: number) => {
     const commentText = commentDrafts[postId]?.trim();
     if (!commentText) return;
-
-    const newComment = {
-      id: Date.now(),
-      userId: currentUser.id,
-      text: commentText,
-      date: new Date().toISOString().slice(0, 10)
-    };
-
-    setPosts(prev => prev.map(post => {
-      if (post.id === postId) {
-        return {
-          ...post,
-          comments: [...(post.comments || []), newComment]
-        };
-      }
-      return post;
-    }));
-
+    onAddComment(postId, commentText);
     setCommentDrafts(prev => ({ ...prev, [postId]: '' }));
   };
 
-  const addPost = () => {
-    if (!currentUser || !newPost.title || !newPost.content) return;
-
-    const post = {
-      id: Date.now(),
-      userId: currentUser.id,
-      ...newPost
-    };
-
-    setPosts(prev => [post, ...prev]);
-    setNewPost({ title: '', content: '', market: 'Crypto', images: [] });
-  };
-
-  const filteredPosts = posts.filter(post => {
-    if (postFilterMarket !== 'All' && post.market !== postFilterMarket) return false;
-    if (showMine && post.userId !== currentUser?.id) return false;
-    if (showBookmarksOnly && !isBookmarked(post.id)) return false;
-    if (hashtagFilter) {
-      const searchText = hashtagFilter.toLowerCase();
-      return post.title.toLowerCase().includes(searchText) || 
-             post.content.toLowerCase().includes(searchText);
-    }
-    return true;
-  }).sort((a, b) => {
-    if (postSort === 'likes_desc') {
-      return (b.likes?.length || 0) - (a.likes?.length || 0);
-    }
-    return b.id - a.id; // date_desc
-  });
+  const filteredPosts = useMemo(() => {
+    return posts.filter(post => {
+      if (postFilterMarket !== 'All' && post.market !== postFilterMarket) return false;
+      if (showMine && post.userId !== currentUser?.id) return false;
+      if (showBookmarksOnly && !isBookmarked(post.id)) return false;
+      if (hashtagFilter) {
+        const searchText = hashtagFilter.toLowerCase();
+        return post.title.toLowerCase().includes(searchText) || 
+               post.content.toLowerCase().includes(searchText);
+      }
+      return true;
+    }).sort((a, b) => {
+      if (postSort === 'likes_desc') {
+        return (b.likes?.length || 0) - (a.likes?.length || 0);
+      }
+      return b.id - a.id; // date_desc
+    });
+  }, [posts, postFilterMarket, showMine, showBookmarksOnly, hashtagFilter, postSort, currentUser, isBookmarked]);
 
   return (
     <View style={[styles.container, isDark ? styles.darkContainer : null]}>
@@ -199,7 +155,39 @@ const Community: React.FC<CommunityProps> = ({ currentUser, isDark }) => {
           </View>
         </View>
 
-        <Pressable style={styles.addButton} onPress={addPost}>
+        {/* Image upload */}
+        <View style={styles.inputGroup}>
+          <Text style={[styles.label, isDark ? styles.labelDark : null]}>Изображения</Text>
+          <View style={styles.imageUploadContainer}>
+            <TextInput
+              style={[styles.input, isDark ? styles.inputDark : null, { flex: 1 }]}
+              value={imageUrl}
+              onChangeText={setImageUrl}
+              placeholder="URL изображения"
+              placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+            />
+            <Pressable style={styles.addImageButton} onPress={handleAddImage}>
+              <Text style={styles.addImageButtonText}>+ Добавить</Text>
+            </Pressable>
+          </View>
+          {newPost.images.length > 0 && (
+            <View style={styles.imagePreviewContainer}>
+              {newPost.images.map((img, idx) => (
+                <View key={idx} style={styles.imagePreview}>
+                  <Image source={{ uri: img }} style={styles.previewImage} />
+                  <Pressable
+                    style={styles.removeImageButton}
+                    onPress={() => removeImage(idx)}
+                  >
+                    <Text style={styles.removeImageButtonText}>✕</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        <Pressable style={styles.addButton} onPress={handleAddPost}>
           <Text style={styles.addButtonText}>Опубликовать</Text>
         </Pressable>
       </View>
@@ -292,46 +280,77 @@ const Community: React.FC<CommunityProps> = ({ currentUser, isDark }) => {
         </Text>
         
         <ScrollView style={styles.postsList}>
-          {filteredPosts.map(post => (
-            <View key={post.id} style={[styles.post, isDark ? styles.postDark : null]}>
-              <View style={styles.postHeader}>
-                <Text style={[styles.postTitle, isDark ? styles.postTitleDark : null]}>
-                  {post.title}
-                </Text>
-                <Text style={[styles.postMarket, isDark ? styles.postMarketDark : null]}>
-                  {post.market}
-                </Text>
-              </View>
-              
-              <Text style={[styles.postContent, isDark ? styles.postContentDark : null]}>
-                {post.content}
-              </Text>
-              
-              <View style={styles.postActions}>
-                <Pressable
-                  style={styles.actionButton}
-                  onPress={() => toggleLike(post.id)}
-                >
-                  <Text style={[
-                    styles.actionButtonText,
-                    (post.likes?.includes(currentUser?.id || 0)) ? styles.actionButtonTextActive : null
-                  ]}>
-                    ❤️ {post.likes?.length || 0}
+              {filteredPosts.map(post => (
+                <View key={post.id} style={[styles.post, isDark ? styles.postDark : null]}>
+                  <View style={styles.postHeader}>
+                    <Pressable onPress={() => setSelectedUserProfile(post.userId)}>
+                      <Text style={[styles.postAuthor, isDark ? styles.postAuthorDark : null]}>
+                        @user{post.userId}
+                      </Text>
+                    </Pressable>
+                    <Text style={[styles.postMarket, isDark ? styles.postMarketDark : null]}>
+                      {post.market}
+                    </Text>
+                  </View>
+                  
+                  <Text style={[styles.postTitle, isDark ? styles.postTitleDark : null]}>
+                    {post.title}
                   </Text>
-                </Pressable>
-                
-                <Pressable
-                  style={styles.actionButton}
-                  onPress={() => toggleBookmark(post.id)}
-                >
-                  <Text style={[
-                    styles.actionButtonText,
-                    isBookmarked(post.id) ? styles.actionButtonTextActive : null
-                  ]}>
-                    🔖
+                  
+                  <Text style={[styles.postContent, isDark ? styles.postContentDark : null]}>
+                    {post.content}
                   </Text>
-                </Pressable>
-              </View>
+                  
+                  {/* Post images */}
+                  {post.images && post.images.length > 0 && (
+                    <ScrollView horizontal style={styles.postImagesContainer}>
+                      {post.images.map((img, idx) => (
+                        <Image
+                          key={idx}
+                          source={{ uri: img }}
+                          style={styles.postImage}
+                          resizeMode="cover"
+                        />
+                      ))}
+                    </ScrollView>
+                  )}
+              
+                  <View style={styles.postActions}>
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={() => onToggleLike(post.id)}
+                    >
+                      <Text style={[
+                        styles.actionButtonText,
+                        (post.likes?.includes(currentUser?.id || '')) ? styles.actionButtonTextActive : null
+                      ]}>
+                        ❤️ {post.likes?.length || 0}
+                      </Text>
+                    </Pressable>
+                    
+                    <Pressable
+                      style={styles.actionButton}
+                      onPress={() => onToggleBookmark(post.id)}
+                    >
+                      <Text style={[
+                        styles.actionButtonText,
+                        isBookmarked(post.id) ? styles.actionButtonTextActive : null
+                      ]}>
+                        🔖
+                      </Text>
+                    </Pressable>
+                    
+                    {currentUser?.id === post.userId && (
+                      <Pressable
+                        style={styles.actionButton}
+                        onPress={() => onDeletePost(post.id)}
+                      >
+                        <Text style={[styles.actionButtonText, { color: '#ef4444' }]}>
+                          🗑️ Удалить
+                        </Text>
+                      </Pressable>
+                    )}
+                  </View>
               
               {/* Comments */}
               <View style={styles.commentsContainer}>
@@ -361,7 +380,7 @@ const Community: React.FC<CommunityProps> = ({ currentUser, isDark }) => {
                     />
                     <Pressable
                       style={styles.commentButton}
-                      onPress={() => addComment(post.id)}
+                      onPress={() => handleAddComment(post.id)}
                     >
                       <Text style={styles.commentButtonText}>Отправить</Text>
                     </Pressable>
@@ -378,6 +397,55 @@ const Community: React.FC<CommunityProps> = ({ currentUser, isDark }) => {
           )}
         </ScrollView>
       </View>
+
+      {/* User Profile Modal */}
+      <Modal visible={selectedUserProfile !== null} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDark ? styles.modalContentDark : null]}>
+            <Text style={[styles.modalTitle, isDark ? styles.modalTitleDark : null]}>
+              Профиль @user{selectedUserProfile}
+            </Text>
+            
+            <View style={styles.profileInfo}>
+              <View style={styles.profileAvatar}>
+                <Text style={styles.profileAvatarText}>U</Text>
+              </View>
+              <Text style={[styles.profileNickname, isDark ? styles.profileNicknameDark : null]}>
+                @user{selectedUserProfile}
+              </Text>
+              <Text style={[styles.profileBio, isDark ? styles.profileBioDark : null]}>
+                Пользователь #{selectedUserProfile}
+              </Text>
+            </View>
+
+            <View style={styles.profileStats}>
+              <View style={styles.profileStat}>
+                <Text style={[styles.profileStatValue, isDark ? styles.profileStatValueDark : null]}>
+                  {posts.filter(p => p.userId === selectedUserProfile).length}
+                </Text>
+                <Text style={[styles.profileStatLabel, isDark ? styles.profileStatLabelDark : null]}>
+                  Постов
+                </Text>
+              </View>
+              <View style={styles.profileStat}>
+                <Text style={[styles.profileStatValue, isDark ? styles.profileStatValueDark : null]}>
+                  {posts.filter(p => p.userId === selectedUserProfile).reduce((sum, p) => sum + (p.likes?.length || 0), 0)}
+                </Text>
+                <Text style={[styles.profileStatLabel, isDark ? styles.profileStatLabelDark : null]}>
+                  Лайков
+                </Text>
+              </View>
+            </View>
+
+            <Pressable
+              style={[styles.modalButton, styles.closeModalButton]}
+              onPress={() => setSelectedUserProfile(null)}
+            >
+              <Text style={styles.closeModalButtonText}>Закрыть</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -697,6 +765,173 @@ const styles = StyleSheet.create({
   },
   emptyTextDark: {
     color: '#9ca3af',
+  },
+  imageUploadContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 8,
+  },
+  addImageButton: {
+    backgroundColor: '#10b981',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  addImageButtonText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  imagePreviewContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  imagePreview: {
+    position: 'relative',
+    width: 100,
+    height: 100,
+  },
+  previewImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#ef4444',
+    borderRadius: 12,
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  removeImageButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  postImagesContainer: {
+    marginVertical: 12,
+  },
+  postImage: {
+    width: 200,
+    height: 200,
+    borderRadius: 8,
+    marginRight: 8,
+  },
+  postAuthor: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#3b82f6',
+    marginBottom: 4,
+  },
+  postAuthorDark: {
+    color: '#60a5fa',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalContentDark: {
+    backgroundColor: '#121820',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  modalTitleDark: {
+    color: '#e6edf3',
+  },
+  profileInfo: {
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  profileAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#3b82f6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  profileAvatarText: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  profileNickname: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 8,
+  },
+  profileNicknameDark: {
+    color: '#e6edf3',
+  },
+  profileBio: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  profileBioDark: {
+    color: '#9ca3af',
+  },
+  profileStats: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 24,
+  },
+  profileStat: {
+    alignItems: 'center',
+  },
+  profileStatValue: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#3b82f6',
+  },
+  profileStatValueDark: {
+    color: '#60a5fa',
+  },
+  profileStatLabel: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 4,
+  },
+  profileStatLabelDark: {
+    color: '#9ca3af',
+  },
+  modalButton: {
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  closeModalButton: {
+    backgroundColor: '#e5e7eb',
+  },
+  closeModalButtonText: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 

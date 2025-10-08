@@ -116,36 +116,38 @@ const Header: React.FC<HeaderProps> = ({
       ]}>
         {tabs.map(({ key, label, dropdown }) => (
           <View key={key} style={{ flex: 1, position: 'relative' }}>
-            <Animated.View style={{ flex: 1 }}>
-              <Pressable 
-                style={[
-                  { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center' },
-                  tab === key ? { backgroundColor: '#1f6feb' } : { backgroundColor: 'transparent' }
-                ]} 
-                onPress={() => onTabClick(key)}
-                onHoverIn={() => onTabHover(key)}
-                onHoverOut={() => onTabLeave(key)}
-              >
-                <Text style={[
-                  { fontSize: 12, fontWeight: '600' },
-                  tab === key ? { color: '#fff' } : { color: '#9fb0c0' }
-                ]}>
-                  {label}
-                </Text>
-              </Pressable>
-            </Animated.View>
+            <Pressable 
+              style={[
+                { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center' },
+                tab === key ? { backgroundColor: '#1f6feb' } : { backgroundColor: 'transparent' }
+              ]} 
+              onPress={() => onTabClick(key)}
+              onHoverIn={() => onTabHover(key)}
+              onHoverOut={() => onTabLeave(key)}
+            >
+              <Text style={[
+                { fontSize: 12, fontWeight: '600' },
+                tab === key ? { color: '#fff' } : { color: '#9fb0c0' }
+              ]}>
+                {label}
+              </Text>
+            </Pressable>
             
             {/* Dropdown menu */}
             {openDropdown === key && (
-              <Animated.View style={[
-                styles.dropdown,
-                isDark ? styles.dropdownDark : null
-              ]}>
+              <View 
+                style={[
+                  styles.dropdown,
+                  isDark ? styles.dropdownDark : null
+                ]}
+              >
                 {dropdown.map((item, index) => (
                   <Pressable
                     key={index}
                     style={styles.dropdownItem}
                     onPress={item.action}
+                    onHoverIn={() => onTabHover(key)}
+                    onHoverOut={() => onTabLeave(key)}
                   >
                     <Text style={[
                       styles.dropdownText,
@@ -155,7 +157,7 @@ const Header: React.FC<HeaderProps> = ({
                     </Text>
                   </Pressable>
                 ))}
-              </Animated.View>
+              </View>
             )}
           </View>
         ))}

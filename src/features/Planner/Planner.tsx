@@ -1,16 +1,53 @@
-import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
-import type { User } from '../../state/types';
+import React, { useState } from 'react';
+import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Modal } from 'react-native';
+import type { User, Workout, Event } from '../../state/types';
 
 interface PlannerProps {
   currentUser: User | null;
   isDark: boolean;
+  workouts: Workout[];
+  events: Event[];
+  onAddWorkout: (workout: Omit<Workout, 'id' | 'userId'>) => void;
+  onAddEvent: (event: Omit<Event, 'id' | 'userId'>) => void;
+  onDeleteWorkout: (id: number) => void;
+  onDeleteEvent: (id: number) => void;
 }
 
-const Planner: React.FC<PlannerProps> = ({ isDark }) => {
+const Planner: React.FC<PlannerProps> = ({ 
+  currentUser, 
+  isDark,
+  workouts,
+  events,
+  onAddWorkout,
+  onAddEvent,
+  onDeleteWorkout,
+  onDeleteEvent
+}) => {
   const [viewMode, setViewMode] = React.useState<'month' | 'week' | 'day'>('month');
   const [currentDate, setCurrentDate] = React.useState<Date>(new Date());
   const [selectedDate, setSelectedDate] = React.useState<string>(new Date().toISOString().slice(0, 10));
+  const [showEventModal, setShowEventModal] = useState(false);
+  const [showWorkoutModal, setShowWorkoutModal] = useState(false);
+  const [eventType, setEventType] = useState<'event' | 'workout'>('event');
+
+  // Form states
+  const [newEvent, setNewEvent] = useState({
+    title: '',
+    date: selectedDate,
+    time: '09:00',
+    notes: '',
+    category: 'Работа',
+    remindBefore: 60,
+    reminders: [60, 15]
+  });
+
+  const [newWorkout, setNewWorkout] = useState({
+    type: 'Бег',
+    date: selectedDate,
+    time: '09:00',
+    notes: '',
+    remindBefore: 15
+  });
 
   const formatDate = (d: Date) => d.toISOString().slice(0, 10);
   const startOfWeek = (d: Date) => {
@@ -42,6 +79,56 @@ const Planner: React.FC<PlannerProps> = ({ isDark }) => {
     return weeks;
   };
   const isSameMonth = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+
+  // Get events for a specific date
+  const getEventsForDate = (dateStr: string) => {
+    const dayEvents = events.filter(e => e.date === dateStr);
+    const dayWorkouts = workouts.filter(w => w.date === dateStr);
+    return [...dayEvents, ...dayWorkouts.map(w => ({ ...w, isWorkout: true }))];
+  };
+
+  const handleAddEvent = () => {
+    if (!currentUser) return;
+    if (!newEvent.title) return;
+
+    onAddEvent(newEvent);
+    setNewEvent({
+      title: '',
+      date: selectedDate,
+      time: '09:00',
+      notes: '',
+      category: 'Работа',
+      remindBefore: 60,
+      reminders: [60, 15]
+    });
+    setShowEventModal(false);
+  };
+
+  const handleAddWorkout = () => {
+    if (!currentUser) return;
+
+    onAddWorkout(newWorkout);
+    setNewWorkout({
+      type: 'Бег',
+      date: selectedDate,
+      time: '09:00',
+      notes: '',
+      remindBefore: 15
+    });
+    setShowWorkoutModal(false);
+  };
+
+  const openCreateModal = (date: string, type: 'event' | 'workout') => {
+    setSelectedDate(date);
+    setNewEvent(prev => ({ ...prev, date, reminders: [60, 15] }));
+    setNewWorkout(prev => ({ ...prev, date }));
+    setEventType(type);
+    if (type === 'event') {
+      setShowEventModal(true);
+    } else {
+      setShowWorkoutModal(true);
+    }
+  };
 
   return (
     <View style={[styles.container, isDark ? styles.darkContainer : null]}>
@@ -93,6 +180,22 @@ const Planner: React.FC<PlannerProps> = ({ isDark }) => {
         </View>
       </View>
 
+      {/* Add Event/Workout Buttons */}
+      <View style={styles.actionButtons}>
+        <Pressable
+          style={[styles.addButton, { backgroundColor: '#10b981' }]}
+          onPress={() => openCreateModal(selectedDate, 'event')}
+        >
+          <Text style={styles.addButtonText}>+ Событие</Text>
+        </Pressable>
+        <Pressable
+          style={[styles.addButton, { backgroundColor: '#f59e0b' }]}
+          onPress={() => openCreateModal(selectedDate, 'workout')}
+        >
+          <Text style={styles.addButtonText}>+ Тренировка</Text>
+        </Pressable>
+      </View>
+
       <View style={[styles.calendarCard, isDark ? styles.calendarCardDark : null]}>
         <View style={styles.weekdaysRow}>
           {['Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб', 'Вс'].map(dn => (
@@ -101,7 +204,7 @@ const Planner: React.FC<PlannerProps> = ({ isDark }) => {
         </View>
 
         {viewMode === 'month' && (
-          <View style={styles.monthGrid}>
+          <ScrollView style={styles.monthGrid}>
             {getMonthGrid(currentDate).map((week, wi) => (
               <View key={wi} style={styles.weekRow}>
                 {week.map((day, di) => {
@@ -109,6 +212,8 @@ const Planner: React.FC<PlannerProps> = ({ isDark }) => {
                   const isCurrentMonth = isSameMonth(day, currentDate);
                   const dateStr = formatDate(day);
                   const isSelected = dateStr === selectedDate;
+                  const dayEvents = getEventsForDate(dateStr);
+                  
                   return (
                     <Pressable
                       key={key}
@@ -128,55 +233,231 @@ const Planner: React.FC<PlannerProps> = ({ isDark }) => {
                       >
                         {day.getDate()}
                       </Text>
+                      {/* Event indicators */}
+                      <View style={styles.eventIndicators}>
+                        {dayEvents.slice(0, 2).map((event, idx) => (
+                          <View
+                            key={idx}
+                            style={[
+                              styles.eventDot,
+                              { backgroundColor: (event as any).isWorkout ? '#f59e0b' : '#10b981' }
+                            ]}
+                          />
+                        ))}
+                        {dayEvents.length > 2 && (
+                          <Text style={styles.moreEvents}>+{dayEvents.length - 2}</Text>
+                        )}
+                      </View>
                     </Pressable>
                   );
                 })}
               </View>
             ))}
-          </View>
+          </ScrollView>
         )}
 
-        {viewMode === 'week' && (
-          <View style={styles.weekRow}>
-            {Array.from({ length: 7 }).map((_, i) => {
-              const start = startOfWeek(currentDate);
-              const day = addDays(start, i);
-              const dateStr = formatDate(day);
-              const isSelected = dateStr === selectedDate;
-              const isCurrentMonth = isSameMonth(day, currentDate);
-              return (
-                <Pressable
-                  key={i}
-                  style={[
-                    styles.dayCell,
-                    !isCurrentMonth ? styles.dayCellMuted : null,
-                    isSelected ? styles.dayCellSelected : null,
-                  ]}
-                  onPress={() => setSelectedDate(dateStr)}
-                >
-                  <Text style={[
-                    styles.dayNum,
-                    !isCurrentMonth ? styles.dayNumMuted : null,
-                    isSelected ? styles.dayNumSelected : null,
-                    isDark ? styles.dayNumDark : null,
-                  ]}
-                  >
-                    {day.getDate()}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        )}
-
-        {viewMode === 'day' && (
-          <View style={styles.dayViewBox}>
-            <Text style={[styles.dayViewTitle, isDark ? styles.dayViewTitleDark : null]}>
-              {new Date(selectedDate).toLocaleDateString('ru-RU', { weekday: 'long', day: 'numeric', month: 'long' })}
+        {/* Events list for selected date */}
+        {selectedDate && (
+          <View style={[styles.eventsSection, isDark ? styles.eventsSectionDark : null]}>
+            <Text style={[styles.eventsSectionTitle, isDark ? styles.eventsSectionTitleDark : null]}>
+              События на {new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
             </Text>
+            <ScrollView style={styles.eventsList}>
+              {getEventsForDate(selectedDate).map((item, idx) => {
+                const isWorkout = (item as any).isWorkout;
+                return (
+                  <View key={idx} style={[styles.eventItem, isDark ? styles.eventItemDark : null]}>
+                    <View style={[
+                      styles.eventColorBar,
+                      { backgroundColor: isWorkout ? '#f59e0b' : '#10b981' }
+                    ]} />
+                    <View style={styles.eventContent}>
+                      <Text style={[styles.eventTitle, isDark ? styles.eventTitleDark : null]}>
+                        {isWorkout ? (item as any).type : (item as any).title}
+                      </Text>
+                      <Text style={[styles.eventTime, isDark ? styles.eventTimeDark : null]}>
+                        🕐 {(item as any).time}
+                      </Text>
+                      {(item as any).notes && (
+                        <Text style={[styles.eventNotes, isDark ? styles.eventNotesDark : null]}>
+                          {(item as any).notes}
+                        </Text>
+                      )}
+                    </View>
+                    <Pressable
+                      style={styles.deleteEventButton}
+                      onPress={() => isWorkout ? onDeleteWorkout((item as any).id) : onDeleteEvent((item as any).id)}
+                    >
+                      <Text style={styles.deleteEventButtonText}>✕</Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+              {getEventsForDate(selectedDate).length === 0 && (
+                <Text style={[styles.noEventsText, isDark ? styles.noEventsTextDark : null]}>
+                  Нет событий на этот день
+                </Text>
+              )}
+            </ScrollView>
           </View>
         )}
       </View>
+
+      {/* Event Creation Modal */}
+      <Modal visible={showEventModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDark ? styles.modalContentDark : null]}>
+            <Text style={[styles.modalTitle, isDark ? styles.modalTitleDark : null]}>Новое событие</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, isDark ? styles.labelDark : null]}>Название</Text>
+              <TextInput
+                style={[styles.input, isDark ? styles.inputDark : null]}
+                value={newEvent.title}
+                onChangeText={(text) => setNewEvent(prev => ({ ...prev, title: text }))}
+                placeholder="Встреча, звонок..."
+                placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+              />
+            </View>
+
+            <View style={styles.inputRow}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={[styles.label, isDark ? styles.labelDark : null]}>Дата</Text>
+                <TextInput
+                  style={[styles.input, isDark ? styles.inputDark : null]}
+                  value={newEvent.date}
+                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, date: text }))}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={[styles.label, isDark ? styles.labelDark : null]}>Время</Text>
+                <TextInput
+                  style={[styles.input, isDark ? styles.inputDark : null]}
+                  value={newEvent.time}
+                  onChangeText={(text) => setNewEvent(prev => ({ ...prev, time: text }))}
+                  placeholder="HH:MM"
+                  placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, isDark ? styles.labelDark : null]}>Заметки</Text>
+              <TextInput
+                style={[styles.input, isDark ? styles.inputDark : null]}
+                value={newEvent.notes}
+                onChangeText={(text) => setNewEvent(prev => ({ ...prev, notes: text }))}
+                placeholder="Дополнительная информация..."
+                placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowEventModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Отмена</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleAddEvent}
+              >
+                <Text style={styles.saveButtonText}>Создать</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Workout Creation Modal */}
+      <Modal visible={showWorkoutModal} transparent animationType="slide">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDark ? styles.modalContentDark : null]}>
+            <Text style={[styles.modalTitle, isDark ? styles.modalTitleDark : null]}>Новая тренировка</Text>
+            
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, isDark ? styles.labelDark : null]}>Тип</Text>
+              <View style={styles.pickerContainer}>
+                {['Бег', 'Йога', 'Тренажерный зал', 'Плавание', 'Велосипед'].map(type => (
+                  <Pressable
+                    key={type}
+                    style={[
+                      styles.pickerOption,
+                      isDark ? styles.pickerOptionDark : null,
+                      newWorkout.type === type ? styles.pickerOptionActive : null
+                    ]}
+                    onPress={() => setNewWorkout(prev => ({ ...prev, type }))}
+                  >
+                    <Text style={[
+                      styles.pickerText,
+                      isDark ? styles.pickerTextDark : null,
+                      newWorkout.type === type ? styles.pickerTextActive : null
+                    ]}>
+                      {type}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.inputRow}>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={[styles.label, isDark ? styles.labelDark : null]}>Дата</Text>
+                <TextInput
+                  style={[styles.input, isDark ? styles.inputDark : null]}
+                  value={newWorkout.date}
+                  onChangeText={(text) => setNewWorkout(prev => ({ ...prev, date: text }))}
+                  placeholder="YYYY-MM-DD"
+                  placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+                />
+              </View>
+              <View style={[styles.inputGroup, { flex: 1 }]}>
+                <Text style={[styles.label, isDark ? styles.labelDark : null]}>Время</Text>
+                <TextInput
+                  style={[styles.input, isDark ? styles.inputDark : null]}
+                  value={newWorkout.time}
+                  onChangeText={(text) => setNewWorkout(prev => ({ ...prev, time: text }))}
+                  placeholder="HH:MM"
+                  placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+                />
+              </View>
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Text style={[styles.label, isDark ? styles.labelDark : null]}>Заметки</Text>
+              <TextInput
+                style={[styles.input, isDark ? styles.inputDark : null]}
+                value={newWorkout.notes}
+                onChangeText={(text) => setNewWorkout(prev => ({ ...prev, notes: text }))}
+                placeholder="Расстояние, упражнения..."
+                placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+                multiline
+                numberOfLines={3}
+              />
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowWorkoutModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Отмена</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={handleAddWorkout}
+              >
+                <Text style={styles.saveButtonText}>Создать</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -282,6 +563,22 @@ const styles = StyleSheet.create({
   viewModeTextActive: {
     color: '#fff',
   },
+  actionButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  addButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  addButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   calendarCard: {
     backgroundColor: '#ffffff',
     borderRadius: 12,
@@ -289,6 +586,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#e5e7eb',
+    flex: 1,
   },
   calendarCardDark: {
     backgroundColor: '#121820',
@@ -310,23 +608,22 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
   },
   monthGrid: {
-    gap: 6,
+    maxHeight: 300,
   },
   weekRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    gap: 6,
+    gap: 4,
     marginBottom: 6,
   },
   dayCell: {
-    width: `${100 / 7 - 0.5}%`,
-    aspectRatio: 1,
+    width: `${100 / 7 - 0.6}%`,
+    minHeight: 50,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#e5e7eb',
     backgroundColor: '#f9fafb',
-    alignItems: 'center',
-    justifyContent: 'center',
+    padding: 4,
     position: 'relative',
   },
   dayCellMuted: {
@@ -335,10 +632,12 @@ const styles = StyleSheet.create({
   dayCellSelected: {
     borderColor: '#3b82f6',
     backgroundColor: '#eff6ff',
+    borderWidth: 2,
   },
   dayNum: {
     color: '#1f2937',
     fontWeight: '700',
+    fontSize: 12,
   },
   dayNumDark: {
     color: '#e6edf3',
@@ -346,25 +645,224 @@ const styles = StyleSheet.create({
   dayNumMuted: {
     opacity: 0.7,
   },
-  dot: {
-    position: 'absolute',
-    bottom: 8,
+  dayNumSelected: {
+    color: '#3b82f6',
+  },
+  eventIndicators: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 2,
+    marginTop: 4,
+  },
+  eventDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#3b82f6',
   },
-  dayViewBox: {
-    paddingVertical: 12,
-    alignItems: 'center',
+  moreEvents: {
+    fontSize: 10,
+    color: '#6b7280',
   },
-  dayViewTitle: {
+  eventsSection: {
+    marginTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    paddingTop: 16,
+  },
+  eventsSectionDark: {
+    borderTopColor: '#374151',
+  },
+  eventsSectionTitle: {
     fontSize: 16,
     fontWeight: '700',
     color: '#1f2937',
+    marginBottom: 12,
   },
-  dayViewTitleDark: {
+  eventsSectionTitleDark: {
     color: '#e6edf3',
+  },
+  eventsList: {
+    maxHeight: 200,
+  },
+  eventItem: {
+    flexDirection: 'row',
+    backgroundColor: '#f9fafb',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+  },
+  eventItemDark: {
+    backgroundColor: '#1f2937',
+    borderColor: '#374151',
+  },
+  eventColorBar: {
+    width: 4,
+    borderRadius: 2,
+    marginRight: 12,
+  },
+  eventContent: {
+    flex: 1,
+  },
+  eventTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 4,
+  },
+  eventTitleDark: {
+    color: '#e6edf3',
+  },
+  eventTime: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginBottom: 4,
+  },
+  eventTimeDark: {
+    color: '#9ca3af',
+  },
+  eventNotes: {
+    fontSize: 12,
+    color: '#6b7280',
+    fontStyle: 'italic',
+  },
+  eventNotesDark: {
+    color: '#9ca3af',
+  },
+  deleteEventButton: {
+    padding: 4,
+  },
+  deleteEventButtonText: {
+    fontSize: 18,
+    color: '#ef4444',
+  },
+  noEventsText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+    fontStyle: 'italic',
+    paddingVertical: 20,
+  },
+  noEventsTextDark: {
+    color: '#9ca3af',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalContent: {
+    backgroundColor: '#fff',
+    borderRadius: 12,
+    padding: 20,
+    width: '100%',
+    maxWidth: 500,
+  },
+  modalContentDark: {
+    backgroundColor: '#121820',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1f2937',
+    marginBottom: 20,
+  },
+  modalTitleDark: {
+    color: '#e6edf3',
+  },
+  inputRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: 16,
+  },
+  inputGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 6,
+  },
+  labelDark: {
+    color: '#d1d5db',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 14,
+    color: '#1f2937',
+    backgroundColor: '#ffffff',
+  },
+  inputDark: {
+    borderColor: '#374151',
+    backgroundColor: '#1f2937',
+    color: '#e6edf3',
+  },
+  pickerContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  pickerOption: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 6,
+    backgroundColor: '#f3f4f6',
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+  },
+  pickerOptionDark: {
+    backgroundColor: '#374151',
+    borderColor: '#4b5563',
+  },
+  pickerOptionActive: {
+    backgroundColor: '#3b82f6',
+    borderColor: '#3b82f6',
+  },
+  pickerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  pickerTextDark: {
+    color: '#d1d5db',
+  },
+  pickerTextActive: {
+    color: '#ffffff',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 20,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: '#e5e7eb',
+  },
+  cancelButtonText: {
+    color: '#374151',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  saveButton: {
+    backgroundColor: '#10b981',
+  },
+  saveButtonText: {
+    color: '#fff',
+    fontSize: 14,
+    fontWeight: '600',
   },
 });
 
