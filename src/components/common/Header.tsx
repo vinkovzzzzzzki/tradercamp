@@ -1,5 +1,5 @@
 // Header component - exact reproduction of current header structure
-import React from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, Image, Pressable, Animated, StyleSheet } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import type { TabType, User, FinanceViewType, JournalViewType, CalendarViewType } from '../../state/types';
@@ -41,6 +41,9 @@ const Header: React.FC<HeaderProps> = ({
   dropdownAnimations,
   buttonAnimations
 }) => {
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const buttonRefs = useRef<Record<string, any>>({});
+
   const tabs = [
     { 
       key: 'finance' as TabType, 
@@ -94,6 +97,22 @@ const Header: React.FC<HeaderProps> = ({
     },
   ];
 
+  // Update dropdown position when it opens
+  useEffect(() => {
+    if (openDropdown && buttonRefs.current[openDropdown]) {
+      const button = buttonRefs.current[openDropdown];
+      if (button && button.measure) {
+        button.measure((x: number, y: number, width: number, height: number, pageX: number, pageY: number) => {
+          setDropdownPosition({
+            top: pageY + height,
+            left: pageX,
+            width: width
+          });
+        });
+      }
+    }
+  }, [openDropdown]);
+
   return (
     <View style={[
       styles.header,
@@ -120,12 +139,13 @@ const Header: React.FC<HeaderProps> = ({
       
       {/* Static navigation tabs with dropdowns */}
       <View style={[
-        { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 10, position: 'relative', overflow: 'visible' },
+        { flexDirection: 'row', backgroundColor: '#1b2430', borderRadius: 10, padding: 4, marginHorizontal: 20, marginBottom: 10 },
         isDark ? { backgroundColor: '#1b2430' } : null
       ]}>
-        {tabs.map(({ key, label, dropdown }) => (
-          <View key={key} style={{ flex: 1, position: 'relative', overflow: 'visible' }}>
+        {tabs.map(({ key, label }) => (
+          <View key={key} style={{ flex: 1 }}>
             <Pressable 
+              ref={ref => buttonRefs.current[key] = ref}
               style={[
                 { flex: 1, paddingVertical: 10, paddingHorizontal: 6, borderRadius: 8, alignItems: 'center' },
                 tab === key ? { backgroundColor: '#1f6feb' } : { backgroundColor: 'transparent' }
@@ -141,41 +161,47 @@ const Header: React.FC<HeaderProps> = ({
                 {label}
               </Text>
             </Pressable>
-            
-            {/* Dropdown menu */}
-            {openDropdown === key && (
-              <View
-                style={[
-                  styles.dropdown,
-                  isDark ? styles.dropdownDark : null
-                ]}
-                // @ts-ignore - onMouseEnter/Leave work in react-native-web
-                onMouseEnter={onDropdownEnter}
-                // @ts-ignore
-                onMouseLeave={onDropdownLeave}
-              >
-                {dropdown.map((item, index) => (
-                  <Pressable
-                    key={index}
-                    style={({ pressed }) => [
-                      styles.dropdownItem,
-                      pressed && { backgroundColor: '#374151' }
-                    ]}
-                    onPress={item.action}
-                  >
-                    <Text style={[
-                      styles.dropdownText,
-                      isDark ? styles.dropdownTextDark : null
-                    ]}>
-                      {item.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            )}
           </View>
         ))}
       </View>
+      
+      {/* Render dropdown at root level with fixed positioning */}
+      {openDropdown && tabs.find(t => t.key === openDropdown) && (
+        <View
+          {...({
+            style: [
+              styles.dropdownPortal,
+              {
+                position: 'fixed' as any,
+                top: dropdownPosition.top,
+                left: dropdownPosition.left,
+                width: dropdownPosition.width,
+              },
+              isDark ? styles.dropdownDark : null
+            ],
+            onMouseEnter: onDropdownEnter,
+            onMouseLeave: onDropdownLeave,
+          } as any)}
+        >
+          {tabs.find(t => t.key === openDropdown)?.dropdown.map((item, index) => (
+            <Pressable
+              key={index}
+              style={({ pressed }) => [
+                styles.dropdownItem,
+                pressed && { backgroundColor: '#374151' }
+              ]}
+              onPress={item.action}
+            >
+              <Text style={[
+                styles.dropdownText,
+                isDark ? styles.dropdownTextDark : null
+              ]}>
+                {item.label}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
       
       {/* Auth status */}
       {currentUser && (
@@ -200,7 +226,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#1f2a36',
-    overflow: 'visible',
   },
   headerDark: {
     backgroundColor: '#121820',
@@ -247,21 +272,16 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginBottom: 0,
   },
-  dropdown: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    right: 0,
+  dropdownPortal: {
     backgroundColor: '#1a202c',
     borderRadius: 8,
     padding: 4,
-    marginTop: 2,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 10,
-    zIndex: 9999,
+    zIndex: 999999,
   },
   dropdownDark: {
     backgroundColor: '#1a202c',
