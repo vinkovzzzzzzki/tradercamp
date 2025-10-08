@@ -359,6 +359,27 @@ const Journal: React.FC<JournalProps> = ({
               ))}
             </ScrollView>
           )}
+
+          {/* История сделок: мини-страница */}
+          <View style={{ marginTop: 16 }}>
+            <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>История сделок (все)</Text>
+            <ScrollView style={{ maxHeight: 240 }}>
+              {trades.length === 0 ? (
+                <Text style={[styles.noteText, isDark ? styles.noteTextDark : null]}>Пока нет сделок</Text>
+              ) : (
+                trades.map(t => (
+                  <View key={`h-${t.id}`} style={[styles.tradeItem, isDark ? styles.tradeItemDark : null]}>
+                    <View style={styles.tradeHeader}>
+                      <Text style={[styles.tradeAsset, isDark ? styles.tradeAssetDark : null]}>{t.symbol}</Text>
+                      <Text style={styles.tradeSide}>{t.side}</Text>
+                    </View>
+                    <Text style={[styles.tradeDetail, isDark ? styles.tradeDetailDark : null]}>Дата: {t.date}</Text>
+                    {t.note ? <Text style={[styles.tradeNotes, isDark ? styles.tradeNotesDark : null]}>{t.note}</Text> : null}
+                  </View>
+                ))
+              )}
+            </ScrollView>
+          </View>
         </View>
       )}
     </View>

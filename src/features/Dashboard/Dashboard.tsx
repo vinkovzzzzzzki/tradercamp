@@ -1,7 +1,7 @@
 // Dashboard feature component - exact reproduction of current finance tab structure
 import React, { useState, useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions } from 'react-native';
-import { SummaryBalance, SafetyFund, Investments, Debts } from '../../components/finance';
+import { SummaryBalance, SafetyFund, Investments, Debts, Transactions } from '../../components/finance';
 import type {
   User,
   ChartVisibility,
@@ -325,6 +325,16 @@ const Dashboard: React.FC<DashboardProps> = ({
         onRepayDebt={onRepayDebt}
         onDeleteDebt={onDeleteDebt}
         onDeleteDebtTx={onDeleteDebtTx}
+        />
+      )}
+
+      {/* Transactions history - aggregated */}
+      {financeView === 'transactions' && (
+        <Transactions
+          isDark={isDark}
+          emergencyTx={emergencyTx}
+          investTx={investTx}
+          debts={sortedDebts as any}
         />
       )}
     </View>

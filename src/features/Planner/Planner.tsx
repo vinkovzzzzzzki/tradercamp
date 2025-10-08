@@ -301,6 +301,31 @@ const Planner: React.FC<PlannerProps> = ({
             </ScrollView>
           </View>
         )}
+
+        {/* История дневника планера: события и тренировки */}
+        <View style={[styles.eventsSection, isDark ? styles.eventsSectionDark : null]}>
+          <Text style={[styles.eventsSectionTitle, isDark ? styles.eventsSectionTitleDark : null]}>История записей</Text>
+          <ScrollView style={styles.eventsList}>
+            {[...events, ...workouts.map(w => ({...w, isWorkout: true}))]
+              .sort((a:any,b:any)=> (a.date + (a.time||'')).localeCompare(b.date + (b.time||'')))
+              .map((item:any, idx:number) => (
+                <View key={`hist-${idx}`} style={[styles.eventItem, isDark ? styles.eventItemDark : null]}>
+                  <View style={[styles.eventColorBar, { backgroundColor: item.isWorkout ? '#f59e0b' : '#10b981' }]} />
+                  <View style={styles.eventContent}>
+                    <Text style={[styles.eventTitle, isDark ? styles.eventTitleDark : null]}>
+                      {item.isWorkout ? item.type : item.title}
+                    </Text>
+                    <Text style={[styles.eventTime, isDark ? styles.eventTimeDark : null]}>
+                      {item.date} {item.time}
+                    </Text>
+                    {item.notes ? (
+                      <Text style={[styles.eventNotes, isDark ? styles.eventNotesDark : null]}>{item.notes}</Text>
+                    ) : null}
+                  </View>
+                </View>
+              ))}
+          </ScrollView>
+        </View>
       </View>
 
       {/* Event Creation Modal */}

@@ -44,7 +44,8 @@ const Header: React.FC<HeaderProps> = ({
         { label: 'Обзор', action: () => { onTabClick('finance'); onFinanceViewChange?.('summary'); onOpenDropdown(null); } },
         { label: 'Подушка безопасности', action: () => { onTabClick('finance'); onFinanceViewChange?.('fund'); onOpenDropdown(null); } },
         { label: 'Инвестиции', action: () => { onTabClick('finance'); onFinanceViewChange?.('invest'); onOpenDropdown(null); } },
-        { label: 'Долги', action: () => { onTabClick('finance'); onFinanceViewChange?.('debts'); onOpenDropdown(null); } }
+        { label: 'Долги', action: () => { onTabClick('finance'); onFinanceViewChange?.('debts'); onOpenDropdown(null); } },
+        { label: 'История транзакций', action: () => { onTabClick('finance'); onFinanceViewChange?.('transactions'); onOpenDropdown(null); } }
       ]
     },
     { 
