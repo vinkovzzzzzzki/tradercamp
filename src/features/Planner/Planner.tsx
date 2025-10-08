@@ -88,7 +88,6 @@ const Planner: React.FC<PlannerProps> = ({
   };
 
   const handleAddEvent = () => {
-    if (!currentUser) return;
     if (!newEvent.title) return;
 
     onAddEvent(newEvent);
@@ -105,7 +104,6 @@ const Planner: React.FC<PlannerProps> = ({
   };
 
   const handleAddWorkout = () => {
-    if (!currentUser) return;
 
     onAddWorkout(newWorkout);
     setNewWorkout({

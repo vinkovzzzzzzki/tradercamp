@@ -54,7 +54,6 @@ const Journal: React.FC<JournalProps> = ({
   }, [trades, filters]);
 
   const addTrade = () => {
-    if (!currentUser) return;
     if (!newTrade.symbol || !newTrade.qty || !newTrade.price) return;
 
     onAddTrade({
