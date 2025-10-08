@@ -107,11 +107,11 @@ export function generateComprehensiveChartData(
   const filteredInvestment = investmentHistory.filter(timeFilter);
   const filteredDebts = debtsHistory.filter(timeFilter);
 
-  // Create labels (dates)
+  // Create labels (dates) — use normalized X to avoid undefined and NaN
   const allDates = new Set([
-    ...filteredCushion.map(p => p.x),
-    ...filteredInvestment.map(p => p.x),
-    ...filteredDebts.map(p => p.x)
+    ...filteredCushion.map(getPointX),
+    ...filteredInvestment.map(getPointX),
+    ...filteredDebts.map(getPointX)
   ]);
   
   const sortedDates = Array.from(allDates).sort((a, b) => a - b);

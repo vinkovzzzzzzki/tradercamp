@@ -122,14 +122,29 @@ export const useAppState = () => {
   });
   
   // History data
+  const nowIso = new Date().toISOString().slice(0, 10);
+  const seedIfEmpty = <T extends DataPoint[]>(key: string, seed: T): T => {
+    const stored = storage.get(key, []);
+    return (Array.isArray(stored) && stored.length > 0) ? stored : seed;
+  };
+  // Seed demo history so chart renders without auth/data
   const [cushionHistory, setCushionHistory] = useState<DataPoint[]>(() => 
-    storage.get(STORAGE_KEYS.CUSHION_HISTORY, [])
+    seedIfEmpty(STORAGE_KEYS.CUSHION_HISTORY, [
+      { date: nowIso, value: 3000, y: 3000 },
+      { date: nowIso, value: 3500, y: 3500 }
+    ] as any)
   );
   const [investmentHistory, setInvestmentHistory] = useState<DataPoint[]>(() => 
-    storage.get(STORAGE_KEYS.INVESTMENT_HISTORY, [])
+    seedIfEmpty(STORAGE_KEYS.INVESTMENT_HISTORY, [
+      { date: nowIso, value: 2000, y: 2000 },
+      { date: nowIso, value: 2600, y: 2600 }
+    ] as any)
   );
   const [debtsHistory, setDebtsHistory] = useState<DataPoint[]>(() => 
-    storage.get(STORAGE_KEYS.DEBTS_HISTORY, [])
+    seedIfEmpty(STORAGE_KEYS.DEBTS_HISTORY, [
+      { date: nowIso, value: 1500, y: 1500 },
+      { date: nowIso, value: 1400, y: 1400 }
+    ] as any)
   );
   
   // Trades
@@ -496,14 +511,26 @@ export const useAppState = () => {
   };
   
   const resetAllFinancialData = () => {
+    // Generate random demo data for quick testing
+    const makeSeries = (start: number) => {
+      const today = new Date();
+      const arr: DataPoint[] = [] as any;
+      let cur = start;
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(today.getDate() - i * 5);
+        cur = Math.max(0, Math.round(cur + (Math.random() * 600 - 300)));
+        const iso = d.toISOString().slice(0, 10);
+        arr.push({ date: iso, value: cur, y: cur } as any);
+      }
+      return arr;
+    };
+    setCushionHistory(makeSeries(3000));
+    setInvestmentHistory(makeSeries(2500));
+    setDebtsHistory(makeSeries(1800));
     setEmergencyTx([]);
     setInvestTx([]);
     setSortedDebts([]);
-    setCushionHistory([]);
-    setInvestmentHistory([]);
-    setDebtsHistory([]);
-    setCashReserve(0);
-    setMonthlyExpenses(0);
   };
   
   const addTrade = (trade: Omit<Trade, 'id' | 'userId'>) => {

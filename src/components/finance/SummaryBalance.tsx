@@ -121,10 +121,10 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                     </Pressable>
                   ))}
                   <Pressable
-                    style={[styles.timePeriodButton, { backgroundColor: '#ef4444', borderColor: '#ef4444' }]}
+                    style={[styles.timePeriodButton, styles.timePeriodButtonActive]}
                     onPress={onResetAllFinancialData}
                   >
-                    <Text style={[styles.timePeriodText, { color: '#fff' }]}>Сброс</Text>
+                    <Text style={[styles.timePeriodText, styles.timePeriodTextActive]}>Сброс</Text>
                   </Pressable>
                 </View>
                 
