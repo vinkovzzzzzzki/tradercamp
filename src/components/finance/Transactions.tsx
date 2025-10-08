@@ -1,6 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { arrayToCSV, downloadCSV, generateFilename } from '../../services/export/csv';
+import { storage, STORAGE_KEYS } from '../../services/persist';
 
 interface TransactionsProps {
   isDark: boolean;
@@ -10,9 +11,17 @@ interface TransactionsProps {
 }
 
 const Transactions: React.FC<TransactionsProps> = ({ isDark, emergencyTx, investTx, debts }) => {
-  const [query, setQuery] = useState('');
-  const [typeFilter, setTypeFilter] = useState<'all' | 'fund' | 'invest' | 'debt'>('all');
-  const [currencyFilter, setCurrencyFilter] = useState<string>('');
+  const [query, setQuery] = useState(() => (storage.get(STORAGE_KEYS.FINANCE_TX_FILTERS, {})?.query || ''));
+  const [typeFilter, setTypeFilter] = useState<'all' | 'fund' | 'invest' | 'debt'>(
+    () => (storage.get(STORAGE_KEYS.FINANCE_TX_FILTERS, {})?.type || 'all')
+  );
+  const [currencyFilter, setCurrencyFilter] = useState<string>(
+    () => (storage.get(STORAGE_KEYS.FINANCE_TX_FILTERS, {})?.currency || '')
+  );
+
+  useEffect(() => {
+    storage.set(STORAGE_KEYS.FINANCE_TX_FILTERS, { query, type: typeFilter, currency: currencyFilter });
+  }, [query, typeFilter, currencyFilter]);
 
   const rows = useMemo(() => {
     const all = [

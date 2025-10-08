@@ -1,5 +1,5 @@
 // Journal feature component - exact reproduction of original trading journal functionality
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { formatCurrencyCustom } from '../../services/format';
 import type { User, Trade } from '../../state/types';
@@ -33,13 +33,20 @@ const Journal: React.FC<JournalProps> = ({
   });
   
   // Filter states
-  const [filters, setFilters] = useState({
-    symbol: '',
-    market: '',
-    side: '',
-    dateFrom: '',
-    dateTo: ''
+  const [filters, setFilters] = useState(() => {
+    try {
+      const raw = window.localStorage.getItem('journalFilters');
+      return raw ? JSON.parse(raw) : { symbol: '', market: '', side: '', dateFrom: '', dateTo: '' };
+    } catch {
+      return { symbol: '', market: '', side: '', dateFrom: '', dateTo: '' };
+    }
   });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem('journalFilters', JSON.stringify(filters));
+    } catch {}
+  }, [filters]);
   
   // Filtered trades
   const filteredTrades = useMemo(() => {

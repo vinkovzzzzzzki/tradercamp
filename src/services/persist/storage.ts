@@ -57,5 +57,8 @@ export const STORAGE_KEYS = {
   NEWS_CACHE: 'newsCache',
   NEWS_LAST_FETCH: 'newsLastFetch',
   TRADES: 'trades',
-  COURSE_IMPORT_TEXT: 'courseImportText'
+  COURSE_IMPORT_TEXT: 'courseImportText',
+  // UI filter states
+  FINANCE_TX_FILTERS: 'financeTxFilters',
+  JOURNAL_FILTERS: 'journalFilters'
 } as const;
