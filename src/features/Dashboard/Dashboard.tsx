@@ -242,6 +242,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     };
   };
 
+  // Debug logging
+  console.log('Dashboard financeView:', financeView);
+
   return (
     <View style={[styles.container, isDark ? styles.darkContainer : null]}>
       {/* Show only summary view by default */}
