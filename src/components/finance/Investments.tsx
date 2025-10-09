@@ -312,7 +312,7 @@ const Investments: React.FC<InvestmentsProps> = ({
         </Pressable>
       </View>
 
-      {investTx.length > 0 && (
+      {investTx.length > 0 ? (
         <View style={styles.transactionList}>
           <Text style={styles.formTitle}>История операций</Text>
           {investTx.slice(-5).reverse().map((tx) => (
@@ -334,6 +334,13 @@ const Investments: React.FC<InvestmentsProps> = ({
               </Pressable>
             </View>
           ))}
+        </View>
+      ) : (
+        <View style={{ marginTop: 12 }}>
+          <Text style={styles.formLabel}>Операций пока нет.</Text>
+          <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb' }]} onPress={() => onNewInvestTxChange({ ...newInvestTx, type: 'in' })}>
+            <Text style={styles.addButtonText}>Добавить первую инвестицию</Text>
+          </Pressable>
         </View>
       )}
     </View>

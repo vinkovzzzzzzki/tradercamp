@@ -291,11 +291,21 @@ const Planner: React.FC<PlannerProps> = ({
                   </View>
                 );
               })}
-              {getEventsForDate(selectedDate).length === 0 && (
-                <Text style={[styles.noEventsText, isDark ? styles.noEventsTextDark : null]}>
-                  Нет событий на этот день
-                </Text>
-              )}
+          {getEventsForDate(selectedDate).length === 0 && (
+            <View>
+              <Text style={[styles.noEventsText, isDark ? styles.noEventsTextDark : null]}>
+                Нет событий на этот день
+              </Text>
+              <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                <Pressable style={[styles.addButton, { backgroundColor: '#10b981', flex: 1 }]} onPress={() => setShowEventModal(true)}>
+                  <Text style={styles.addButtonText}>Добавить событие</Text>
+                </Pressable>
+                <Pressable style={[styles.addButton, { backgroundColor: '#f59e0b', flex: 1 }]} onPress={() => setShowWorkoutModal(true)}>
+                  <Text style={styles.addButtonText}>Добавить тренировку</Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
             </ScrollView>
           </View>
         )}

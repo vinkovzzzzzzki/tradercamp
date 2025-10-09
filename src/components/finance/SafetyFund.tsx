@@ -378,7 +378,7 @@ const SafetyFund: React.FC<SafetyFundProps> = ({
         </Pressable>
       </View>
 
-      {emergencyTx.length > 0 && (
+      {emergencyTx.length > 0 ? (
         <View style={styles.transactionList}>
           <Text style={styles.formTitle}>История операций</Text>
           {emergencyTx.slice(-5).reverse().map((tx) => (
@@ -400,6 +400,13 @@ const SafetyFund: React.FC<SafetyFundProps> = ({
               </Pressable>
             </View>
           ))}
+        </View>
+      ) : (
+        <View style={{ marginTop: 12 }}>
+          <Text style={styles.formLabel}>Пока нет операций по подушке.</Text>
+          <Pressable style={[styles.addButton, { backgroundColor: '#1f6feb' }]} onPress={() => onNewEmergencyTxChange({ ...newEmergencyTx, type: 'deposit' })}>
+            <Text style={styles.addButtonText}>Добавить первое пополнение</Text>
+          </Pressable>
         </View>
       )}
     </View>

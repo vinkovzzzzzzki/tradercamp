@@ -220,6 +220,15 @@ const Debts: React.FC<DebtsProps> = ({
         </Text>
       </View>
 
+      {sortedDebts.length === 0 && (
+        <View style={{ marginBottom: 12 }}>
+          <Text style={styles.totalLabel}>У вас пока нет долгов.</Text>
+          <Pressable style={styles.addButton} onPress={onAddDebt}>
+            <Text style={styles.addButtonText}>Добавить первый долг</Text>
+          </Pressable>
+        </View>
+      )}
+
       {sortedDebts.map((debt) => (
         <View key={debt.id} style={styles.debtItem}>
           <View style={styles.debtHeader}>

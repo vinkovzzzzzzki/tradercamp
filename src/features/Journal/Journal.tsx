@@ -322,9 +322,14 @@ const Journal: React.FC<JournalProps> = ({
           </View>
           
           {filteredTrades.length === 0 ? (
-            <Text style={[styles.noteText, isDark ? styles.noteTextDark : null]}>
-              {trades.length === 0 ? 'Пока нет сделок' : 'Нет сделок, соответствующих фильтрам'}
-            </Text>
+            <View>
+              <Text style={[styles.noteText, isDark ? styles.noteTextDark : null]}>
+                {trades.length === 0 ? 'Пока нет сделок' : 'Нет сделок, соответствующих фильтрам'}
+              </Text>
+              <Pressable style={styles.addButton} onPress={() => setJournalView('new')}>
+                <Text style={styles.addButtonText}>Добавить первую сделку</Text>
+              </Pressable>
+            </View>
           ) : (
             <ScrollView style={styles.tradesList}>
               {filteredTrades.map(trade => (
