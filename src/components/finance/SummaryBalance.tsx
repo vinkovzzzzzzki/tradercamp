@@ -1,5 +1,5 @@
 // SummaryBalance component - exact reproduction of original functionality
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import type { ChartVisibility, ChartTimePeriodType, DataPoint } from '../../state/types';
@@ -49,6 +49,7 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
 }) => {
   // Make the chart wider horizontally (near full viewport width with padding)
   const chartWidth = Math.max(320, Dimensions.get('window').width - 120);
+  const [timePreset, setTimePreset] = useState<'1M' | '3M' | '6M' | '1Y' | 'ALL'>('ALL');
   const setChartVisibilitySafe = (updater: (v: ChartVisibility) => ChartVisibility) => {
     onChartVisibilityChange(updater(chartVisibility));
   };
@@ -101,22 +102,22 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
             
             return (
               <View style={styles.chartContainer}>
-                {/* Time period selector */}
+                {/* Time presets selector */}
                 <View style={styles.timePeriodSelector}>
-                  {['days', 'weeks', 'months'].map(period => (
+                  {([
+                    { k: '1M', l: '1М' },
+                    { k: '3M', l: '3М' },
+                    { k: '6M', l: '6М' },
+                    { k: '1Y', l: '1Г' },
+                    { k: 'ALL', l: 'Все' }
+                  ] as Array<{ k: '1M' | '3M' | '6M' | '1Y' | 'ALL'; l: string }>).map(opt => (
                     <Pressable
-                      key={period}
-                      style={[
-                        styles.timePeriodButton,
-                        chartTimePeriod === period ? styles.timePeriodButtonActive : null
-                      ]}
-                      onPress={() => onChartTimePeriodChange(period as ChartTimePeriodType)}
+                      key={opt.k}
+                      style={[styles.timePeriodButton, timePreset === opt.k ? styles.timePeriodButtonActive : null]}
+                      onPress={() => setTimePreset(opt.k)}
                     >
-                      <Text style={[
-                        styles.timePeriodText,
-                        chartTimePeriod === period ? styles.timePeriodTextActive : null
-                      ]}>
-                        {period === 'days' ? 'Дни' : period === 'weeks' ? 'Недели' : 'Месяцы'}
+                      <Text style={[styles.timePeriodText, timePreset === opt.k ? styles.timePeriodTextActive : null]}>
+                        {opt.l}
                       </Text>
                     </Pressable>
                   ))}
@@ -131,7 +132,7 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                 {/* Comprehensive line chart with all metrics */}
                 <View style={styles.lineChartContainer}>
                   {(() => {
-                    const chartData = getComprehensiveChartData();
+                    const chartData = (getComprehensiveChartData as any)(timePreset);
                     
                     // Show message when no data is visible
                     if (chartData.datasets.length === 0) {
@@ -215,32 +216,36 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                 {/* Chart legend */}
                 <View style={styles.chartLegend}>
                   <View style={styles.legendRow}>
-                    {chartVisibility.cushion && (
-                      <View style={styles.legendItem}>
-                        <View style={[styles.legendColor, { backgroundColor: '#3b82f6' }]} />
-                        <Text style={styles.legendText}>Подушка безопасности</Text>
-                      </View>
-                    )}
-                    {chartVisibility.investments && (
-                      <View style={styles.legendItem}>
-                        <View style={[styles.legendColor, { backgroundColor: '#10b981' }]} />
-                        <Text style={styles.legendText}>Инвестиции</Text>
-                      </View>
-                    )}
+                    <Pressable
+                      style={styles.legendItem}
+                      onPress={() => setChartVisibilitySafe(v => ({ ...v, cushion: !v.cushion }))}
+                    >
+                      <View style={[styles.legendColor, { backgroundColor: '#3b82f6', opacity: chartVisibility.cushion ? 1 : 0.4 }]} />
+                      <Text style={styles.legendText}>Подушка безопасности</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.legendItem}
+                      onPress={() => setChartVisibilitySafe(v => ({ ...v, investments: !v.investments }))}
+                    >
+                      <View style={[styles.legendColor, { backgroundColor: '#10b981', opacity: chartVisibility.investments ? 1 : 0.4 }]} />
+                      <Text style={styles.legendText}>Инвестиции</Text>
+                    </Pressable>
                   </View>
                   <View style={styles.legendRow}>
-                    {chartVisibility.debts && (
-                      <View style={styles.legendItem}>
-                        <View style={[styles.legendColor, { backgroundColor: '#ef4444' }]} />
-                        <Text style={styles.legendText}>Долги</Text>
-                      </View>
-                    )}
-                    {chartVisibility.total && (
-                      <View style={styles.legendItem}>
-                        <View style={[styles.legendColor, { backgroundColor: '#a855f7' }]} />
-                        <Text style={styles.legendText}>Итоговый баланс</Text>
-                      </View>
-                    )}
+                    <Pressable
+                      style={styles.legendItem}
+                      onPress={() => setChartVisibilitySafe(v => ({ ...v, debts: !v.debts }))}
+                    >
+                      <View style={[styles.legendColor, { backgroundColor: '#ef4444', opacity: chartVisibility.debts ? 1 : 0.4 }]} />
+                      <Text style={styles.legendText}>Долги</Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.legendItem}
+                      onPress={() => setChartVisibilitySafe(v => ({ ...v, total: !v.total }))}
+                    >
+                      <View style={[styles.legendColor, { backgroundColor: '#a855f7', opacity: chartVisibility.total ? 1 : 0.4 }]} />
+                      <Text style={styles.legendText}>Итоговый баланс</Text>
+                    </Pressable>
                   </View>
                 </View>
                 
