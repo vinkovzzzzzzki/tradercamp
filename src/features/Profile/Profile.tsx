@@ -61,13 +61,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
     Alert.alert('Уведомления', 'Тестовое уведомление запланировано через 1 минуту');
   };
 
-  const handleOpenTheme = () => {
-    Alert.alert('Тема', 'Переключить тему сейчас?', [
-      { text: 'Светлая', onPress: () => storage.set(STORAGE_KEYS.APP_THEME, 'light') },
-      { text: 'Тёмная', onPress: () => storage.set(STORAGE_KEYS.APP_THEME, 'dark') },
-      { text: 'Отмена', style: 'cancel' }
-    ]);
-  };
+  // theme switching removed (always dark)
 
   const handleOpenPrivacy = () => {
     Alert.alert('Приватность', 'Очистить локальные данные приложения?', [
@@ -332,14 +326,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
               </Text>
             </Pressable>
             
-            <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]} onPress={handleOpenTheme}>
-              <Text style={[styles.settingText, isDark ? styles.settingTextDark : null]}>
-                🎨 Тема
-              </Text>
-              <Text style={[styles.settingArrow, isDark ? styles.settingArrowDark : null]}>
-                ›
-              </Text>
-            </Pressable>
+            {/* Theme item removed */}
             
             <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]} onPress={handleOpenPrivacy}>
               <Text style={[styles.settingText, isDark ? styles.settingTextDark : null]}>

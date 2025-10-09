@@ -75,10 +75,8 @@ export const useAppState = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
   
-  // Theme and UI
-  const [appTheme, setAppTheme] = useState<string>(() => 
-    storage.get(STORAGE_KEYS.APP_THEME, 'dark')
-  );
+  // Theme and UI (force dark theme)
+  const appTheme = 'dark';
   const [toast, setToast] = useState<Toast | null>(null);
   
   // Finance state
@@ -237,7 +235,7 @@ export const useAppState = () => {
   // Persist state changes
   useEffect(() => storage.set(STORAGE_KEYS.SUPA_AUTH, supaAuth), [supaAuth]);
   useEffect(() => storage.set(STORAGE_KEYS.SUPA_PROFILES, supaProfiles), [supaProfiles]);
-  useEffect(() => storage.set(STORAGE_KEYS.APP_THEME, appTheme), [appTheme]);
+  // no-op: appTheme fixed to dark
   useEffect(() => storage.set(STORAGE_KEYS.FINANCE_DATA, financeData), [financeData]);
   useEffect(() => storage.set(STORAGE_KEYS.CUSHION_HISTORY, cushionHistory), [cushionHistory]);
   useEffect(() => storage.set(STORAGE_KEYS.INVESTMENT_HISTORY, investmentHistory), [investmentHistory]);
@@ -255,7 +253,7 @@ export const useAppState = () => {
   useEffect(() => storage.set(STORAGE_KEYS.EVENTS, events), [events]);
   
   // Computed values
-  const isDark = appTheme === 'dark';
+  const isDark = true;
   const currentSupaUser = supaAuth && supaAuth.user ? supaAuth.user : null;
   const currentUser = currentSupaUser ? (() => {
     const overlay = supaProfiles[currentSupaUser.id] || {};
@@ -826,7 +824,7 @@ export const useAppState = () => {
     handleResetPassword,
     
     // Theme and UI
-    appTheme, setAppTheme,
+    appTheme,
     toast, setToast,
     isDark,
     

@@ -106,7 +106,7 @@ describe('Storage Utilities', () => {
   test('STORAGE_KEYS contains all expected keys', () => {
     expect(STORAGE_KEYS.SUPA_AUTH).toBe('supaAuth');
     expect(STORAGE_KEYS.SUPA_PROFILES).toBe('supaProfiles');
-    expect(STORAGE_KEYS.APP_THEME).toBe('appTheme');
+    // Theme key removed
     expect(STORAGE_KEYS.FINANCE_DATA).toBe('financeData');
     expect(STORAGE_KEYS.CUSHION_HISTORY).toBe('cushionHistory');
     expect(STORAGE_KEYS.INVESTMENT_HISTORY).toBe('investmentHistory');
