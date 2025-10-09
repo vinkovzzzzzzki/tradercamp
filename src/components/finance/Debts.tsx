@@ -1,7 +1,7 @@
 // Debts component - exact reproduction of original debt management logic
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { formatCurrencyCustom, parseNumberSafe } from '../../services/format';
+import { formatCurrencyCustom, parseNumberSafe, clampNumericText, normalizeCurrencyText } from '../../services/format';
 import type { Debt } from '../../state/types';
 
 interface DebtsProps {
@@ -233,7 +233,7 @@ const Debts: React.FC<DebtsProps> = ({
             <TextInput
               style={styles.repayInput}
               value={repayDrafts[debt.id] || ''}
-              onChangeText={(value) => onRepayDraftChange(debt.id, value)}
+              onChangeText={(value) => onRepayDraftChange(debt.id, clampNumericText(value))}
               placeholder="Сумма погашения"
               keyboardType="numeric"
             />
@@ -299,7 +299,7 @@ const Debts: React.FC<DebtsProps> = ({
           <TextInput
             style={styles.formInput}
             value={newDebt.amount}
-            onChangeText={(value) => onNewDebtChange({ ...newDebt, amount: value })}
+            onChangeText={(value) => onNewDebtChange({ ...newDebt, amount: clampNumericText(value) })}
             placeholder="0"
             keyboardType="numeric"
           />
@@ -310,7 +310,7 @@ const Debts: React.FC<DebtsProps> = ({
           <TextInput
             style={styles.formInput}
             value={newDebt.currency}
-            onChangeText={(value) => onNewDebtChange({ ...newDebt, currency: value })}
+            onChangeText={(value) => onNewDebtChange({ ...newDebt, currency: normalizeCurrencyText(value) })}
             placeholder="USD"
           />
         </View>

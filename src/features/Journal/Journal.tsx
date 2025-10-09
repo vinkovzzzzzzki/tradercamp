@@ -1,5 +1,6 @@
 // Journal feature component - exact reproduction of original trading journal functionality
 import React, { useState, useMemo, useEffect } from 'react';
+import { clampNumericText } from '../../services/format';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { formatCurrencyCustom } from '../../services/format';
 import type { User, Trade } from '../../state/types';
@@ -173,7 +174,7 @@ const Journal: React.FC<JournalProps> = ({
               <TextInput
                 style={[styles.input, isDark ? styles.inputDark : null]}
                 value={newTrade.qty}
-                onChangeText={(t) => setNewTrade(v => ({ ...v, qty: t }))}
+                onChangeText={(t) => setNewTrade(v => ({ ...v, qty: clampNumericText(t) }))}
                 keyboardType="numeric"
                 placeholder="0.05"
               />
@@ -183,7 +184,7 @@ const Journal: React.FC<JournalProps> = ({
               <TextInput
                 style={[styles.input, isDark ? styles.inputDark : null]}
                 value={newTrade.price}
-                onChangeText={(t) => setNewTrade(v => ({ ...v, price: t }))}
+                onChangeText={(t) => setNewTrade(v => ({ ...v, price: clampNumericText(t) }))}
                 keyboardType="numeric"
                 placeholder="60000"
               />

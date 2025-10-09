@@ -1,7 +1,7 @@
 // Investments component - exact reproduction of original investment logic
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { formatCurrencyCustom, parseNumberSafe } from '../../services/format';
+import { formatCurrencyCustom, parseNumberSafe, clampNumericText, normalizeCurrencyText } from '../../services/format';
 import type { InvestmentTransaction } from '../../state/types';
 
 interface InvestmentsProps {
@@ -257,7 +257,7 @@ const Investments: React.FC<InvestmentsProps> = ({
           <TextInput
             style={styles.formInput}
             value={newInvestTx.amount}
-            onChangeText={(value) => onNewInvestTxChange({ ...newInvestTx, amount: value })}
+            onChangeText={(value) => onNewInvestTxChange({ ...newInvestTx, amount: clampNumericText(value) })}
             placeholder="0"
             keyboardType="numeric"
           />
@@ -268,7 +268,7 @@ const Investments: React.FC<InvestmentsProps> = ({
           <TextInput
             style={styles.formInput}
             value={newInvestTx.currency}
-            onChangeText={(value) => onNewInvestTxChange({ ...newInvestTx, currency: value })}
+            onChangeText={(value) => onNewInvestTxChange({ ...newInvestTx, currency: normalizeCurrencyText(value) })}
             placeholder="USD"
           />
         </View>

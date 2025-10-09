@@ -1,7 +1,7 @@
 // Safety Fund component - exact reproduction of original emergency fund logic
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
-import { formatCurrencyCustom, parseNumberSafe } from '../../services/format';
+import { formatCurrencyCustom, parseNumberSafe, clampNumericText, normalizeCurrencyText } from '../../services/format';
 import type { EmergencyTransaction } from '../../state/types';
 
 interface SafetyFundProps {
@@ -323,7 +323,7 @@ const SafetyFund: React.FC<SafetyFundProps> = ({
           <TextInput
             style={styles.formInput}
             value={newEmergencyTx.amount}
-            onChangeText={(value) => onNewEmergencyTxChange({ ...newEmergencyTx, amount: value })}
+            onChangeText={(value) => onNewEmergencyTxChange({ ...newEmergencyTx, amount: clampNumericText(value) })}
             placeholder="0"
             keyboardType="numeric"
           />
@@ -334,7 +334,7 @@ const SafetyFund: React.FC<SafetyFundProps> = ({
           <TextInput
             style={styles.formInput}
             value={newEmergencyTx.currency}
-            onChangeText={(value) => onNewEmergencyTxChange({ ...newEmergencyTx, currency: value })}
+            onChangeText={(value) => onNewEmergencyTxChange({ ...newEmergencyTx, currency: normalizeCurrencyText(value) })}
             placeholder="USD"
           />
         </View>
