@@ -71,6 +71,14 @@ const Transactions: React.FC<TransactionsProps> = ({ isDark, emergencyTx, invest
     });
   }, [emergencyTx, investTx, debts, typeFilter, currencyFilter, query]);
 
+  const copy = (text: string) => {
+    try {
+      if (typeof navigator !== 'undefined' && (navigator as any).clipboard?.writeText) {
+        (navigator as any).clipboard.writeText(text);
+      }
+    } catch {}
+  };
+
   const exportCSV = () => {
     const csv = arrayToCSV(rows.map(r => ({
       Тип: r.type === 'fund' ? 'Резервный фонд' : r.type === 'invest' ? 'Инвестиции' : 'Долги',
@@ -127,16 +135,16 @@ const Transactions: React.FC<TransactionsProps> = ({ isDark, emergencyTx, invest
       </View>
       <ScrollView style={{ maxHeight: 320 }}>
         {rows.map((r, idx) => (
-          <View key={idx} style={styles.tr}>
-            <Text style={[styles.td, isDark ? styles.tdDark : null]}>
+          <View key={idx} style={[styles.tr, (idx % 2 === 1) ? (isDark ? styles.trDarkAlt : styles.trAlt) : null]}>
+            <Pressable onLongPress={() => copy(r.type)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>
               {r.type === 'fund' ? 'Подушка' : r.type === 'invest' ? 'Инвестиции' : 'Долги'}
-            </Text>
-            <Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.date}</Text>
-            <Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.op}</Text>
-            <Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.amount}</Text>
-            <Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.currency}</Text>
-            <Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.place}</Text>
-            <Text style={[styles.td, isDark ? styles.tdDark : null]} numberOfLines={1}>{r.note}</Text>
+            </Text></Pressable>
+            <Pressable onLongPress={() => copy(r.date)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.date}</Text></Pressable>
+            <Pressable onLongPress={() => copy(r.op)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.op}</Text></Pressable>
+            <Pressable onLongPress={() => copy(String(r.amount))}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.amount}</Text></Pressable>
+            <Pressable onLongPress={() => copy(r.currency)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.currency}</Text></Pressable>
+            <Pressable onLongPress={() => copy(r.place)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.place}</Text></Pressable>
+            <Pressable onLongPress={() => copy(r.note)}><Text style={[styles.td, isDark ? styles.tdDark : null]} numberOfLines={1}>{r.note}</Text></Pressable>
           </View>
         ))}
         {rows.length === 0 && (
@@ -253,6 +261,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
+  },
+  trAlt: {
+    backgroundColor: '#f9fafb',
+  },
+  trDarkAlt: {
+    backgroundColor: '#1a1f29',
   },
   td: {
     flex: 1,
