@@ -1,6 +1,9 @@
 // Profile feature component - exact reproduction of original functionality
 import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
+import { storage, STORAGE_KEYS } from '../../services/persist';
+import { arrayToCSV, downloadCSV, generateFilename } from '../../services/export/csv';
+import { areNotificationsEnabled, requestNotificationPermissions, scheduleNotification } from '../../services/notifications';
 import type { User } from '../../state/types';
 
 interface ProfileProps {
@@ -45,6 +48,56 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
         { text: 'Выйти', style: 'destructive', onPress: onLogout }
       ]
     );
+  };
+
+  const handleOpenNotifications = async () => {
+    const granted = await requestNotificationPermissions();
+    if (!granted) {
+      Alert.alert('Уведомления', 'Разрешения не предоставлены');
+      return;
+    }
+    const in1Min = new Date(Date.now() + 60 * 1000);
+    await scheduleNotification('Проверка уведомлений', 'Это тестовое уведомление профиля', in1Min);
+    Alert.alert('Уведомления', 'Тестовое уведомление запланировано через 1 минуту');
+  };
+
+  const handleOpenTheme = () => {
+    Alert.alert('Тема', 'Переключить тему сейчас?', [
+      { text: 'Светлая', onPress: () => storage.set(STORAGE_KEYS.APP_THEME, 'light') },
+      { text: 'Тёмная', onPress: () => storage.set(STORAGE_KEYS.APP_THEME, 'dark') },
+      { text: 'Отмена', style: 'cancel' }
+    ]);
+  };
+
+  const handleOpenPrivacy = () => {
+    Alert.alert('Приватность', 'Очистить локальные данные приложения?', [
+      { text: 'Отмена', style: 'cancel' },
+      { text: 'Очистить', style: 'destructive', onPress: () => storage.clear() }
+    ]);
+  };
+
+  const handleOpenExport = () => {
+    try {
+      const all = {
+        emergencyTx: storage.get(STORAGE_KEYS.EMERGENCY_TX, []),
+        investTx: storage.get(STORAGE_KEYS.INVEST_TX, []),
+        debts: storage.get(STORAGE_KEYS.SORTED_DEBTS, []),
+        trades: storage.get(STORAGE_KEYS.TRADES, []),
+        workouts: storage.get(STORAGE_KEYS.WORKOUTS, []),
+        events: storage.get(STORAGE_KEYS.EVENTS, []),
+        posts: storage.get(STORAGE_KEYS.POSTS, []),
+      };
+      const json = JSON.stringify(all, null, 2);
+      const blob = new Blob([json], { type: 'application/json;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = generateFilename('backup', 'json');
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      Alert.alert('Экспорт', 'Не удалось экспортировать данные');
+    }
   };
 
   return (
@@ -270,7 +323,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
           </Text>
           
           <View style={styles.settingsList}>
-            <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]}>
+            <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]} onPress={handleOpenNotifications}>
               <Text style={[styles.settingText, isDark ? styles.settingTextDark : null]}>
                 🔔 Уведомления
               </Text>
@@ -279,7 +332,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
               </Text>
             </Pressable>
             
-            <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]}>
+            <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]} onPress={handleOpenTheme}>
               <Text style={[styles.settingText, isDark ? styles.settingTextDark : null]}>
                 🎨 Тема
               </Text>
@@ -288,7 +341,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
               </Text>
             </Pressable>
             
-            <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]}>
+            <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]} onPress={handleOpenPrivacy}>
               <Text style={[styles.settingText, isDark ? styles.settingTextDark : null]}>
                 🔒 Приватность
               </Text>
@@ -297,7 +350,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
               </Text>
             </Pressable>
             
-            <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]}>
+            <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]} onPress={handleOpenExport}>
               <Text style={[styles.settingText, isDark ? styles.settingTextDark : null]}>
                 📊 Экспорт данных
               </Text>
