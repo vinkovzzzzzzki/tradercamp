@@ -1,6 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { arrayToCSV, downloadCSV, generateFilename } from '../../services/export/csv';
+import Skeleton from '../common/Skeleton';
 import { storage, STORAGE_KEYS } from '../../services/persist';
 
 interface TransactionsProps {
@@ -139,7 +140,11 @@ const Transactions: React.FC<TransactionsProps> = ({ isDark, emergencyTx, invest
           </View>
         ))}
         {rows.length === 0 && (
-          <Text style={[styles.empty, isDark ? styles.emptyDark : null]}>Нет данных</Text>
+          <View style={{ paddingVertical: 12 }}>
+            <Skeleton height={12} style={{ marginBottom: 8 }} />
+            <Skeleton height={12} style={{ marginBottom: 8 }} />
+            <Skeleton height={12} />
+          </View>
         )}
       </ScrollView>
     </View>

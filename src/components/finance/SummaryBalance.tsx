@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
+import Skeleton from '../common/Skeleton';
 import type { ChartVisibility, ChartTimePeriodType, DataPoint } from '../../state/types';
 
 interface SummaryBalanceProps {
@@ -138,9 +139,7 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                     if (chartData.datasets.length === 0) {
                       return (
                         <View style={styles.emptyChartContainer}>
-                          <Text style={styles.emptyChartText}>
-                            Выберите хотя бы одну метрику для отображения
-                          </Text>
+                          <Skeleton width={chartWidth} height={180} />
                         </View>
                       );
                     }
