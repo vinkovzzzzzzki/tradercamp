@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, Animated, Platform, UIManager } from 'react-native';
 import { useAppState } from './state';
-import { Header, Toast } from './components/common';
+import { Header, Toast, FAB } from './components/common';
 import { Dashboard, Journal, Planner, Community, Profile } from './features';
 // import './styles/index.css'; // CSS не поддерживается в React Native
 
@@ -266,6 +266,32 @@ const App: React.FC = () => {
           />
         )}
       </View>
+
+      {/* Context-aware FAB */}
+      <FAB
+        actions={(() => {
+          if (tab === 'finance') {
+            return [
+              { label: 'Пополнение подушки', onPress: () => setNewEmergencyTx(v => ({ ...v, type: 'deposit' })) },
+              { label: 'Инвест. операция', onPress: () => setNewInvestTx(v => ({ ...v, type: 'in' })) },
+              { label: 'Новый долг', onPress: () => setNewDebt({ name: '', amount: '', currency: 'USD' }) }
+            ];
+          }
+          if (tab === 'journal') {
+            return [
+              { label: 'Новая сделка BUY', onPress: () => addTrade({ symbol: 'BTCUSDT', side: 'BUY' as any, qty: 0.01, price: 0, market: 'Crypto', date: new Date().toISOString().slice(0,10) }) },
+              { label: 'Новая сделка SELL', onPress: () => addTrade({ symbol: 'BTCUSDT', side: 'SELL' as any, qty: 0.01, price: 0, market: 'Crypto', date: new Date().toISOString().slice(0,10) }) }
+            ];
+          }
+          if (tab === 'planner') {
+            return [
+              { label: 'Событие', onPress: () => addEvent({ title: 'Новое событие', date: new Date().toISOString().slice(0,10), time: '09:00', notes: '', category: 'Работа', remindBefore: 60, reminders: [60,15] }) },
+              { label: 'Тренировка', onPress: () => addWorkout({ type: 'Бег', date: new Date().toISOString().slice(0,10), time: '09:00', notes: '', remindBefore: 15 }) }
+            ];
+          }
+          return [];
+        })()}
+      />
     </View>
   );
 };
