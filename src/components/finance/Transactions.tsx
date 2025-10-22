@@ -3,6 +3,7 @@ import { View, Text, TextInput, Pressable, StyleSheet, ScrollView } from 'react-
 import { arrayToCSV, downloadCSV, generateFilename } from '../../services/export/csv';
 import Skeleton from '../common/Skeleton';
 import { storage, STORAGE_KEYS } from '../../services/persist';
+import { parseDateSafe, formatDateDisplay } from '../../services/format/date';
 
 interface TransactionsProps {
   isDark: boolean;
@@ -19,10 +20,13 @@ const Transactions: React.FC<TransactionsProps> = ({ isDark, emergencyTx, invest
   const [currencyFilter, setCurrencyFilter] = useState<string>(
     () => (storage.get(STORAGE_KEYS.FINANCE_TX_FILTERS, {})?.currency || '')
   );
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>(
+    () => (storage.get(STORAGE_KEYS.FINANCE_TX_FILTERS, {})?.view || 'cards')
+  );
 
   useEffect(() => {
-    storage.set(STORAGE_KEYS.FINANCE_TX_FILTERS, { query, type: typeFilter, currency: currencyFilter });
-  }, [query, typeFilter, currencyFilter]);
+    storage.set(STORAGE_KEYS.FINANCE_TX_FILTERS, { query, type: typeFilter, currency: currencyFilter, view: viewMode });
+  }, [query, typeFilter, currencyFilter, viewMode]);
 
   const rows = useMemo(() => {
     const all = [
@@ -79,6 +83,49 @@ const Transactions: React.FC<TransactionsProps> = ({ isDark, emergencyTx, invest
     } catch {}
   };
 
+  const formatAmount = (amount: number, currency?: string) => {
+    try {
+      const num = Number(amount);
+      if (!Number.isFinite(num)) return String(amount);
+      const formatted = new Intl.NumberFormat('ru-RU', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 2,
+      }).format(num);
+      return currency ? `${formatted} ${currency}` : formatted;
+    } catch {
+      return `${amount} ${currency || ''}`.trim();
+    }
+  };
+
+  const getAmountStyle = (op?: string, amount?: number) => {
+    const opStr = (op || '').toLowerCase();
+    const isIn = /in|deposit|income|поп|доход/.test(opStr);
+    const isOut = /out|withdraw|expense|спис|расход/.test(opStr);
+    if (isIn) return styles.amountPositive;
+    if (isOut) return styles.amountNegative;
+    if (typeof amount === 'number') return amount >= 0 ? styles.amountPositive : styles.amountNegative;
+    return styles.amountNeutral;
+  };
+
+  const grouped = useMemo(() => {
+    const groups: Record<string, typeof rows> = {};
+    rows.forEach(r => {
+      const d = parseDateSafe(r.date);
+      const key = d ? formatDateDisplay(d) : 'Без даты';
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(r);
+    });
+    const toTime = (key: string) => {
+      // Try using first row date; fallback to 0
+      const first = groups[key]?.[0];
+      const d = first ? parseDateSafe(first.date) : null;
+      return d ? d.getTime() : 0;
+    };
+    return Object.keys(groups)
+      .sort((a, b) => toTime(b) - toTime(a))
+      .map(k => ({ key: k, items: groups[k] }));
+  }, [rows]);
+
   const exportCSV = () => {
     const csv = arrayToCSV(rows.map(r => ({
       Тип: r.type === 'fund' ? 'Резервный фонд' : r.type === 'invest' ? 'Инвестиции' : 'Долги',
@@ -126,35 +173,84 @@ const Transactions: React.FC<TransactionsProps> = ({ isDark, emergencyTx, invest
             </Pressable>
           ))}
         </View>
+        <View style={styles.typeRow}>
+          {[
+            { k: 'cards', label: 'Карточки' },
+            { k: 'table', label: 'Таблица' },
+          ].map(btn => (
+            <Pressable key={btn.k} style={[styles.typeBtn, viewMode === (btn.k as any) ? styles.typeBtnActive : null]} onPress={() => setViewMode(btn.k as any)}>
+              <Text style={[styles.typeText, viewMode === (btn.k as any) ? styles.typeTextActive : null]}>{btn.label}</Text>
+            </Pressable>
+          ))}
+        </View>
       </View>
 
-      <View style={styles.tableHeader}>
-        {['Тип', 'Дата', 'Операция', 'Сумма', 'Валюта', 'Место', 'Заметка'].map(h => (
-          <Text key={h} style={[styles.th, isDark ? styles.thDark : null]}>{h}</Text>
-        ))}
-      </View>
-      <ScrollView style={{ maxHeight: 320 }}>
-        {rows.map((r, idx) => (
-          <View key={idx} style={[styles.tr, (idx % 2 === 1) ? (isDark ? styles.trDarkAlt : styles.trAlt) : null]}>
-            <Pressable onLongPress={() => copy(r.type)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>
-              {r.type === 'fund' ? 'Подушка' : r.type === 'invest' ? 'Инвестиции' : 'Долги'}
-            </Text></Pressable>
-            <Pressable onLongPress={() => copy(r.date)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.date}</Text></Pressable>
-            <Pressable onLongPress={() => copy(r.op)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.op}</Text></Pressable>
-            <Pressable onLongPress={() => copy(String(r.amount))}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.amount}</Text></Pressable>
-            <Pressable onLongPress={() => copy(r.currency)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.currency}</Text></Pressable>
-            <Pressable onLongPress={() => copy(r.place)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.place}</Text></Pressable>
-            <Pressable onLongPress={() => copy(r.note)}><Text style={[styles.td, isDark ? styles.tdDark : null]} numberOfLines={1}>{r.note}</Text></Pressable>
+      {viewMode === 'table' ? (
+        <>
+          <View style={styles.tableHeader}>
+            {['Тип', 'Дата', 'Операция', 'Сумма', 'Валюта', 'Место', 'Заметка'].map(h => (
+              <Text key={h} style={[styles.th, isDark ? styles.thDark : null]}>{h}</Text>
+            ))}
           </View>
-        ))}
-        {rows.length === 0 && (
-          <View style={{ paddingVertical: 12 }}>
-            <Skeleton height={12} style={{ marginBottom: 8 }} />
-            <Skeleton height={12} style={{ marginBottom: 8 }} />
-            <Skeleton height={12} />
-          </View>
-        )}
-      </ScrollView>
+          <ScrollView style={{ maxHeight: 320 }}>
+            {rows.map((r, idx) => (
+              <View key={idx} style={[styles.tr, (idx % 2 === 1) ? (isDark ? styles.trDarkAlt : styles.trAlt) : null]}>
+                <Pressable onLongPress={() => copy(r.type)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>
+                  {r.type === 'fund' ? 'Подушка' : r.type === 'invest' ? 'Инвестиции' : 'Долги'}
+                </Text></Pressable>
+                <Pressable onLongPress={() => copy(r.date)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.date}</Text></Pressable>
+                <Pressable onLongPress={() => copy(r.op)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.op}</Text></Pressable>
+                <Pressable onLongPress={() => copy(String(r.amount))}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.amount}</Text></Pressable>
+                <Pressable onLongPress={() => copy(r.currency)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.currency}</Text></Pressable>
+                <Pressable onLongPress={() => copy(r.place)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.place}</Text></Pressable>
+                <Pressable onLongPress={() => copy(r.note)}><Text style={[styles.td, isDark ? styles.tdDark : null]} numberOfLines={1}>{r.note}</Text></Pressable>
+              </View>
+            ))}
+            {rows.length === 0 && (
+              <View style={{ paddingVertical: 12 }}>
+                <Skeleton height={12} style={{ marginBottom: 8 }} />
+                <Skeleton height={12} style={{ marginBottom: 8 }} />
+                <Skeleton height={12} />
+              </View>
+            )}
+          </ScrollView>
+        </>
+      ) : (
+        <ScrollView style={{ maxHeight: 320 }}>
+          {grouped.map(group => (
+            <View key={group.key} style={styles.group}>
+              <Text style={[styles.groupTitle, isDark ? styles.groupTitleDark : null]}>{group.key}</Text>
+              {group.items.map((r, idx) => (
+                <Pressable key={idx} onLongPress={() => copy(`${r.type} ${r.op} ${r.amount} ${r.currency} ${r.place} ${r.note}`)} style={[styles.cardRow, isDark ? styles.cardRowDark : null]}>
+                  <View style={[styles.avatar, r.type === 'invest' ? styles.avatarInvest : r.type === 'debt' ? styles.avatarDebt : styles.avatarFund]}>
+                    <Text style={styles.avatarText}>{r.type === 'invest' ? '📈' : r.type === 'debt' ? '🧾' : '💰'}</Text>
+                  </View>
+                  <View style={styles.cardContent}>
+                    <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]} numberOfLines={1}>
+                      {(r.type === 'fund' ? 'Подушка' : r.type === 'invest' ? 'Инвестиции' : 'Долги')} • {r.place || '-'}
+                    </Text>
+                    <Text style={[styles.cardSubtitle, isDark ? styles.cardSubtitleDark : null]} numberOfLines={1}>
+                      {r.op}{r.note ? ` — ${r.note}` : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.amountWrap}>
+                    <Text style={[styles.amount, getAmountStyle(r.op, r.amount)]}>
+                      {formatAmount(r.amount, r.currency)}
+                    </Text>
+                  </View>
+                </Pressable>
+              ))}
+            </View>
+          ))}
+          {rows.length === 0 && (
+            <View style={{ paddingVertical: 12 }}>
+              <Skeleton height={12} style={{ marginBottom: 8 }} />
+              <Skeleton height={12} style={{ marginBottom: 8 }} />
+              <Skeleton height={12} />
+            </View>
+          )}
+        </ScrollView>
+      )}
     </View>
   );
 };
@@ -240,6 +336,18 @@ const styles = StyleSheet.create({
   typeTextActive: {
     color: '#fff',
   },
+  group: {
+    marginBottom: 10,
+  },
+  groupTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#6b7280',
+    marginBottom: 6,
+  },
+  groupTitleDark: {
+    color: '#9ca3af',
+  },
   tableHeader: {
     flexDirection: 'row',
     borderBottomWidth: 1,
@@ -275,6 +383,72 @@ const styles = StyleSheet.create({
   },
   tdDark: {
     color: '#e6edf3',
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    borderRadius: 8,
+    marginBottom: 8,
+    backgroundColor: '#ffffff',
+  },
+  cardRowDark: {
+    backgroundColor: '#0f1620',
+    borderColor: '#253142',
+  },
+  avatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 10,
+  },
+  avatarText: {
+    fontSize: 16,
+  },
+  avatarFund: { backgroundColor: '#e3f2fd' },
+  avatarInvest: { backgroundColor: '#e8f5e9' },
+  avatarDebt: { backgroundColor: '#fff7ed' },
+  cardContent: {
+    flex: 1,
+    minWidth: 0,
+  },
+  cardTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#1f2937',
+  },
+  cardTitleDark: {
+    color: '#e6edf3',
+  },
+  cardSubtitle: {
+    fontSize: 12,
+    color: '#6b7280',
+    marginTop: 2,
+  },
+  cardSubtitleDark: {
+    color: '#9ca3af',
+  },
+  amountWrap: {
+    marginLeft: 10,
+    alignItems: 'flex-end',
+  },
+  amount: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  amountPositive: {
+    color: '#16a34a',
+  },
+  amountNegative: {
+    color: '#dc2626',
+  },
+  amountNeutral: {
+    color: '#1f2937',
   },
   empty: {
     textAlign: 'center',
