@@ -34,6 +34,7 @@ const Planner: React.FC<PlannerProps> = ({
   });
   const [showEventModal, setShowEventModal] = useState(false);
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
+  const [showDayModal, setShowDayModal] = useState(false);
   const [eventType, setEventType] = useState<'event' | 'workout'>('event');
 
   // Form states
@@ -139,6 +140,18 @@ const Planner: React.FC<PlannerProps> = ({
     }
   };
 
+  const handleDayPress = (date: string) => {
+    setSelectedDate(date);
+    const items = getEventsForDate(date);
+    if (items.length === 0) {
+      // No items for this day — immediately create a new event on this date
+      openCreateModal(date, 'event');
+    } else {
+      // Show day details modal with existing items and quick actions
+      setShowDayModal(true);
+    }
+  };
+
   return (
     <View style={[styles.container, isDark ? styles.darkContainer : null]}>
       <View style={[styles.calendarHeader, isDark ? styles.calendarHeaderDark : null]}>
@@ -231,7 +244,7 @@ const Planner: React.FC<PlannerProps> = ({
                         !isCurrentMonth ? styles.dayCellMuted : null,
                         isSelected ? styles.dayCellSelected : null,
                       ]}
-                      onPress={() => setSelectedDate(dateStr)}
+                      onPress={() => handleDayPress(dateStr)}
                     >
                       <Text style={[
                         styles.dayNum,
@@ -489,6 +502,68 @@ const Planner: React.FC<PlannerProps> = ({
                 onPress={handleAddWorkout}
               >
                 <Text style={styles.saveButtonText}>Создать</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Day details modal: show events for selected date and quick add */}
+      <Modal visible={showDayModal} transparent animationType="fade">
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, isDark ? styles.modalContentDark : null]}>
+            <Text style={[styles.modalTitle, isDark ? styles.modalTitleDark : null]}>
+              {new Date(selectedDate).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}
+            </Text>
+
+            <ScrollView style={styles.eventsList}>
+              {getEventsForDate(selectedDate).map((item, idx) => {
+                const isWorkout = (item as any).isWorkout;
+                return (
+                  <View key={`day-${idx}`} style={[styles.eventItem, isDark ? styles.eventItemDark : null]}>
+                    <View style={[styles.eventColorBar, { backgroundColor: isWorkout ? '#f59e0b' : '#10b981' }]} />
+                    <View style={styles.eventContent}>
+                      <Text style={[styles.eventTitle, isDark ? styles.eventTitleDark : null]}>
+                        {isWorkout ? (item as any).type : (item as any).title}
+                      </Text>
+                      <Text style={[styles.eventTime, isDark ? styles.eventTimeDark : null]}>
+                        🕐 {(item as any).time}
+                      </Text>
+                      {(item as any).notes ? (
+                        <Text style={[styles.eventNotes, isDark ? styles.eventNotesDark : null]}>
+                          {(item as any).notes}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Pressable
+                      style={styles.deleteEventButton}
+                      onPress={() => (item as any).isWorkout ? onDeleteWorkout((item as any).id) : onDeleteEvent((item as any).id)}
+                    >
+                      <Text style={styles.deleteEventButtonText}>✕</Text>
+                    </Pressable>
+                  </View>
+                );
+              })}
+            </ScrollView>
+
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowDayModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Закрыть</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.saveButton]}
+                onPress={() => { setShowDayModal(false); openCreateModal(selectedDate, 'event'); }}
+              >
+                <Text style={styles.saveButtonText}>+ Событие</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: '#f59e0b' }]}
+                onPress={() => { setShowDayModal(false); openCreateModal(selectedDate, 'workout'); }}
+              >
+                <Text style={styles.saveButtonText}>+ Тренировка</Text>
               </Pressable>
             </View>
           </View>
