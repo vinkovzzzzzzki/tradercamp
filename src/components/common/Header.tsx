@@ -156,17 +156,7 @@ const Header: React.FC<HeaderProps> = ({
         ))}
       </View>
       
-      {/* Auth status */}
-      {currentUser && (
-        <View style={styles.authStatus}>
-          <Text style={styles.authStatusText}>
-            Добро пожаловать, {currentUser.nickname}!
-          </Text>
-          <Pressable style={styles.logoutBtn} onPress={onLogout}>
-            <Text style={styles.logoutText}>Выйти</Text>
-          </Pressable>
-        </View>
-      )}
+      {/* Auth status removed: logout is available only in Profile settings */}
     </View>
   );
 };
