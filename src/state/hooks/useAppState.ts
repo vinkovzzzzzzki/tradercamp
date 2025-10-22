@@ -149,6 +149,18 @@ export const useAppState = () => {
   const [trades, setTrades] = useState<Trade[]>(() => 
     storage.get(STORAGE_KEYS.TRADES, [])
   );
+
+  // Hydrate trades on native where sync localStorage is unavailable
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      const asyncTrades = await storage.getAsync(STORAGE_KEYS.TRADES, null);
+      if (mounted && Array.isArray(asyncTrades) && asyncTrades.length > 0) {
+        setTrades(asyncTrades);
+      }
+    })();
+    return () => { mounted = false; };
+  }, []);
   
   // Planner
   const [plannerPrefs, setPlannerPrefs] = useState<PlannerPrefs>(() => 
@@ -248,7 +260,11 @@ export const useAppState = () => {
   useEffect(() => storage.set(STORAGE_KEYS.SORTED_DEBTS, sortedDebts), [sortedDebts]);
   useEffect(() => storage.set(STORAGE_KEYS.EMERGENCY_LOCATIONS, emergencyLocations), [emergencyLocations]);
   useEffect(() => storage.set(STORAGE_KEYS.INVEST_DESTINATIONS, investDestinations), [investDestinations]);
-  useEffect(() => storage.set(STORAGE_KEYS.TRADES, trades), [trades]);
+  useEffect(() => {
+    storage.set(STORAGE_KEYS.TRADES, trades);
+    // Fire-and-forget async persist for native
+    storage.setAsync?.(STORAGE_KEYS.TRADES, trades);
+  }, [trades]);
   useEffect(() => storage.set(STORAGE_KEYS.WORKOUTS, workouts), [workouts]);
   useEffect(() => storage.set(STORAGE_KEYS.EVENTS, events), [events]);
   

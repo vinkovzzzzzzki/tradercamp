@@ -83,6 +83,8 @@ const Journal: React.FC<JournalProps> = ({
       date: new Date().toISOString().slice(0, 10),
       note: ''
     });
+
+    // Stay on the current view; no auto-switch
   };
 
   const clearFilters = () => {
