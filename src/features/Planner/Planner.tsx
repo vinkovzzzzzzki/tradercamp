@@ -25,7 +25,13 @@ const Planner: React.FC<PlannerProps> = ({
 }) => {
   const [viewMode, setViewMode] = React.useState<'month' | 'week' | 'day'>('month');
   const [currentDate, setCurrentDate] = React.useState<Date>(new Date());
-  const [selectedDate, setSelectedDate] = React.useState<string>(new Date().toISOString().slice(0, 10));
+  const [selectedDate, setSelectedDate] = React.useState<string>(() => {
+    const d = new Date();
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  });
   const [showEventModal, setShowEventModal] = useState(false);
   const [showWorkoutModal, setShowWorkoutModal] = useState(false);
   const [eventType, setEventType] = useState<'event' | 'workout'>('event');
@@ -49,7 +55,12 @@ const Planner: React.FC<PlannerProps> = ({
     remindBefore: 15
   });
 
-  const formatDate = (d: Date) => d.toISOString().slice(0, 10);
+  const formatDate = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
   const startOfWeek = (d: Date) => {
     const day = d.getDay();
     const diff = (day === 0 ? -6 : 1) - day; // Monday first
