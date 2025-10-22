@@ -20,13 +20,10 @@ const Transactions: React.FC<TransactionsProps> = ({ isDark, emergencyTx, invest
   const [currencyFilter, setCurrencyFilter] = useState<string>(
     () => (storage.get(STORAGE_KEYS.FINANCE_TX_FILTERS, {})?.currency || '')
   );
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>(
-    () => (storage.get(STORAGE_KEYS.FINANCE_TX_FILTERS, {})?.view || 'cards')
-  );
 
   useEffect(() => {
-    storage.set(STORAGE_KEYS.FINANCE_TX_FILTERS, { query, type: typeFilter, currency: currencyFilter, view: viewMode });
-  }, [query, typeFilter, currencyFilter, viewMode]);
+    storage.set(STORAGE_KEYS.FINANCE_TX_FILTERS, { query, type: typeFilter, currency: currencyFilter });
+  }, [query, typeFilter, currencyFilter]);
 
   const rows = useMemo(() => {
     const all = [
@@ -173,84 +170,41 @@ const Transactions: React.FC<TransactionsProps> = ({ isDark, emergencyTx, invest
             </Pressable>
           ))}
         </View>
-        <View style={styles.typeRow}>
-          {[
-            { k: 'cards', label: 'Карточки' },
-            { k: 'table', label: 'Таблица' },
-          ].map(btn => (
-            <Pressable key={btn.k} style={[styles.typeBtn, viewMode === (btn.k as any) ? styles.typeBtnActive : null]} onPress={() => setViewMode(btn.k as any)}>
-              <Text style={[styles.typeText, viewMode === (btn.k as any) ? styles.typeTextActive : null]}>{btn.label}</Text>
-            </Pressable>
-          ))}
-        </View>
       </View>
-
-      {viewMode === 'table' ? (
-        <>
-          <View style={styles.tableHeader}>
-            {['Тип', 'Дата', 'Операция', 'Сумма', 'Валюта', 'Место', 'Заметка'].map(h => (
-              <Text key={h} style={[styles.th, isDark ? styles.thDark : null]}>{h}</Text>
+      <ScrollView style={{ maxHeight: 320 }}>
+        {grouped.map(group => (
+          <View key={group.key} style={styles.group}>
+            <Text style={[styles.groupTitle, isDark ? styles.groupTitleDark : null]}>{group.key}</Text>
+            {group.items.map((r, idx) => (
+              <Pressable key={idx} onLongPress={() => copy(`${r.type} ${r.op} ${r.amount} ${r.currency} ${r.place} ${r.note}`)} style={[styles.cardRow, isDark ? styles.cardRowDark : null]}>
+                <View style={[styles.avatar, r.type === 'invest' ? styles.avatarInvest : r.type === 'debt' ? styles.avatarDebt : styles.avatarFund]}>
+                  <Text style={styles.avatarText}>{r.type === 'invest' ? '📈' : r.type === 'debt' ? '🧾' : '💰'}</Text>
+                </View>
+                <View style={styles.cardContent}>
+                  <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]} numberOfLines={1}>
+                    {(r.type === 'fund' ? 'Подушка' : r.type === 'invest' ? 'Инвестиции' : 'Долги')} • {r.place || '-'}
+                  </Text>
+                  <Text style={[styles.cardSubtitle, isDark ? styles.cardSubtitleDark : null]} numberOfLines={1}>
+                    {r.op}{r.note ? ` — ${r.note}` : ''}
+                  </Text>
+                </View>
+                <View style={styles.amountWrap}>
+                  <Text style={[styles.amount, getAmountStyle(r.op, r.amount)]}>
+                    {formatAmount(r.amount, r.currency)}
+                  </Text>
+                </View>
+              </Pressable>
             ))}
           </View>
-          <ScrollView style={{ maxHeight: 320 }}>
-            {rows.map((r, idx) => (
-              <View key={idx} style={[styles.tr, (idx % 2 === 1) ? (isDark ? styles.trDarkAlt : styles.trAlt) : null]}>
-                <Pressable onLongPress={() => copy(r.type)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>
-                  {r.type === 'fund' ? 'Подушка' : r.type === 'invest' ? 'Инвестиции' : 'Долги'}
-                </Text></Pressable>
-                <Pressable onLongPress={() => copy(r.date)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.date}</Text></Pressable>
-                <Pressable onLongPress={() => copy(r.op)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.op}</Text></Pressable>
-                <Pressable onLongPress={() => copy(String(r.amount))}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.amount}</Text></Pressable>
-                <Pressable onLongPress={() => copy(r.currency)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.currency}</Text></Pressable>
-                <Pressable onLongPress={() => copy(r.place)}><Text style={[styles.td, isDark ? styles.tdDark : null]}>{r.place}</Text></Pressable>
-                <Pressable onLongPress={() => copy(r.note)}><Text style={[styles.td, isDark ? styles.tdDark : null]} numberOfLines={1}>{r.note}</Text></Pressable>
-              </View>
-            ))}
-            {rows.length === 0 && (
-              <View style={{ paddingVertical: 12 }}>
-                <Skeleton height={12} style={{ marginBottom: 8 }} />
-                <Skeleton height={12} style={{ marginBottom: 8 }} />
-                <Skeleton height={12} />
-              </View>
-            )}
-          </ScrollView>
-        </>
-      ) : (
-        <ScrollView style={{ maxHeight: 320 }}>
-          {grouped.map(group => (
-            <View key={group.key} style={styles.group}>
-              <Text style={[styles.groupTitle, isDark ? styles.groupTitleDark : null]}>{group.key}</Text>
-              {group.items.map((r, idx) => (
-                <Pressable key={idx} onLongPress={() => copy(`${r.type} ${r.op} ${r.amount} ${r.currency} ${r.place} ${r.note}`)} style={[styles.cardRow, isDark ? styles.cardRowDark : null]}>
-                  <View style={[styles.avatar, r.type === 'invest' ? styles.avatarInvest : r.type === 'debt' ? styles.avatarDebt : styles.avatarFund]}>
-                    <Text style={styles.avatarText}>{r.type === 'invest' ? '📈' : r.type === 'debt' ? '🧾' : '💰'}</Text>
-                  </View>
-                  <View style={styles.cardContent}>
-                    <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]} numberOfLines={1}>
-                      {(r.type === 'fund' ? 'Подушка' : r.type === 'invest' ? 'Инвестиции' : 'Долги')} • {r.place || '-'}
-                    </Text>
-                    <Text style={[styles.cardSubtitle, isDark ? styles.cardSubtitleDark : null]} numberOfLines={1}>
-                      {r.op}{r.note ? ` — ${r.note}` : ''}
-                    </Text>
-                  </View>
-                  <View style={styles.amountWrap}>
-                    <Text style={[styles.amount, getAmountStyle(r.op, r.amount)]}>
-                      {formatAmount(r.amount, r.currency)}
-                    </Text>
-                  </View>
-                </Pressable>
-              ))}
-            </View>
-          ))}
-          {rows.length === 0 && (
-            <View style={{ paddingVertical: 12 }}>
-              <Skeleton height={12} style={{ marginBottom: 8 }} />
-              <Skeleton height={12} style={{ marginBottom: 8 }} />
-              <Skeleton height={12} />
-            </View>
-          )}
-        </ScrollView>
-      )}
+        ))}
+        {rows.length === 0 && (
+          <View style={{ paddingVertical: 12 }}>
+            <Skeleton height={12} style={{ marginBottom: 8 }} />
+            <Skeleton height={12} style={{ marginBottom: 8 }} />
+            <Skeleton height={12} />
+          </View>
+        )}
+      </ScrollView>
     </View>
   );
 };
