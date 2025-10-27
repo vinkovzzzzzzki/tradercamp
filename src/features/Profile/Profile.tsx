@@ -3,16 +3,16 @@ import React, { useState } from 'react';
 import { View, Text, TextInput, Pressable, StyleSheet, ScrollView, Alert } from 'react-native';
 import { storage, STORAGE_KEYS } from '../../services/persist';
 import { arrayToCSV, downloadCSV, generateFilename } from '../../services/export/csv';
-import { areNotificationsEnabled, requestNotificationPermissions, scheduleNotification } from '../../services/notifications';
 import type { User } from '../../state/types';
 
 interface ProfileProps {
   currentUser: User | null;
   isDark: boolean;
   onLogout: () => void;
+  onAddFriend: (userId: string) => void;
 }
 
-const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
+const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout, onAddFriend }) => {
   const [profileTab, setProfileTab] = useState<'overview' | 'friends' | 'achievements' | 'settings'>('overview');
   const [userSearch, setUserSearch] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
@@ -25,18 +25,13 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
   ]);
 
   const searchUsers = () => {
-    // Mock search results
     const mockResults: User[] = [
-      { id: '2', nickname: 'trader_pro', bio: 'Опытный трейдер', avatar: '', friends: [] },
-      { id: '3', nickname: 'crypto_guru', bio: 'Эксперт по криптовалютам', avatar: '', friends: [] }
-    ];
+      { id: '2', nickname: 'trader_pro', bio: 'Опытный трейдер', avatar: '', friends: [] as any },
+      { id: '3', nickname: 'crypto_guru', bio: 'Эксперт по криптовалютам', avatar: '', friends: [] as any }
+    ] as any;
     setSearchResults(mockResults.filter(user => 
       user.nickname.toLowerCase().includes(userSearch.toLowerCase())
     ));
-  };
-
-  const sendFriendRequest = (userId: string) => {
-    Alert.alert('Запрос отправлен', 'Запрос в друзья отправлен пользователю');
   };
 
   const handleLogout = () => {
@@ -48,26 +43,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
         { text: 'Выйти', style: 'destructive', onPress: onLogout }
       ]
     );
-  };
-
-  const handleOpenNotifications = async () => {
-    const granted = await requestNotificationPermissions();
-    if (!granted) {
-      Alert.alert('Уведомления', 'Разрешения не предоставлены');
-      return;
-    }
-    const in1Min = new Date(Date.now() + 60 * 1000);
-    await scheduleNotification('Проверка уведомлений', 'Это тестовое уведомление профиля', in1Min);
-    Alert.alert('Уведомления', 'Тестовое уведомление запланировано через 1 минуту');
-  };
-
-  // theme switching removed (always dark)
-
-  const handleOpenPrivacy = () => {
-    Alert.alert('Приватность', 'Очистить локальные данные приложения?', [
-      { text: 'Отмена', style: 'cancel' },
-      { text: 'Очистить', style: 'destructive', onPress: () => storage.clear() }
-    ]);
   };
 
   const handleOpenExport = () => {
@@ -93,6 +68,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
       Alert.alert('Экспорт', 'Не удалось экспортировать данные');
     }
   };
+
+  const isAuthed = !!currentUser && currentUser.id !== 'demo';
 
   return (
     <View style={[styles.container, isDark ? styles.darkContainer : null]}>
@@ -138,8 +115,10 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
           <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
             👤 Профиль пользователя
           </Text>
-          
-          {currentUser ? (
+          {!isAuthed && (
+            <Text style={[styles.userBio, isDark ? styles.userBioDark : null]}>Войдите через страницу Вход, чтобы видеть профиль</Text>
+          )}
+          {isAuthed && currentUser && (
             <View style={styles.profileInfo}>
               <View style={styles.avatar}>
                 <Text style={styles.avatarText}>
@@ -152,7 +131,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
               <Text style={[styles.userBio, isDark ? styles.userBioDark : null]}>
                 {currentUser.bio || 'Пользователь не добавил описание'}
               </Text>
-              
               <View style={styles.statsContainer}>
                 <View style={styles.statItem}>
                   <Text style={[styles.statValue, isDark ? styles.statValueDark : null]}>
@@ -162,28 +140,8 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
                     Друзей
                   </Text>
                 </View>
-                <View style={styles.statItem}>
-                  <Text style={[styles.statValue, isDark ? styles.statValueDark : null]}>
-                    {achievements.filter(a => a.earned).length}
-                  </Text>
-                  <Text style={[styles.statLabel, isDark ? styles.statLabelDark : null]}>
-                    Достижений
-                  </Text>
-                </View>
-                <View style={styles.statItem}>
-                  <Text style={[styles.statValue, isDark ? styles.statValueDark : null]}>
-                    30
-                  </Text>
-                  <Text style={[styles.statLabel, isDark ? styles.statLabelDark : null]}>
-                    Дней в системе
-                  </Text>
-                </View>
               </View>
             </View>
-          ) : (
-            <Text style={[styles.noteText, isDark ? styles.noteTextDark : null]}>
-              Войдите, чтобы просмотреть профиль
-            </Text>
           )}
         </View>
       )}
@@ -194,22 +152,32 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
           <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
             👥 Друзья и поиск
           </Text>
-          
-          {/* Search users */}
           <View style={styles.searchContainer}>
             <TextInput
               style={[styles.searchInput, isDark ? styles.searchInputDark : null]}
               value={userSearch}
               onChangeText={setUserSearch}
-              placeholder="Поиск пользователей..."
+              placeholder="Поиск пользователей... (демо)"
               placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
             />
             <Pressable style={styles.searchButton} onPress={searchUsers}>
               <Text style={styles.searchButtonText}>Найти</Text>
             </Pressable>
           </View>
+          {/* Быстро добавить по ID */}
+          <View style={styles.searchContainer}>
+            <TextInput
+              style={[styles.searchInput, isDark ? styles.searchInputDark : null]}
+              value={userSearch}
+              onChangeText={setUserSearch}
+              placeholder="ID друга (uuid)"
+              placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+            />
+            <Pressable style={styles.searchButton} onPress={() => userSearch && onAddFriend(userSearch)}>
+              <Text style={styles.searchButtonText}>Добавить по ID</Text>
+            </Pressable>
+          </View>
 
-          {/* Search results */}
           {searchResults.length > 0 && (
             <View style={styles.searchResults}>
               <Text style={[styles.searchResultsTitle, isDark ? styles.searchResultsTitleDark : null]}>
@@ -234,7 +202,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
                   </View>
                   <Pressable
                     style={styles.friendButton}
-                    onPress={() => sendFriendRequest(user.id)}
+                    onPress={() => onAddFriend(user.id)}
                   >
                     <Text style={styles.friendButtonText}>Добавить</Text>
                   </Pressable>
@@ -243,7 +211,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
             </View>
           )}
 
-          {/* Current friends */}
           {currentUser && (
             <View style={styles.friendsList}>
               <Text style={[styles.friendsTitle, isDark ? styles.friendsTitleDark : null]}>
@@ -255,7 +222,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
                 </Text>
               ) : (
                 <Text style={[styles.noteText, isDark ? styles.noteTextDark : null]}>
-                  У вас пока нет друзей. Найдите их через поиск!
+                  У вас пока нет друзей. Найдите их через поиск или добавьте по ID.
                 </Text>
               )}
             </View>
@@ -269,7 +236,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
           <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
             🏆 Достижения
           </Text>
-          
           <View style={styles.achievementsList}>
             {achievements.map(achievement => (
               <View key={achievement.id} style={[
@@ -315,28 +281,7 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
           <Text style={[styles.cardTitle, isDark ? styles.cardTitleDark : null]}>
             ⚙️ Настройки
           </Text>
-          
           <View style={styles.settingsList}>
-            <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]} onPress={handleOpenNotifications}>
-              <Text style={[styles.settingText, isDark ? styles.settingTextDark : null]}>
-                🔔 Уведомления
-              </Text>
-              <Text style={[styles.settingArrow, isDark ? styles.settingArrowDark : null]}>
-                ›
-              </Text>
-            </Pressable>
-            
-            {/* Theme item removed */}
-            
-            <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]} onPress={handleOpenPrivacy}>
-              <Text style={[styles.settingText, isDark ? styles.settingTextDark : null]}>
-                🔒 Приватность
-              </Text>
-              <Text style={[styles.settingArrow, isDark ? styles.settingArrowDark : null]}>
-                ›
-              </Text>
-            </Pressable>
-            
             <Pressable style={[styles.settingItem, isDark ? styles.settingItemDark : null]} onPress={handleOpenExport}>
               <Text style={[styles.settingText, isDark ? styles.settingTextDark : null]}>
                 📊 Экспорт данных
@@ -345,7 +290,6 @@ const Profile: React.FC<ProfileProps> = ({ currentUser, isDark, onLogout }) => {
                 ›
               </Text>
             </Pressable>
-            
             <Pressable
               style={[styles.settingItem, isDark ? styles.settingItemDark : null]}
               onPress={handleLogout}

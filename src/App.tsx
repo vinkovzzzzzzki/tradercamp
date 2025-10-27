@@ -4,7 +4,7 @@ import { View, Text, Animated, Platform, UIManager } from 'react-native';
 import { useAppState } from './state';
 import { checkSupabaseConnectivity } from './services/auth';
 import { Header, Toast, FAB } from './components/common';
-import { Dashboard, Journal, Planner, Community, Profile } from './features';
+import { Dashboard, Journal, Planner, Community, Profile, Auth } from './features';
 // import './styles/index.css'; // CSS не поддерживается в React Native
 
 // Enable LayoutAnimation on Android
@@ -22,6 +22,15 @@ const App: React.FC = () => {
     
     // Auth
     currentUser,
+    authEmail,
+    setAuthEmail,
+    authPassword,
+    setAuthPassword,
+    authMode,
+    setAuthMode,
+    handleSignIn,
+    handleSignUp,
+    handleResetPassword,
     
     // Theme
     isDark,
@@ -97,7 +106,8 @@ const App: React.FC = () => {
     toggleLike,
     addComment,
     toggleBookmark,
-    logout
+    logout,
+    addFriend
   } = useAppState();
 
   React.useEffect(() => {
@@ -270,11 +280,26 @@ const App: React.FC = () => {
             onToggleBookmark={toggleBookmark}
           />
         )}
+        {tab === 'auth' && (
+          <Auth
+            isDark={isDark}
+            authEmail={authEmail}
+            setAuthEmail={setAuthEmail}
+            authPassword={authPassword}
+            setAuthPassword={setAuthPassword}
+            authMode={authMode}
+            setAuthMode={setAuthMode}
+            handleSignIn={handleSignIn}
+            handleSignUp={handleSignUp}
+            handleResetPassword={handleResetPassword}
+          />
+        )}
         {tab === 'profile' && (
           <Profile
             currentUser={currentUser}
             isDark={isDark}
             onLogout={handleLogout}
+            onAddFriend={(id) => addFriend(id)}
           />
         )}
       </View>

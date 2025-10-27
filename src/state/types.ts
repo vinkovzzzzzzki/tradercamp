@@ -214,7 +214,7 @@ export interface ChartData {
   total: DataPoint[];
 }
 
-export type TabType = 'finance' | 'journal' | 'planner' | 'community' | 'profile';
+export type TabType = 'finance' | 'journal' | 'planner' | 'community' | 'profile' | 'auth';
 export type ProfileTabType = 'overview' | 'friends' | 'achievements' | 'settings';
 export type AuthModeType = 'login' | 'register';
 export type FinanceViewType = 'summary' | 'fund' | 'invest' | 'debts' | 'transactions' | null;

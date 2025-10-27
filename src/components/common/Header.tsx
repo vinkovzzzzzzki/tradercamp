@@ -35,6 +35,7 @@ const Header: React.FC<HeaderProps> = ({
   dropdownAnimations,
   buttonAnimations
 }) => {
+  const isAuthed = !!currentUser && currentUser.id !== 'demo';
   const tabs = [
     { 
       key: 'finance' as TabType, 
@@ -63,6 +64,7 @@ const Header: React.FC<HeaderProps> = ({
       label: 'Сообщество',
       hasDropdown: false
     },
+    ...(!isAuthed ? [{ key: 'auth' as TabType, label: 'Вход', hasDropdown: false }] : []),
     { 
       key: 'profile' as TabType, 
       label: 'Профиль',

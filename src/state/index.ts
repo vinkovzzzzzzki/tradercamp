@@ -1,3 +1,3 @@
 // State index
 export * from './types';
-export * from './hooks/useAppState';
+export { useAppState } from './hooks/useAppState';

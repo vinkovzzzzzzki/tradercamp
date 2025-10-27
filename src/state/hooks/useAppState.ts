@@ -837,6 +837,34 @@ export const useAppState = () => {
     }
   };
 
+  const addFriend = async (friendId: string) => {
+    if (!currentUser?.id) return;
+    try {
+      const currentOverlay = supaProfiles[currentUser.id] || { friends: [] } as any;
+      const existing: any[] = Array.isArray((currentOverlay as any).friends) ? (currentOverlay as any).friends : [];
+      if (existing.includes(friendId)) {
+        setToast({ msg: 'Пользователь уже в друзьях', kind: 'info' } as any);
+        return;
+      }
+      const updatedFriends = [...existing, friendId];
+      const res = await updateUserProfile(currentUser.id, { friends: updatedFriends } as any);
+      if (res.success) {
+        setSupaProfiles(prev => ({
+          ...prev,
+          [currentUser.id]: {
+            ...(prev[currentUser.id] || {} as any),
+            friends: updatedFriends,
+          } as any
+        }));
+        setToast({ msg: 'Друг добавлен', kind: 'success' } as any);
+      } else {
+        setToast({ msg: res.error || 'Не удалось добавить друга', kind: 'error' } as any);
+      }
+    } catch {
+      setToast({ msg: 'Не удалось добавить друга', kind: 'error' } as any);
+    }
+  };
+
   const handleSignIn = async () => {
     if (!authEmail || !authPassword) {
       setToast({ msg: 'Заполните все поля', kind: 'error' } as any);
@@ -1073,6 +1101,7 @@ export const useAppState = () => {
     toggleLike,
     addComment,
     toggleBookmark,
-    logout
+    logout,
+    addFriend
   };
 };
