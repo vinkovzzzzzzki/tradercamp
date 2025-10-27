@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, Text, Animated, Platform, UIManager } from 'react-native';
 import { useAppState } from './state';
+import { checkSupabaseConnectivity } from './services/auth';
 import { Header, Toast, FAB } from './components/common';
 import { Dashboard, Journal, Planner, Community, Profile } from './features';
 // import './styles/index.css'; // CSS не поддерживается в React Native
@@ -98,6 +99,17 @@ const App: React.FC = () => {
     toggleBookmark,
     logout
   } = useAppState();
+
+  React.useEffect(() => {
+    (async () => {
+      const result = await checkSupabaseConnectivity();
+      if (result.ok) {
+        setToast({ msg: 'База данных подключена', kind: 'success' } as any);
+      } else {
+        setToast({ msg: `Ошибка подключения к БД: ${result.error || 'неизвестно'}`, kind: 'error' } as any);
+      }
+    })();
+  }, []);
 
   // Animation functions
   const animateTabChange = (newTab: string) => {

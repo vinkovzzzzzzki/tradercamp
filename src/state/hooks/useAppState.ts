@@ -20,6 +20,15 @@ import {
   resetPassword,
   onAuthStateChange
 } from '../../services/auth';
+import { 
+  fetchUserTrades, insertTrade as insertTradeDb, deleteTradeById,
+  fetchEmergencyTx, insertEmergencyTx, deleteEmergencyTxById,
+  fetchInvestTx, insertInvestTx, deleteInvestTxById,
+  fetchDebts, insertDebt, deleteDebtById, updateDebtAmount,
+  fetchWorkouts, insertWorkout, deleteWorkoutById,
+  fetchEvents, insertEvent, deleteEventById,
+  fetchPosts, insertPost, deletePostById, updatePostLikes, updatePostComments
+} from '../../services/db';
 import type { 
   TabType, 
   ProfileTabType, 
@@ -318,6 +327,21 @@ export const useAppState = () => {
     };
     
     setEmergencyTx(prev => [...prev, newTx]);
+    // Persist to Supabase (optimistic)
+    (async () => {
+      if (!currentUser?.id) return;
+      const saved = await insertEmergencyTx(currentUser.id, {
+        date: newTx.date,
+        type: newTx.type,
+        amount: newTx.amount,
+        currency: newTx.currency,
+        location: newTx.location,
+        note: newTx.note ?? null
+      } as any);
+      if (saved) {
+        setEmergencyTx(prev => prev.map(t => t.id === newTx.id ? { ...t, id: (saved as any).id } : t));
+      }
+    })();
     
     // Update cashReserve based on transaction type
     const amountChange = newTx.type === 'deposit' ? newTx.amount : -newTx.amount;
@@ -374,6 +398,21 @@ export const useAppState = () => {
       
       return updated;
     });
+    // Persist to Supabase (optimistic)
+    (async () => {
+      if (!currentUser?.id) return;
+      const saved = await insertInvestTx(currentUser.id, {
+        date: newTx.date,
+        type: newTx.type,
+        amount: newTx.amount,
+        currency: newTx.currency,
+        destination: newTx.destination,
+        note: newTx.note ?? null
+      } as any);
+      if (saved) {
+        setInvestTx(prev => prev.map(t => t.id === newTx.id ? { ...t, id: (saved as any).id } : t));
+      }
+    })();
     
     setNewInvestTx({ type: 'in', amount: '', currency: 'USD', destination: '', note: '' });
     
@@ -418,6 +457,18 @@ export const useAppState = () => {
       
       return updated;
     });
+    // Persist to Supabase (optimistic)
+    (async () => {
+      if (!currentUser?.id) return;
+      const saved = await insertDebt(currentUser.id, {
+        name: newDebtObj.name,
+        amount: newDebtObj.amount,
+        currency: newDebtObj.currency
+      } as any);
+      if (saved) {
+        setSortedDebts(prev => prev.map(d => d.id === newDebtObj.id ? { ...d, id: (saved as any).id } : d));
+      }
+    })();
     
     setNewDebt({ name: '', amount: '', currency: 'USD' });
   };
@@ -455,6 +506,8 @@ export const useAppState = () => {
       }
       return updated;
     });
+    // Persist delete
+    (async () => { await deleteEmergencyTxById(id); })();
   };
   
   const deleteInvestTx = (id: number) => {
@@ -479,6 +532,8 @@ export const useAppState = () => {
       }
       return updated;
     });
+    // Persist delete
+    (async () => { await deleteInvestTxById(id); })();
   };
   
   const deleteDebt = (id: number) => {
@@ -503,6 +558,8 @@ export const useAppState = () => {
       }
       return updated;
     });
+    // Persist delete
+    (async () => { await deleteDebtById(id); })();
   };
   
   const repayDebt = (debtId: number, amount: number) => {
@@ -543,6 +600,8 @@ export const useAppState = () => {
       
       return updated;
     });
+    // Persist update
+    (async () => { await updateDebtAmount(debtId, Math.max(0, (sortedDebts.find(d => d.id === debtId)?.amount || 0) - amount)); })();
     
     setRepayDrafts(prev => ({ ...prev, [debtId]: '' }));
   };
@@ -572,14 +631,19 @@ export const useAppState = () => {
   
   const addTrade = (trade: Omit<Trade, 'id' | 'userId'>) => {
     if (!currentUser) return;
-    
-    const newTrade = {
+    // optimistic update
+    const optimistic = {
       id: Date.now(),
       userId: currentUser.id,
       ...trade
     };
-    
-    setTrades(prev => [newTrade, ...prev]);
+    setTrades(prev => [optimistic, ...prev]);
+    (async () => {
+      const saved = await insertTradeDb(currentUser.id, trade);
+      if (saved) {
+        setTrades(prev => [saved, ...prev.filter(t => t.id !== optimistic.id)]);
+      }
+    })();
   };
   
   const deleteTrade = (id: number) => {
@@ -589,6 +653,7 @@ export const useAppState = () => {
       if (removed) setToast({ msg: 'Сделка удалена', kind: 'info', actionLabel: 'Отменить', onAction: () => setTrades(v => [removed, ...v]) } as any);
       return updated;
     });
+    (async () => { await deleteTradeById(id); })();
   };
   
   const addWorkout = (workout: Omit<Workout, 'id' | 'userId'>) => {
@@ -600,6 +665,20 @@ export const useAppState = () => {
     };
     
     setWorkouts(prev => [...prev, newWorkout]);
+    // Persist to Supabase
+    (async () => {
+      if (!currentUser?.id) return;
+      const saved = await insertWorkout(currentUser.id, {
+        date: newWorkout.date,
+        time: (newWorkout as any).time ?? null,
+        type: newWorkout.type,
+        notes: newWorkout.notes ?? '',
+        remind_before: newWorkout.remindBefore
+      } as any);
+      if (saved) {
+        setWorkouts(prev => prev.map(w => w.id === newWorkout.id ? { ...w, id: (saved as any).id } : w));
+      }
+    })();
   };
   
   const deleteWorkout = (id: number) => {
@@ -609,6 +688,7 @@ export const useAppState = () => {
       if (removed) setToast({ msg: 'Тренировка удалена', kind: 'info', actionLabel: 'Отменить', onAction: () => setWorkouts(v => [...v, removed]) } as any);
       return updated;
     });
+    (async () => { await deleteWorkoutById(id); })();
   };
   
   const addEvent = (event: Omit<Event, 'id' | 'userId'>) => {
@@ -620,6 +700,20 @@ export const useAppState = () => {
     };
     
     setEvents(prev => [...prev, newEvent]);
+    // Persist to Supabase
+    (async () => {
+      if (!currentUser?.id) return;
+      const saved = await insertEvent(currentUser.id, {
+        date: newEvent.date,
+        time: (newEvent as any).time ?? null,
+        title: newEvent.title,
+        notes: newEvent.notes ?? '',
+        remind_before: newEvent.remindBefore
+      } as any);
+      if (saved) {
+        setEvents(prev => prev.map(e => e.id === newEvent.id ? { ...e, id: (saved as any).id } : e));
+      }
+    })();
   };
   
   const deleteEvent = (id: number) => {
@@ -629,6 +723,7 @@ export const useAppState = () => {
       if (removed) setToast({ msg: 'Событие удалено', kind: 'info', actionLabel: 'Отменить', onAction: () => setEvents(v => [...v, removed]) } as any);
       return updated;
     });
+    (async () => { await deleteEventById(id); })();
   };
   
   const addPost = (post: Omit<Post, 'id' | 'userId' | 'date' | 'likes' | 'comments'>) => {
@@ -643,10 +738,24 @@ export const useAppState = () => {
     };
     
     setPosts(prev => [newPost, ...prev]);
+    // Persist to Supabase
+    (async () => {
+      if (!currentUser?.id) return;
+      const saved = await insertPost(currentUser.id, {
+        title: newPost.title,
+        content: newPost.content,
+        market: newPost.market,
+        images: newPost.images ?? []
+      } as any);
+      if (saved) {
+        setPosts(prev => prev.map(p => p.id === newPost.id ? { ...p, id: (saved as any).id, date: (saved as any).created_at } : p));
+      }
+    })();
   };
   
   const deletePost = (id: number) => {
     setPosts(prev => prev.filter(p => p.id !== id));
+    (async () => { await deletePostById(id); })();
   };
   
   const toggleLike = (postId: number) => {
@@ -656,12 +765,10 @@ export const useAppState = () => {
       if (post.id === postId) {
         const likes = post.likes || [];
         const isLiked = likes.includes(currentUser.id);
-        return {
-          ...post,
-          likes: isLiked 
-            ? likes.filter(id => id !== currentUser.id)
-            : [...likes, currentUser.id]
-        };
+        const updatedLikes = isLiked ? likes.filter(id => id !== currentUser.id) : [...likes, currentUser.id];
+        // persist
+        (async () => { await updatePostLikes(postId, updatedLikes as any); })();
+        return { ...post, likes: updatedLikes };
       }
       return post;
     }));
@@ -679,10 +786,10 @@ export const useAppState = () => {
     
     setPosts(prev => prev.map(post => {
       if (post.id === postId) {
-        return {
-          ...post,
-          comments: [...(post.comments || []), newComment]
-        };
+        const updated = [...(post.comments || []), newComment];
+        // persist
+        (async () => { await updatePostComments(postId, updated as any); })();
+        return { ...post, comments: updated };
       }
       return post;
     }));
@@ -805,6 +912,19 @@ export const useAppState = () => {
       const result = await getCurrentSession();
       if (result.success && result.auth) {
         setSupaAuth(result.auth);
+        // Load trades from Supabase for current user
+        try {
+          const list = await fetchUserTrades(result.auth.user.id);
+          if (Array.isArray(list)) setTrades(list);
+        } catch {}
+        // Load finance tx
+        try { const em = await fetchEmergencyTx(result.auth.user.id); if (Array.isArray(em)) setEmergencyTx(em as any); } catch {}
+        try { const inv = await fetchInvestTx(result.auth.user.id); if (Array.isArray(inv)) setInvestTx(inv as any); } catch {}
+        // Load planner
+        try { const ws = await fetchWorkouts(result.auth.user.id); if (Array.isArray(ws)) setWorkouts(ws as any); } catch {}
+        try { const es = await fetchEvents(result.auth.user.id); if (Array.isArray(es)) setEvents(es as any); } catch {}
+        // Load posts (user's own)
+        try { const ps = await fetchPosts(result.auth.user.id); if (Array.isArray(ps)) setPosts(ps as any); } catch {}
       }
     };
 
@@ -813,6 +933,19 @@ export const useAppState = () => {
     // Listen to auth state changes
     const { data: { subscription } } = onAuthStateChange((auth) => {
       setSupaAuth(auth);
+      // Reload trades on login/logout
+      (async () => {
+        if (auth?.user?.id) {
+          try { const list = await fetchUserTrades(auth.user.id); if (Array.isArray(list)) setTrades(list); } catch {}
+          try { const em = await fetchEmergencyTx(auth.user.id); if (Array.isArray(em)) setEmergencyTx(em as any); } catch {}
+          try { const inv = await fetchInvestTx(auth.user.id); if (Array.isArray(inv)) setInvestTx(inv as any); } catch {}
+          try { const ws = await fetchWorkouts(auth.user.id); if (Array.isArray(ws)) setWorkouts(ws as any); } catch {}
+          try { const es = await fetchEvents(auth.user.id); if (Array.isArray(es)) setEvents(es as any); } catch {}
+          try { const ps = await fetchPosts(auth.user.id); if (Array.isArray(ps)) setPosts(ps as any); } catch {}
+        } else {
+          // On logout keep local demo or clear
+        }
+      })();
     });
 
     return () => {

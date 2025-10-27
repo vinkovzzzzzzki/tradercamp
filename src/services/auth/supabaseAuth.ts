@@ -269,3 +269,15 @@ export function onAuthStateChange(callback: (auth: SupaAuth | null) => void) {
     }
   });
 }
+
+// Connectivity check: verifies that Supabase is reachable and schema is applied
+export async function checkSupabaseConnectivity(): Promise<{ ok: boolean; error?: string }>{
+  try {
+    // Selecting from profiles is safe with RLS; empty result is fine
+    const { error } = await supabase.from('profiles').select('id').limit(1);
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (e: any) {
+    return { ok: false, error: e?.message || 'Unknown error' };
+  }
+}
