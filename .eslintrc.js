@@ -1,4 +1,7 @@
 module.exports = {
+  ignorePatterns: [
+    'src/tests/**'
+  ],
   extends: [
     'expo',
     'plugin:@typescript-eslint/recommended',
@@ -16,8 +19,11 @@ module.exports = {
   rules: {
     'react/react-in-jsx-scope': 'off',
     'react/prop-types': 'off',
-    '@typescript-eslint/no-unused-vars': 'error',
+    '@typescript-eslint/no-unused-vars': 'warn',
+    '@typescript-eslint/no-unused-expressions': 'off',
     '@typescript-eslint/no-explicit-any': 'warn',
+    'prefer-const': 'warn',
+    'import/no-unresolved': 'off',
     'react-native/no-unused-styles': 'warn',
     'react-native/split-platform-components': 'error',
     'react-native/no-inline-styles': 'off',

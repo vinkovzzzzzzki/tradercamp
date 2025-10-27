@@ -62,7 +62,7 @@ export async function signUp(email: string, password: string): Promise<{ success
     }
 
     return { success: true };
-  } catch {
+  } catch (e) {
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -97,7 +97,7 @@ export async function signIn(email: string, password: string): Promise<{ success
     }
 
     return { success: false, error: 'No user data received' };
-  } catch {
+  } catch (e) {
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -112,7 +112,7 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
     }
 
     return { success: true };
-  } catch {
+  } catch (e) {
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -144,7 +144,7 @@ export async function getCurrentSession(): Promise<{ success: boolean; auth?: Su
     }
 
     return { success: true }; // No session is not an error
-  } catch {
+  } catch (e) {
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -214,7 +214,7 @@ export async function resetPassword(email: string): Promise<{ success: boolean; 
     }
 
     return { success: true };
-  } catch {
+  } catch (e) {
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
