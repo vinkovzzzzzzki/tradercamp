@@ -11,19 +11,16 @@
    - **Project URL** (например: `https://abcdefgh.supabase.co`)
    - **anon public key** (длинная строка начинающаяся с `eyJ...`)
 
-### 2. Конфигурация уже настроена ✅
+### 2. Переменные окружения (без хардкодов) ✅
 
-Конфигурация Supabase уже настроена в `App.js`:
+Создайте файл `.env` (см. пример `.env.example`) и добавьте:
 
-```javascript
-const SUPABASE_CONFIG = {
-  url: 'https://ncfiwejrpozzbftkkdjx.supabase.co',
-  anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5jZml3ZWpycG96emJmdGtrZGp4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTYxMzU3MjYsImV4cCI6MjA3MTcxMTcyNn0.IQ_w-WhlK9wy3GkYmTJ7bvN6HsamVkYT6aQWlyWA5sw',
-  bucket: 'public'
-};
+```
+EXPO_PUBLIC_SUPABASE_URL=your-url
+EXPO_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 ```
 
-**Готово!** Никаких дополнительных настроек не требуется.
+Клиент Supabase инициализируется из переменных окружения в `src/services/auth/supabaseAuth.ts`.
 
 ### 3. Выполните SQL схему
 
