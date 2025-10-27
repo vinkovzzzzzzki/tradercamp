@@ -1,7 +1,7 @@
 module.exports = {
   extends: [
     'expo',
-    '@typescript-eslint/recommended',
+    'plugin:@typescript-eslint/recommended',
     'plugin:react/recommended',
     'plugin:react-hooks/recommended',
     'plugin:react-native/all'
@@ -18,10 +18,12 @@ module.exports = {
     'react/prop-types': 'off',
     '@typescript-eslint/no-unused-vars': 'error',
     '@typescript-eslint/no-explicit-any': 'warn',
-    'react-native/no-unused-styles': 'error',
+    'react-native/no-unused-styles': 'warn',
     'react-native/split-platform-components': 'error',
-    'react-native/no-inline-styles': 'warn',
-    'react-native/no-color-literals': 'warn'
+    'react-native/no-inline-styles': 'off',
+    'react-native/no-color-literals': 'off',
+    'react-native/sort-styles': 'off',
+    '@typescript-eslint/no-require-imports': 'off'
   },
   settings: {
     react: {

@@ -122,8 +122,8 @@ export const useAppState = () => {
   // History data
   const nowIso = new Date().toISOString().slice(0, 10);
   const seedIfEmpty = <T extends DataPoint[]>(key: string, seed: T): T => {
-    const stored = storage.get(key, []);
-    return (Array.isArray(stored) && stored.length > 0) ? stored : seed;
+    const stored = storage.get(key, []) as T;
+    return (Array.isArray(stored) && (stored as unknown as any[]).length > 0) ? stored : seed;
   };
   // Seed demo history so chart renders without auth/data
   const [cushionHistory, setCushionHistory] = useState<DataPoint[]>(() => 
@@ -291,9 +291,8 @@ export const useAppState = () => {
   const currentFinance = currentUser ? (financeData[currentUser.id] || {}) : null;
   
   const investmentBalance = useMemo(() => {
-    const list = currentFinance?.investTx || [];
-    return list.reduce((sum, it) => sum + (it.type === 'in' ? it.amount : -it.amount), 0);
-  }, [currentFinance]);
+    return investTx.reduce((sum, it) => sum + (it.type === 'in' ? it.amount : -it.amount), 0);
+  }, [investTx]);
   
   // Use services for calculations
   const emergencyMonths = useMemo(() => {

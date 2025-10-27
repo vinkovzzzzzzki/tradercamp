@@ -15,7 +15,7 @@ const FAB: React.FC<FABProps> = ({ actions }) => {
   const [open, setOpen] = useState(false);
 
   return (
-    <View style={{ position: 'fixed', right: 20, bottom: 20, zIndex: 1000, alignItems: 'flex-end', gap: 8 }}>
+    <View style={{ position: 'absolute', right: 20, bottom: 20, zIndex: 1000, alignItems: 'flex-end', gap: 8 }}>
       {open && actions.map((a, idx) => (
         <Pressable
           key={idx}

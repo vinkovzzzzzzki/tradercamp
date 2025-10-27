@@ -47,6 +47,7 @@ export async function signUp(email: string, password: string): Promise<{ success
         .insert([
           {
             id: data.user.id,
+            email,
             nickname: email.split('@')[0],
             bio: '',
             avatar: '',
@@ -61,7 +62,7 @@ export async function signUp(email: string, password: string): Promise<{ success
     }
 
     return { success: true };
-  } catch (error) {
+  } catch {
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -96,7 +97,7 @@ export async function signIn(email: string, password: string): Promise<{ success
     }
 
     return { success: false, error: 'No user data received' };
-  } catch (error) {
+  } catch {
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -111,7 +112,7 @@ export async function signOut(): Promise<{ success: boolean; error?: string }> {
     }
 
     return { success: true };
-  } catch (error) {
+  } catch {
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -143,7 +144,7 @@ export async function getCurrentSession(): Promise<{ success: boolean; auth?: Su
     }
 
     return { success: true }; // No session is not an error
-  } catch (error) {
+  } catch {
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -200,16 +201,20 @@ export async function updateUserProfile(userId: string, updates: Partial<User>):
 // Reset password
 export async function resetPassword(email: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/reset-password`,
-    });
+    const redirectTo = typeof window !== 'undefined' && (window as any).location?.origin
+      ? `${(window as any).location.origin}/reset-password`
+      : undefined;
+
+    const options = redirectTo ? { redirectTo } : {};
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, options as any);
 
     if (error) {
       return { success: false, error: error.message };
     }
 
     return { success: true };
-  } catch (error) {
+  } catch {
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
@@ -232,9 +237,12 @@ export async function isEmailAvailable(email: string): Promise<{ success: boolea
       return { success: false, error: error.message };
     }
 
-    // If we get data, email is taken
-    return { success: true, available: false };
-  } catch (error) {
+    if (data) {
+      // If we get data, email is taken
+      return { success: true, available: false };
+    }
+    return { success: true, available: true };
+  } catch {
     return { success: false, error: 'An unexpected error occurred' };
   }
 }
