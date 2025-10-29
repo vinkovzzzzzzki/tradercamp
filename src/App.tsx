@@ -2,7 +2,7 @@
 import React from 'react';
 import { View, Text, Animated, Platform, UIManager } from 'react-native';
 import { useAppState } from './state';
-import { checkSupabaseConnectivity } from './services/auth';
+import { checkSupabaseConnectivity, getSupabaseDebugInfo } from './services/auth';
 import { Header, Toast, FAB } from './components/common';
 import { Dashboard, Journal, Planner, Community, Profile, Auth } from './features';
 // import './styles/index.css'; // CSS не поддерживается в React Native
@@ -121,7 +121,12 @@ const App: React.FC = () => {
       if (result.ok) {
         setToast({ msg: 'База данных подключена', kind: 'success' } as any);
       } else {
-        setToast({ msg: `Ошибка подключения к БД: ${result.error || 'неизвестно'}`, kind: 'error' } as any);
+        const dbg = getSupabaseDebugInfo();
+        const host = (() => {
+          try { return new URL(dbg.url).host; } catch { return dbg.url; }
+        })();
+        const configured = dbg.configured ? 'configured' : 'NOT configured';
+        setToast({ msg: `Ошибка подключения к БД: ${result.error || 'неизвестно'} | host: ${host} | env: ${configured}` as any, kind: 'error' } as any);
       }
     })();
   }, []);

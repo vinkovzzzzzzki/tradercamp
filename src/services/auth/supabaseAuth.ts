@@ -315,3 +315,12 @@ export async function checkSupabaseConnectivity(): Promise<{ ok: boolean; error?
     return { ok: false, error: e?.message || 'Unknown error' };
   }
 }
+
+// Debug helper to inspect which env the client picked
+export function getSupabaseDebugInfo(): { url: string; anonKeyPrefix: string; configured: boolean } {
+  return {
+    url: supabaseUrl,
+    anonKeyPrefix: typeof supabaseAnonKey === 'string' ? supabaseAnonKey.slice(0, 12) : '',
+    configured: isSupabaseEnvConfigured,
+  };
+}
