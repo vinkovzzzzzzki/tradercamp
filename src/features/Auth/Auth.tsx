@@ -7,6 +7,10 @@ interface AuthProps {
   setAuthEmail: (v: string) => void;
   authPassword: string;
   setAuthPassword: (v: string) => void;
+  registerNickname: string;
+  setRegisterNickname: (v: string) => void;
+  registerPasswordConfirm: string;
+  setRegisterPasswordConfirm: (v: string) => void;
   authMode: 'login' | 'register';
   setAuthMode: (m: 'login' | 'register') => void;
   handleSignIn: () => Promise<void> | void;
@@ -14,28 +18,78 @@ interface AuthProps {
   handleResetPassword: () => Promise<void> | void;
 }
 
-const Auth: React.FC<AuthProps> = ({ isDark, authEmail, setAuthEmail, authPassword, setAuthPassword, authMode, setAuthMode, handleSignIn, handleSignUp, handleResetPassword }) => {
+const Auth: React.FC<AuthProps> = ({ isDark, authEmail, setAuthEmail, authPassword, setAuthPassword, registerNickname, setRegisterNickname, registerPasswordConfirm, setRegisterPasswordConfirm, authMode, setAuthMode, handleSignIn, handleSignUp, handleResetPassword }) => {
+  const [registerStep, setRegisterStep] = React.useState<1 | 2>(1);
   return (
     <View style={[styles.container, isDark ? styles.darkContainer : null]}>
       <View style={styles.card}>
         <Text style={[styles.title, isDark ? styles.titleDark : null]}>Авторизация</Text>
-        <TextInput
-          style={[styles.input, isDark ? styles.inputDark : null]}
-          placeholder="Email"
-          placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
-          autoCapitalize="none"
-          keyboardType="email-address"
-          value={authEmail}
-          onChangeText={setAuthEmail}
-        />
-        <TextInput
-          style={[styles.input, isDark ? styles.inputDark : null]}
-          placeholder="Пароль"
-          placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
-          secureTextEntry
-          value={authPassword}
-          onChangeText={setAuthPassword}
-        />
+        {authMode === 'login' && (
+          <>
+            <TextInput
+              style={[styles.input, isDark ? styles.inputDark : null]}
+              placeholder="Email"
+              placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+              autoCapitalize="none"
+              keyboardType="email-address"
+              value={authEmail}
+              onChangeText={setAuthEmail}
+            />
+            <TextInput
+              style={[styles.input, isDark ? styles.inputDark : null]}
+              placeholder="Пароль"
+              placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+              secureTextEntry
+              value={authPassword}
+              onChangeText={setAuthPassword}
+            />
+          </>
+        )}
+        {authMode === 'register' && (
+          <>
+            {registerStep === 1 && (
+              <>
+                <TextInput
+                  style={[styles.input, isDark ? styles.inputDark : null]}
+                  placeholder="Ник"
+                  placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+                  autoCapitalize="none"
+                  value={registerNickname}
+                  onChangeText={setRegisterNickname}
+                />
+                <TextInput
+                  style={[styles.input, isDark ? styles.inputDark : null]}
+                  placeholder="Email"
+                  placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+                  autoCapitalize="none"
+                  keyboardType="email-address"
+                  value={authEmail}
+                  onChangeText={setAuthEmail}
+                />
+              </>
+            )}
+            {registerStep === 2 && (
+              <>
+                <TextInput
+                  style={[styles.input, isDark ? styles.inputDark : null]}
+                  placeholder="Пароль"
+                  placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+                  secureTextEntry
+                  value={authPassword}
+                  onChangeText={setAuthPassword}
+                />
+                <TextInput
+                  style={[styles.input, isDark ? styles.inputDark : null]}
+                  placeholder="Повторите пароль"
+                  placeholderTextColor={isDark ? '#9ca3af' : '#6b7280'}
+                  secureTextEntry
+                  value={registerPasswordConfirm}
+                  onChangeText={setRegisterPasswordConfirm}
+                />
+              </>
+            )}
+          </>
+        )}
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {authMode === 'login' ? (
             <>
@@ -51,12 +105,25 @@ const Auth: React.FC<AuthProps> = ({ isDark, authEmail, setAuthEmail, authPasswo
             </>
           ) : (
             <>
-              <Pressable style={styles.button} onPress={() => handleSignUp()}>
-                <Text style={styles.buttonText}>Создать аккаунт</Text>
-              </Pressable>
-              <Pressable style={styles.buttonSecondary} onPress={() => setAuthMode('login')}>
-                <Text style={styles.buttonText}>У меня есть аккаунт</Text>
-              </Pressable>
+              {registerStep === 1 ? (
+                <>
+                  <Pressable style={styles.button} onPress={() => setRegisterStep(2)}>
+                    <Text style={styles.buttonText}>Далее</Text>
+                  </Pressable>
+                  <Pressable style={styles.buttonSecondary} onPress={() => setAuthMode('login')}>
+                    <Text style={styles.buttonText}>Отмена</Text>
+                  </Pressable>
+                </>
+              ) : (
+                <>
+                  <Pressable style={styles.button} onPress={() => handleSignUp()}>
+                    <Text style={styles.buttonText}>Создать аккаунт</Text>
+                  </Pressable>
+                  <Pressable style={styles.buttonSecondary} onPress={() => setRegisterStep(1)}>
+                    <Text style={styles.buttonText}>Назад</Text>
+                  </Pressable>
+                </>
+              )}
             </>
           )}
         </View>

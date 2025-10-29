@@ -29,11 +29,14 @@ export interface User {
 }
 
 // Sign up with email and password
-export async function signUp(email: string, password: string): Promise<{ success: boolean; error?: string }> {
+export async function signUp(email: string, password: string, nickname?: string): Promise<{ success: boolean; error?: string }> {
   try {
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
+      options: {
+        // No email confirmation flow enforced here; project-level setting controls this
+      } as any,
     });
 
     if (error) {
@@ -48,7 +51,7 @@ export async function signUp(email: string, password: string): Promise<{ success
           {
             id: data.user.id,
             email,
-            nickname: email.split('@')[0],
+            nickname: nickname || email.split('@')[0],
             bio: '',
             avatar: '',
             friends: [],

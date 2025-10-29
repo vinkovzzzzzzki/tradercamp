@@ -20,6 +20,9 @@ yarn-error.log*
 .DS_Store
 Thumbs.db
 
+# Editors
+.vscode/
+
 # Env files
 .env
 .env.local

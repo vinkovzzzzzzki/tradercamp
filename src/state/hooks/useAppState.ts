@@ -81,6 +81,8 @@ export const useAppState = () => {
   const [authMode, setAuthMode] = useState<AuthModeType>('login');
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
+  const [registerNickname, setRegisterNickname] = useState('');
+  const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
   
@@ -890,16 +892,22 @@ export const useAppState = () => {
   };
 
   const handleSignUp = async () => {
-    if (!authEmail || !authPassword) {
+    if (!registerNickname || !authEmail || !authPassword || !registerPasswordConfirm) {
       setToast({ msg: 'Заполните все поля', kind: 'error' } as any);
+      return;
+    }
+    if (authPassword !== registerPasswordConfirm) {
+      setToast({ msg: 'Пароли не совпадают', kind: 'error' } as any);
       return;
     }
 
     setIsLoading(true);
     try {
-      const result = await signUp(authEmail, authPassword);
+      const result = await signUp(authEmail, authPassword, registerNickname);
       if (result.success) {
-        setToast({ msg: 'Регистрация успешна. Проверьте email для подтверждения.', kind: 'success' } as any);
+        setToast({ msg: 'Аккаунт создан. Войдите в аккаунт.', kind: 'success' } as any);
+        setRegisterNickname('');
+        setRegisterPasswordConfirm('');
         setAuthEmail('');
         setAuthPassword('');
         setAuthMode('login');
@@ -993,6 +1001,8 @@ export const useAppState = () => {
     authMode, setAuthMode,
     authEmail, setAuthEmail,
     authPassword, setAuthPassword,
+    registerNickname, setRegisterNickname,
+    registerPasswordConfirm, setRegisterPasswordConfirm,
     isLoading, setIsLoading,
     passwordStrength, setPasswordStrength,
     handleSignIn,

@@ -31,6 +31,10 @@ const App: React.FC = () => {
     handleSignIn,
     handleSignUp,
     handleResetPassword,
+    registerNickname,
+    setRegisterNickname,
+    registerPasswordConfirm,
+    setRegisterPasswordConfirm,
     
     // Theme
     isDark,
@@ -287,6 +291,10 @@ const App: React.FC = () => {
             setAuthEmail={setAuthEmail}
             authPassword={authPassword}
             setAuthPassword={setAuthPassword}
+            registerNickname={registerNickname}
+            setRegisterNickname={setRegisterNickname}
+            registerPasswordConfirm={registerPasswordConfirm}
+            setRegisterPasswordConfirm={setRegisterPasswordConfirm}
             authMode={authMode}
             setAuthMode={setAuthMode}
             handleSignIn={handleSignIn}
