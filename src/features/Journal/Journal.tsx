@@ -354,6 +354,16 @@ const Journal: React.FC<JournalProps> = ({
                     <Text style={[styles.tradeDetail, isDark ? styles.tradeDetailDark : null]}>
                       Цена: ${trade.price}
                     </Text>
+                    {typeof trade.stopLoss === 'number' && (
+                      <Text style={[styles.tradeDetail, isDark ? styles.tradeDetailDark : null]}>
+                        Stop Loss: {trade.stopLoss}
+                      </Text>
+                    )}
+                    {typeof trade.takeProfit === 'number' && (
+                      <Text style={[styles.tradeDetail, isDark ? styles.tradeDetailDark : null]}>
+                        Take Profit: {trade.takeProfit}
+                      </Text>
+                    )}
                     <Text style={[styles.tradeDetail, isDark ? styles.tradeDetailDark : null]}>
                       Рынок: {trade.market}
                     </Text>
@@ -388,6 +398,13 @@ const Journal: React.FC<JournalProps> = ({
                       <Text style={styles.tradeSide}>{t.side}</Text>
                     </View>
                     <Text style={[styles.tradeDetail, isDark ? styles.tradeDetailDark : null]}>Дата: {t.date}</Text>
+                    {typeof t.stopLoss === 'number' || typeof t.takeProfit === 'number' ? (
+                      <Text style={[styles.tradeDetail, isDark ? styles.tradeDetailDark : null]}>
+                        {typeof t.stopLoss === 'number' ? `SL: ${t.stopLoss}` : ''}
+                        {typeof t.stopLoss === 'number' && typeof t.takeProfit === 'number' ? '  |  ' : ''}
+                        {typeof t.takeProfit === 'number' ? `TP: ${t.takeProfit}` : ''}
+                      </Text>
+                    ) : null}
                     {t.note ? <Text style={[styles.tradeNotes, isDark ? styles.tradeNotesDark : null]}>{t.note}</Text> : null}
                   </View>
                 ))
