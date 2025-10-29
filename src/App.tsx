@@ -126,7 +126,7 @@ const App: React.FC = () => {
           try { return new URL(dbg.url).host; } catch { return dbg.url; }
         })();
         const configured = dbg.configured ? 'configured' : 'NOT configured';
-        setToast({ msg: `Ошибка подключения к БД: ${result.error || 'неизвестно'} | host: ${host} | env: ${configured}` as any, kind: 'error' } as any);
+        setToast({ msg: `Ошибка подключения к БД: ${result.error || 'неизвестно'} | host: ${host} | env: ${configured} | src: ${dbg.source}` as any, kind: 'error' } as any);
       }
     })();
   }, []);
