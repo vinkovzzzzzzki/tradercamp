@@ -16,9 +16,10 @@ interface AuthProps {
   handleSignIn: () => Promise<void> | void;
   handleSignUp: () => Promise<void> | void;
   handleResetPassword: () => Promise<void> | void;
+  authError?: string | null;
 }
 
-const Auth: React.FC<AuthProps> = ({ isDark, authEmail, setAuthEmail, authPassword, setAuthPassword, registerNickname, setRegisterNickname, registerPasswordConfirm, setRegisterPasswordConfirm, authMode, setAuthMode, handleSignIn, handleSignUp, handleResetPassword }) => {
+const Auth: React.FC<AuthProps> = ({ isDark, authEmail, setAuthEmail, authPassword, setAuthPassword, registerNickname, setRegisterNickname, registerPasswordConfirm, setRegisterPasswordConfirm, authMode, setAuthMode, handleSignIn, handleSignUp, handleResetPassword, authError }) => {
   return (
     <View style={[styles.container, isDark ? styles.darkContainer : null]}>
       <View style={styles.card}>
@@ -105,6 +106,9 @@ const Auth: React.FC<AuthProps> = ({ isDark, authEmail, setAuthEmail, authPasswo
             </>
           )}
         </View>
+        {!!authError && (
+          <Text style={{ color: '#ef4444', marginTop: 10, fontSize: 12 }}>{authError}</Text>
+        )}
       </View>
     </View>
   );

@@ -12,7 +12,7 @@ const Toast: React.FC<ToastProps> = ({ toast }) => {
 
   return (
     <View style={[
-      { position: 'absolute', top: 70, left: 20, right: 20, padding: 12, borderRadius: 8, backgroundColor: '#0f1520', borderWidth: 1, borderColor: '#1f2a36', zIndex: 1000, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 },
+      { position: 'absolute', top: 100, left: 20, right: 20, padding: 12, borderRadius: 8, backgroundColor: '#0f1520', borderWidth: 1, borderColor: '#1f2a36', zIndex: 10000, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, pointerEvents: 'box-none' as any },
       toast.kind === 'warning' ? { borderColor: '#ef4444', backgroundColor: '#2b0f12' } : null,
       toast.kind === 'error' ? { borderColor: '#ef4444', backgroundColor: '#2b0f12' } : null
     ]}>

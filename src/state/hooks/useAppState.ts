@@ -85,6 +85,7 @@ export const useAppState = () => {
   const [registerPasswordConfirm, setRegisterPasswordConfirm] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [passwordStrength, setPasswordStrength] = useState(0);
+  const [authError, setAuthError] = useState<string | null>(null);
   
   // Theme and UI (force dark theme)
   const appTheme = 'dark';
@@ -869,7 +870,9 @@ export const useAppState = () => {
 
   const handleSignIn = async () => {
     if (!authEmail || !authPassword) {
-      setToast({ msg: 'Заполните все поля', kind: 'error' } as any);
+      const msg = 'Заполните все поля';
+      setAuthError(msg);
+      setToast({ msg, kind: 'error' } as any);
       return;
     }
 
@@ -878,14 +881,19 @@ export const useAppState = () => {
       const result = await signIn(authEmail, authPassword);
       if (result.success && result.auth) {
         setSupaAuth(result.auth);
+        setAuthError(null);
         setToast({ msg: 'Успешный вход', kind: 'success' } as any);
         setAuthEmail('');
         setAuthPassword('');
       } else {
-        setToast({ msg: result.error || 'Ошибка входа', kind: 'error' } as any);
+        const msg = result.error || 'Ошибка входа';
+        setAuthError(msg);
+        setToast({ msg, kind: 'error' } as any);
       }
     } catch (error) {
-      setToast({ msg: 'Ошибка входа', kind: 'error' } as any);
+      const msg = 'Ошибка входа';
+      setAuthError(msg);
+      setToast({ msg, kind: 'error' } as any);
     } finally {
       setIsLoading(false);
     }
@@ -893,19 +901,27 @@ export const useAppState = () => {
 
   const handleSignUp = async () => {
     if (!registerNickname || !authEmail || !authPassword || !registerPasswordConfirm) {
-      setToast({ msg: 'Заполните все поля', kind: 'error' } as any);
+      const msg = 'Заполните все поля';
+      setAuthError(msg);
+      setToast({ msg, kind: 'error' } as any);
       return;
     }
     if (!authEmail.includes('@')) {
-      setToast({ msg: 'Некорректный email', kind: 'error' } as any);
+      const msg = 'Некорректный email';
+      setAuthError(msg);
+      setToast({ msg, kind: 'error' } as any);
       return;
     }
     if (authPassword.length < 6) {
-      setToast({ msg: 'Пароль должен быть не менее 6 символов', kind: 'error' } as any);
+      const msg = 'Пароль должен быть не менее 6 символов';
+      setAuthError(msg);
+      setToast({ msg, kind: 'error' } as any);
       return;
     }
     if (authPassword !== registerPasswordConfirm) {
-      setToast({ msg: 'Пароли не совпадают', kind: 'error' } as any);
+      const msg = 'Пароли не совпадают';
+      setAuthError(msg);
+      setToast({ msg, kind: 'error' } as any);
       return;
     }
 
@@ -913,6 +929,7 @@ export const useAppState = () => {
     try {
       const result = await signUp(authEmail, authPassword, registerNickname);
       if (result.success) {
+        setAuthError(null);
         setToast({ msg: 'Аккаунт создан. Войдите в аккаунт.', kind: 'success' } as any);
         setRegisterNickname('');
         setRegisterPasswordConfirm('');
@@ -920,10 +937,14 @@ export const useAppState = () => {
         setAuthPassword('');
         setAuthMode('login');
       } else {
-        setToast({ msg: result.error || 'Ошибка регистрации', kind: 'error' } as any);
+        const msg = result.error || 'Ошибка регистрации';
+        setAuthError(msg);
+        setToast({ msg, kind: 'error' } as any);
       }
     } catch (error) {
-      setToast({ msg: 'Ошибка регистрации', kind: 'error' } as any);
+      const msg = 'Ошибка регистрации';
+      setAuthError(msg);
+      setToast({ msg, kind: 'error' } as any);
     } finally {
       setIsLoading(false);
     }
@@ -1011,6 +1032,7 @@ export const useAppState = () => {
     authPassword, setAuthPassword,
     registerNickname, setRegisterNickname,
     registerPasswordConfirm, setRegisterPasswordConfirm,
+    authError, setAuthError,
     isLoading, setIsLoading,
     passwordStrength, setPasswordStrength,
     handleSignIn,

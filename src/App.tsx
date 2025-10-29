@@ -31,6 +31,7 @@ const App: React.FC = () => {
     handleSignIn,
     handleSignUp,
     handleResetPassword,
+    authError,
     registerNickname,
     setRegisterNickname,
     registerPasswordConfirm,
@@ -300,6 +301,7 @@ const App: React.FC = () => {
             handleSignIn={handleSignIn}
             handleSignUp={handleSignUp}
             handleResetPassword={handleResetPassword}
+            authError={authError}
           />
         )}
         {tab === 'profile' && (
