@@ -60,7 +60,7 @@ export async function insertTrade(userId: string, trade: Omit<Trade, 'id' | 'use
     qty: trade.qty,
     price: trade.price,
     market: trade.market,
-    style: null,
+    style: (trade as any).style ?? '',
     date: trade.date,
     notes: trade.note ?? null,
     stop_loss: trade.stopLoss ?? null,
@@ -68,7 +68,7 @@ export async function insertTrade(userId: string, trade: Omit<Trade, 'id' | 'use
     trailing_enabled: trade.trailingEnabled ?? null,
     trailing_type: (trade.trailingType as any) ?? null,
     trailing_value: trade.trailingValue ?? null,
-    remaining_qty: trade.remainingQty ?? null,
+    remaining_qty: trade.remainingQty ?? trade.qty,
     closures: trade.closures ?? [],
   };
   const { data, error } = await supabase
