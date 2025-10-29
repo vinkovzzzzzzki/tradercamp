@@ -126,10 +126,18 @@ const App: React.FC = () => {
           try { return new URL(dbg.url).host; } catch { return dbg.url; }
         })();
         const configured = dbg.configured ? 'configured' : 'NOT configured';
-        setToast({ msg: `Ошибка подключения к БД: ${result.error || 'неизвестно'} | host: ${host} | env: ${configured}` as any, kind: 'error' } as any);
+        setToast({ msg: `Ошибка подключения к БД: ${result.error || 'неизвестно'} | host: ${host} | env: ${configured} | src: ${dbg.source}` as any, kind: 'error' } as any);
       }
     })();
   }, []);
+
+  // Auto-dismiss toast after short delay to avoid sticking across tabs
+  React.useEffect(() => {
+    if (!toast) return;
+    const timeoutMs = (toast as any).actionLabel ? 4000 : 2500;
+    const t = setTimeout(() => setToast(null as any), timeoutMs);
+    return () => clearTimeout(t);
+  }, [toast?.msg, toast?.kind, (toast as any)?.actionLabel]);
 
   // Animation functions
   const animateTabChange = (newTab: string) => {
