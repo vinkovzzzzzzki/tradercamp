@@ -133,7 +133,7 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                 {/* Comprehensive line chart with all metrics */}
                 <View style={styles.lineChartContainer}>
                   {(() => {
-                    const chartData = (getComprehensiveChartData as any)(timePreset);
+                    const chartData = (getComprehensiveChartData as any)(timePreset, chartVisibility);
                     
                     // Show message when no data is visible
                     if (chartData.datasets.length === 0) {

@@ -814,12 +814,13 @@ export const useAppState = () => {
     });
   };
   
-  const getComprehensiveChartData = (timePeriod: '1M' | '3M' | '6M' | '1Y' | 'ALL' = 'ALL') => {
+  const getComprehensiveChartData = (timePeriod: '1M' | '3M' | '6M' | '1Y' | 'ALL' = 'ALL', visibility: ChartVisibility = chartVisibility) => {
     return generateComprehensiveChartData(
       cushionHistory,
       investmentHistory,
       debtsHistory,
-      timePeriod
+      timePeriod,
+      visibility
     );
   };
   

@@ -85,7 +85,8 @@ export function generateComprehensiveChartData(
   cushionHistory: AnyPoint[],
   investmentHistory: AnyPoint[],
   debtsHistory: AnyPoint[],
-  timePeriod: '1M' | '3M' | '6M' | '1Y' | 'ALL' = 'ALL'
+  timePeriod: '1M' | '3M' | '6M' | '1Y' | 'ALL' = 'ALL',
+  visibility?: { cushion: boolean; investments: boolean; debts: boolean; total: boolean }
 ): ChartData {
   // Filter data based on time period
   const now = Date.now();
@@ -120,33 +121,64 @@ export function generateComprehensiveChartData(
     return `${d.getDate()}/${d.getMonth() + 1}`;
   });
 
-  // Create datasets
-  const datasets = [
-    {
+  // Create datasets honoring visibility and consistent colors with legend
+  const show = {
+    cushion: visibility ? visibility.cushion : true,
+    investments: visibility ? visibility.investments : true,
+    debts: visibility ? visibility.debts : true,
+    total: visibility ? visibility.total : false,
+  };
+
+  const datasets: ChartData['datasets'] = [];
+
+  if (show.cushion) {
+    datasets.push({
       data: sortedDates.map(date => {
         const point = filteredCushion.find(p => getPointX(p) === date);
         return point ? getPointY(point) : 0;
       }),
-      color: (opacity: number) => `rgba(34, 197, 94, ${opacity})`, // Green for emergency fund
-      strokeWidth: 2
-    },
-    {
+      color: (opacity: number) => `rgba(59, 130, 246, ${opacity})`, // Blue (Подушка)
+      strokeWidth: 2,
+    });
+  }
+
+  if (show.investments) {
+    datasets.push({
       data: sortedDates.map(date => {
         const point = filteredInvestment.find(p => getPointX(p) === date);
         return point ? getPointY(point) : 0;
       }),
-      color: (opacity: number) => `rgba(59, 130, 246, ${opacity})`, // Blue for investments
-      strokeWidth: 2
-    },
-    {
+      color: (opacity: number) => `rgba(16, 185, 129, ${opacity})`, // Green (Инвестиции)
+      strokeWidth: 2,
+    });
+  }
+
+  if (show.debts) {
+    datasets.push({
       data: sortedDates.map(date => {
         const point = filteredDebts.find(p => getPointX(p) === date);
-        return point ? Math.abs(getPointY(point)) : 0; // Debts as positive values
+        return point ? Math.abs(getPointY(point)) : 0;
       }),
-      color: (opacity: number) => `rgba(239, 68, 68, ${opacity})`, // Red for debts
-      strokeWidth: 2
-    }
-  ];
+      color: (opacity: number) => `rgba(239, 68, 68, ${opacity})`, // Red (Долги)
+      strokeWidth: 2,
+    });
+  }
+
+  if (show.total) {
+    datasets.push({
+      data: sortedDates.map(date => {
+        const c = filteredCushion.find(p => getPointX(p) === date);
+        const i = filteredInvestment.find(p => getPointX(p) === date);
+        const d = filteredDebts.find(p => getPointX(p) === date);
+        const cv = c ? getPointY(c) : 0;
+        const iv = i ? getPointY(i) : 0;
+        const dv = d ? Math.abs(getPointY(d)) : 0;
+        return cv + iv - dv;
+      }),
+      color: (opacity: number) => `rgba(168, 85, 247, ${opacity})`, // Purple (Итого)
+      strokeWidth: 2,
+    });
+  }
 
   return { labels, datasets };
 }
