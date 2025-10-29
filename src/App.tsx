@@ -139,6 +139,12 @@ const App: React.FC = () => {
     return () => clearTimeout(t);
   }, [toast?.msg, toast?.kind, (toast as any)?.actionLabel]);
 
+  // Also clear toast when switching tabs to avoid lingering banners
+  React.useEffect(() => {
+    if (toast) setToast(null as any);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab]);
+
   // Animation functions
   const animateTabChange = (newTab: string) => {
     Animated.timing(tabAnimation, {
