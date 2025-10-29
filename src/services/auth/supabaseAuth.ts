@@ -30,14 +30,7 @@ const isSupabaseEnvConfigured =
   !supabaseUrl.includes('your-project') &&
   supabaseAnonKey !== 'your-anon-key';
 
-// Temporary hardcoded fallback to unblock production while envs are sorted
-const HARDCODED_URL = 'https://jcggrvxylvlnasmfxicx.supabase.co';
-const HARDCODED_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpjZ2dydnh5bHZsbmFzbWZ4aWN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE1NDg0MjEsImV4cCI6MjA3NzEyNDQyMX0.7AZHKdrUCYgwE5-eSVYM_K4Rgka3-XSMhHje_fhMdS0';
-
-const finalSupabaseUrl = isSupabaseEnvConfigured ? supabaseUrl : HARDCODED_URL;
-const finalSupabaseAnon = isSupabaseEnvConfigured ? supabaseAnonKey : HARDCODED_ANON;
-
-export const supabase = createClient(finalSupabaseUrl, finalSupabaseAnon);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export interface SupaAuth {
   user: {
@@ -324,11 +317,10 @@ export async function checkSupabaseConnectivity(): Promise<{ ok: boolean; error?
 }
 
 // Debug helper to inspect which env the client picked
-export function getSupabaseDebugInfo(): { url: string; anonKeyPrefix: string; configured: boolean; source: 'env' | 'hardcoded' } {
+export function getSupabaseDebugInfo(): { url: string; anonKeyPrefix: string; configured: boolean } {
   return {
-    url: finalSupabaseUrl,
-    anonKeyPrefix: typeof finalSupabaseAnon === 'string' ? finalSupabaseAnon.slice(0, 12) : '',
+    url: supabaseUrl,
+    anonKeyPrefix: typeof supabaseAnonKey === 'string' ? supabaseAnonKey.slice(0, 12) : '',
     configured: isSupabaseEnvConfigured,
-    source: isSupabaseEnvConfigured ? 'env' : 'hardcoded',
   };
 }
