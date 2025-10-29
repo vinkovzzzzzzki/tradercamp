@@ -121,6 +121,20 @@ export function generateComprehensiveChartData(
     return `${d.getDate()}/${d.getMonth() + 1}`;
   });
 
+  // Helper: build continuous series using last-known value to avoid artificial zeros
+  const buildSeries = (points: AnyPoint[], abs = false): number[] => {
+    const sortedPts = [...points].sort((a, b) => getPointX(a) - getPointX(b));
+    const firstVal = sortedPts.length ? (abs ? Math.abs(getPointY(sortedPts[0])) : getPointY(sortedPts[0])) : 0;
+    let lastVal = firstVal;
+    return sortedDates.map(date => {
+      const match = sortedPts.find(p => getPointX(p) === date);
+      if (match) {
+        lastVal = abs ? Math.abs(getPointY(match)) : getPointY(match);
+      }
+      return lastVal;
+    });
+  };
+
   // Create datasets honoring visibility and consistent colors with legend
   const show = {
     cushion: visibility ? visibility.cushion : true,
@@ -133,10 +147,7 @@ export function generateComprehensiveChartData(
 
   if (show.cushion) {
     datasets.push({
-      data: sortedDates.map(date => {
-        const point = filteredCushion.find(p => getPointX(p) === date);
-        return point ? getPointY(point) : 0;
-      }),
+      data: buildSeries(filteredCushion, false),
       color: (opacity: number) => `rgba(59, 130, 246, ${opacity})`, // Blue (Подушка)
       strokeWidth: 2,
     });
@@ -144,10 +155,7 @@ export function generateComprehensiveChartData(
 
   if (show.investments) {
     datasets.push({
-      data: sortedDates.map(date => {
-        const point = filteredInvestment.find(p => getPointX(p) === date);
-        return point ? getPointY(point) : 0;
-      }),
+      data: buildSeries(filteredInvestment, false),
       color: (opacity: number) => `rgba(16, 185, 129, ${opacity})`, // Green (Инвестиции)
       strokeWidth: 2,
     });
@@ -155,10 +163,7 @@ export function generateComprehensiveChartData(
 
   if (show.debts) {
     datasets.push({
-      data: sortedDates.map(date => {
-        const point = filteredDebts.find(p => getPointX(p) === date);
-        return point ? Math.abs(getPointY(point)) : 0;
-      }),
+      data: buildSeries(filteredDebts, true),
       color: (opacity: number) => `rgba(239, 68, 68, ${opacity})`, // Red (Долги)
       strokeWidth: 2,
     });
@@ -167,12 +172,14 @@ export function generateComprehensiveChartData(
   if (show.total) {
     datasets.push({
       data: sortedDates.map(date => {
-        const c = filteredCushion.find(p => getPointX(p) === date);
-        const i = filteredInvestment.find(p => getPointX(p) === date);
-        const d = filteredDebts.find(p => getPointX(p) === date);
-        const cv = c ? getPointY(c) : 0;
-        const iv = i ? getPointY(i) : 0;
-        const dv = d ? Math.abs(getPointY(d)) : 0;
+        // Use last-known interpolation for total too
+        const idx = sortedDates.indexOf(date);
+        const cSeries = buildSeries(filteredCushion, false);
+        const iSeries = buildSeries(filteredInvestment, false);
+        const dSeries = buildSeries(filteredDebts, true);
+        const cv = cSeries[idx] || 0;
+        const iv = iSeries[idx] || 0;
+        const dv = dSeries[idx] || 0;
         return cv + iv - dv;
       }),
       color: (opacity: number) => `rgba(168, 85, 247, ${opacity})`, // Purple (Итого)
