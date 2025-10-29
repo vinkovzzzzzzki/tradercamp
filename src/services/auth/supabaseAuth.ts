@@ -1,12 +1,32 @@
 // Supabase authentication service - exact reproduction of original auth logic
 import { createClient } from '@supabase/supabase-js';
 
-// Supabase configuration
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co';
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key';
+// Supabase configuration with multiple env fallbacks (matches your Vercel setup)
+function pickEnv(...keys: string[]): string | undefined {
+  for (const key of keys) {
+    const val = (process.env as any)[key];
+    if (val && typeof val === 'string' && val.trim().length > 0) return val;
+  }
+  return undefined;
+}
+
+const supabaseUrl =
+  pickEnv(
+    'EXPO_PUBLIC_SUPABASE_URL',
+    'NEXT_PUBLIC_invest_SUPABASE_URL',
+    'invest_SUPABASE_URL'
+  ) || 'https://your-project.supabase.co';
+
+const supabaseAnonKey =
+  pickEnv(
+    'EXPO_PUBLIC_SUPABASE_ANON_KEY',
+    'NEXT_PUBLIC_invest_SUPABASE_ANON_KEY',
+    'invest_SUPABASE_ANON_KEY'
+  ) || 'your-anon-key';
+
 const isSupabaseEnvConfigured =
-  !!process.env.EXPO_PUBLIC_SUPABASE_URL &&
-  !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY &&
+  !!supabaseUrl &&
+  !!supabaseAnonKey &&
   !supabaseUrl.includes('your-project') &&
   supabaseAnonKey !== 'your-anon-key';
 
