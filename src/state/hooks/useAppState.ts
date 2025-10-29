@@ -896,6 +896,14 @@ export const useAppState = () => {
       setToast({ msg: 'Заполните все поля', kind: 'error' } as any);
       return;
     }
+    if (!authEmail.includes('@')) {
+      setToast({ msg: 'Некорректный email', kind: 'error' } as any);
+      return;
+    }
+    if (authPassword.length < 6) {
+      setToast({ msg: 'Пароль должен быть не менее 6 символов', kind: 'error' } as any);
+      return;
+    }
     if (authPassword !== registerPasswordConfirm) {
       setToast({ msg: 'Пароли не совпадают', kind: 'error' } as any);
       return;

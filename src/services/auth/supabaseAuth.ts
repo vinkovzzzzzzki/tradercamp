@@ -4,6 +4,11 @@ import { createClient } from '@supabase/supabase-js';
 // Supabase configuration
 const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || 'https://your-project.supabase.co';
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || 'your-anon-key';
+const isSupabaseEnvConfigured =
+  !!process.env.EXPO_PUBLIC_SUPABASE_URL &&
+  !!process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY &&
+  !supabaseUrl.includes('your-project') &&
+  supabaseAnonKey !== 'your-anon-key';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
@@ -31,6 +36,9 @@ export interface User {
 // Sign up with email and password
 export async function signUp(email: string, password: string, nickname?: string): Promise<{ success: boolean; error?: string }> {
   try {
+    if (!isSupabaseEnvConfigured) {
+      return { success: false, error: 'Supabase env vars are not configured' };
+    }
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -73,6 +81,9 @@ export async function signUp(email: string, password: string, nickname?: string)
 // Sign in with email and password
 export async function signIn(email: string, password: string): Promise<{ success: boolean; error?: string; auth?: SupaAuth }> {
   try {
+    if (!isSupabaseEnvConfigured) {
+      return { success: false, error: 'Supabase env vars are not configured' };
+    }
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
