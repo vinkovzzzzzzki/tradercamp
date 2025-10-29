@@ -885,6 +885,9 @@ export const useAppState = () => {
         setToast({ msg: 'Успешный вход', kind: 'success' } as any);
         setAuthEmail('');
         setAuthPassword('');
+        // Navigate to Finance overview on successful sign-in
+        setTab('finance' as any);
+        setFinanceView('summary');
       } else {
         const msg = result.error || 'Ошибка входа';
         setAuthError(msg);
@@ -1001,6 +1004,9 @@ export const useAppState = () => {
       // Reload trades on login/logout
       (async () => {
         if (auth?.user?.id) {
+          // Navigate to Finance overview when user becomes authenticated (e.g. after sign-up)
+          setTab('finance' as any);
+          setFinanceView('summary');
           try { const list = await fetchUserTrades(auth.user.id); if (Array.isArray(list)) setTrades(list); } catch {}
           try { const em = await fetchEmergencyTx(auth.user.id); if (Array.isArray(em)) setEmergencyTx(em as any); } catch {}
           try { const inv = await fetchInvestTx(auth.user.id); if (Array.isArray(inv)) setInvestTx(inv as any); } catch {}
