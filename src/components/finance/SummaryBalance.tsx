@@ -1,5 +1,5 @@
 // SummaryBalance component - exact reproduction of original functionality
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native';
 import { LineChart } from 'react-native-chart-kit';
 import Skeleton from '../common/Skeleton';
@@ -48,9 +48,10 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
   getChartStatistics,
   formatCurrencyCustom
 }) => {
-  // Make the chart wider horizontally (near full viewport width with padding)
-  const chartWidth = Math.max(320, Dimensions.get('window').width - 120);
+  // Responsive width: measure container width to make chart truly full-width inside the card
+  const [chartWidth, setChartWidth] = useState<number>(Math.max(320, Dimensions.get('window').width));
   const [timePreset, setTimePreset] = useState<'1M' | '3M' | '6M' | '1Y' | 'ALL'>('ALL');
+  const [tapTooltip, setTapTooltip] = useState<{ visible: boolean; x: number; y: number; data: any } | null>(null);
   const setChartVisibilitySafe = (updater: (v: ChartVisibility) => ChartVisibility) => {
     onChartVisibilityChange(updater(chartVisibility));
   };
@@ -131,9 +132,62 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                 </View>
                 
                 {/* Comprehensive line chart with all metrics */}
-                <View style={styles.lineChartContainer}>
+                <View
+                  style={styles.lineChartContainer}
+                  onLayout={(e) => {
+                    const measured = Math.max(320, Math.floor(e.nativeEvent.layout.width));
+                    if (measured !== chartWidth) setChartWidth(measured);
+                  }}
+                  onTouchEnd={() => setTapTooltip(null)}
+                >
                   {(() => {
                     const chartData = (getComprehensiveChartData as any)(timePreset, chartVisibility);
+                    const allYValues = (chartData.datasets || [])
+                      .flatMap((ds: any) => (ds?.data ?? []))
+                      .filter((v: any) => Number.isFinite(v)) as number[];
+                    const yMin = allYValues.length ? Math.min(...allYValues) : 0;
+                    const yMax = allYValues.length ? Math.max(...allYValues) : 1;
+                    const yRange = Math.max(1, yMax - yMin);
+                    const segments = yRange > 1_000_000 ? 6 : yRange > 100_000 ? 6 : yRange > 10_000 ? 5 : 4;
+                    const formatCompact = (n: number) => {
+                      const abs = Math.abs(n);
+                      const sign = n < 0 ? '-' : '';
+                      if (abs >= 1_000_000_000) return `${sign}${(abs / 1_000_000_000).toFixed(1)}B`;
+                      if (abs >= 1_000_000) return `${sign}${(abs / 1_000_000).toFixed(1)}M`;
+                      if (abs >= 1_000) return `${sign}${(abs / 1_000).toFixed(1)}K`;
+                      return `${n}`;
+                    };
+                    const ruMonths = ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'];
+                    const formatX = (label: string) => {
+                      // We expect either ISO (YYYY-MM-DD) or fallback like D/M
+                      const parseIso = (s: string) => {
+                        if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return new Date(s + 'T00:00:00');
+                        const m = s.match(/^(\d{1,2})\/(\d{1,2})$/);
+                        if (m) {
+                          const today = new Date();
+                          const year = today.getFullYear();
+                          const day = Number(m[1]);
+                          const month = Number(m[2]) - 1;
+                          return new Date(year, month, day);
+                        }
+                        const d = new Date(s);
+                        return isNaN(d.getTime()) ? null : d;
+                      };
+                      const d = parseIso(label);
+                      if (!d) return label;
+                      const day = d.getDate();
+                      const mon = d.getMonth();
+                      const yr = d.getFullYear();
+                      if (timePreset === '1M') {
+                        return chartWidth < 420 ? `${day}` : `${day} ${ruMonths[mon]}`;
+                      }
+                      if (timePreset === '3M' || timePreset === '6M') {
+                        return chartWidth < 420 ? `${ruMonths[mon]}` : `${day} ${ruMonths[mon]}`;
+                      }
+                      // 1Y and ALL
+                      const shortYear = String(yr).slice(2);
+                      return chartWidth < 380 ? `${ruMonths[mon]}` : `${ruMonths[mon]} ${shortYear}`;
+                    };
                     
                     // Show message when no data is visible
                     if (chartData.datasets.length === 0) {
@@ -170,13 +224,53 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                           bezier
                           style={styles.lineChart}
                           fromZero={false}
+                          segments={segments}
+                          yLabelsOffset={8}
+                          xLabelsOffset={chartWidth < 360 ? 8 : 0}
+                          verticalLabelRotation={chartWidth < 380 ? 45 : 0}
+                          formatYLabel={(v: string) => {
+                            const num = Number(v);
+                            return Number.isFinite(num) ? formatCompact(num) : v;
+                          }}
+                          formatXLabel={(v: string) => formatX(v)}
+                          withShadow={false}
+                          withInnerLines
+                          withOuterLines
+                          onDataPointClick={({ index, x, y }) => {
+                            try {
+                              const values: Array<{ value: number; color: string; label: string }> = [];
+                              let di = 0;
+                              if (chartVisibility.cushion && chartData.datasets[di]) {
+                                values.push({ value: chartData.datasets[di].data[index], color: '#3b82f6', label: 'Подушка' });
+                                di++;
+                              }
+                              if (chartVisibility.investments && chartData.datasets[di]) {
+                                values.push({ value: chartData.datasets[di].data[index], color: '#10b981', label: 'Инвестиции' });
+                                di++;
+                              }
+                              if (chartVisibility.debts && chartData.datasets[di]) {
+                                values.push({ value: chartData.datasets[di].data[index], color: '#ef4444', label: 'Долги' });
+                                di++;
+                              }
+                              if (chartVisibility.total && chartData.datasets[di]) {
+                                values.push({ value: chartData.datasets[di].data[index], color: '#a855f7', label: 'Итого' });
+                              }
+                              const label = chartData.labels[index] || '';
+                              setTapTooltip({
+                                visible: true,
+                                x: Math.max(12, Math.min(x + 12, chartWidth - 212)),
+                                y: Math.max(12, y + 12),
+                                data: { label: formatX(label), values }
+                              });
+                            } catch {}
+                          }}
                         />
                       </View>
                     );
                   })()}
                 </View>
                 
-                {/* Chart tooltip */}
+                {/* Chart tooltip (web hover) */}
                 {chartTooltip.visible && chartTooltip.data && (
                   <View 
                     style={[
@@ -202,6 +296,39 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                       {chartTooltip.data.label}
                     </Text>
                     {chartTooltip.data.values && chartTooltip.data.values.map((item: any, index: number) => (
+                      <View key={index} style={styles.tooltipRow}>
+                        <View style={[styles.tooltipColor, { backgroundColor: item.color }]} />
+                        <Text style={[styles.tooltipText, { color: isDark ? '#e6edf3' : '#1f2937' }]}>
+                          {item.label}: {formatCurrencyCustom(item.value, 'USD')}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                )}
+                {/* Chart tooltip (mobile tap) */}
+                {tapTooltip?.visible && tapTooltip.data && (
+                  <View
+                    style={[
+                      styles.chartTooltip,
+                      {
+                        left: tapTooltip.x,
+                        top: tapTooltip.y,
+                        backgroundColor: isDark ? '#1a1a1a' : '#ffffff',
+                        borderColor: isDark ? '#1f2a36' : '#e5e7eb'
+                      }
+                    ]}
+                  >
+                    <View style={[
+                      styles.tooltipArrow,
+                      {
+                        borderTopColor: isDark ? '#1a1a1a' : '#ffffff',
+                        borderBottomColor: isDark ? '#1a1a1a' : '#ffffff'
+                      }
+                    ]} />
+                    <Text style={[styles.tooltipTitle, { color: isDark ? '#e6edf3' : '#1f2937' }]}>
+                      {tapTooltip.data.label}
+                    </Text>
+                    {tapTooltip.data.values && tapTooltip.data.values.map((item: any, index: number) => (
                       <View key={index} style={styles.tooltipRow}>
                         <View style={[styles.tooltipColor, { backgroundColor: item.color }]} />
                         <Text style={[styles.tooltipText, { color: isDark ? '#e6edf3' : '#1f2937' }]}>
