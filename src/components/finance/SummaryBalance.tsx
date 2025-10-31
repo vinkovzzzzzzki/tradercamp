@@ -142,13 +142,29 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                 >
                   {(() => {
                     const chartData = (getComprehensiveChartData as any)(timePreset, chartVisibility);
+                    const visibleSeriesCount = [
+                      chartVisibility.cushion,
+                      chartVisibility.investments,
+                      chartVisibility.debts,
+                      chartVisibility.total
+                    ].filter(Boolean).length;
+                    const baseHeight = 260;
+                    const perSeriesExtra = 40;
+                    const chartHeight = Math.min(420, baseHeight + Math.max(0, visibleSeriesCount - 1) * perSeriesExtra);
+
                     const allYValues = (chartData.datasets || [])
                       .flatMap((ds: any) => (ds?.data ?? []))
                       .filter((v: any) => Number.isFinite(v)) as number[];
                     const yMin = allYValues.length ? Math.min(...allYValues) : 0;
                     const yMax = allYValues.length ? Math.max(...allYValues) : 1;
                     const yRange = Math.max(1, yMax - yMin);
-                    const segments = yRange > 1_000_000 ? 6 : yRange > 100_000 ? 6 : yRange > 10_000 ? 5 : 4;
+                    const pad = Math.max(1, Math.round(yRange * 0.12));
+                    const paddedMin = yMin - pad;
+                    const paddedMax = yMax + pad;
+
+                    const segments = visibleSeriesCount >= 3
+                      ? 6
+                      : (yRange > 1_000_000 ? 6 : yRange > 100_000 ? 6 : yRange > 10_000 ? 5 : 4);
                     const formatCompact = (n: number) => {
                       const abs = Math.abs(n);
                       const sign = n < 0 ? '-' : '';
@@ -203,9 +219,19 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                         style={styles.chartWrapper}
                       >
                         <LineChart
-                          data={chartData}
+                          data={{
+                            ...chartData,
+                            datasets: [
+                              ...chartData.datasets,
+                              {
+                                data: [paddedMin, paddedMax],
+                                color: () => 'rgba(0,0,0,0)',
+                                strokeWidth: 0
+                              }
+                            ]
+                          }}
                           width={chartWidth}
-                          height={220}
+                          height={chartHeight}
                           chartConfig={{
                             backgroundColor: isDark ? '#121820' : '#ffffff',
                             backgroundGradientFrom: isDark ? '#121820' : '#ffffff',
