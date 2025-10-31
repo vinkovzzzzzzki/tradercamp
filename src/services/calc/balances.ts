@@ -163,7 +163,7 @@ export function generateComprehensiveChartData(
 
   if (show.cushion) {
     datasets.push({
-      data: buildSeries(filteredCushion, false),
+      data: buildSeries(cushionHistory, false),
       color: (opacity: number) => `rgba(59, 130, 246, ${opacity})`, // Blue (Подушка)
       strokeWidth: 2,
     });
@@ -171,7 +171,7 @@ export function generateComprehensiveChartData(
 
   if (show.investments) {
     datasets.push({
-      data: buildSeries(filteredInvestment, false),
+      data: buildSeries(investmentHistory, false),
       color: (opacity: number) => `rgba(16, 185, 129, ${opacity})`, // Green (Инвестиции)
       strokeWidth: 2,
     });
@@ -179,20 +179,18 @@ export function generateComprehensiveChartData(
 
   if (show.debts) {
     datasets.push({
-      data: buildSeries(filteredDebts, true),
+      data: buildSeries(debtsHistory, true),
       color: (opacity: number) => `rgba(239, 68, 68, ${opacity})`, // Red (Долги)
       strokeWidth: 2,
     });
   }
 
   if (show.total) {
+    const cSeries = buildSeries(cushionHistory, false);
+    const iSeries = buildSeries(investmentHistory, false);
+    const dSeries = buildSeries(debtsHistory, true);
     datasets.push({
-      data: sortedDates.map(date => {
-        // Use last-known interpolation for total too
-        const idx = sortedDates.indexOf(date);
-        const cSeries = buildSeries(filteredCushion, false);
-        const iSeries = buildSeries(filteredInvestment, false);
-        const dSeries = buildSeries(filteredDebts, true);
+      data: sortedDates.map((_, idx) => {
         const cv = cSeries[idx] || 0;
         const iv = iSeries[idx] || 0;
         const dv = dSeries[idx] || 0;
