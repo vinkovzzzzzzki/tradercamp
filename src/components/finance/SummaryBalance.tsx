@@ -224,7 +224,12 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                             datasets: [
                               ...chartData.datasets,
                               {
-                                data: [paddedMin, paddedMax],
+                                data: Array(chartData.labels.length).fill(paddedMin),
+                                color: () => 'rgba(0,0,0,0)',
+                                strokeWidth: 0
+                              },
+                              {
+                                data: Array(chartData.labels.length).fill(paddedMax),
                                 color: () => 'rgba(0,0,0,0)',
                                 strokeWidth: 0
                               }
