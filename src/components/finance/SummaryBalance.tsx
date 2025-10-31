@@ -221,7 +221,6 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                               strokeWidth: "2"
                             }
                           }}
-                          bezier
                           style={styles.lineChart}
                           fromZero={false}
                           segments={segments}
