@@ -88,50 +88,66 @@ export function generateComprehensiveChartData(
   timePeriod: '1M' | '3M' | '6M' | '1Y' | 'ALL' = 'ALL',
   visibility?: { cushion: boolean; investments: boolean; debts: boolean; total: boolean }
 ): ChartData {
-  // Filter data based on time period
-  const now = Date.now();
-  const timeFilter = (point: AnyPoint) => {
-    if (timePeriod === 'ALL') return true;
-    
-    const pointTime = getPointX(point);
-    const periods = {
-      '1M': 30 * 24 * 60 * 60 * 1000,
-      '3M': 90 * 24 * 60 * 60 * 1000,
-      '6M': 180 * 24 * 60 * 60 * 1000,
-      '1Y': 365 * 24 * 60 * 60 * 1000
-    };
-    
-    return (now - pointTime) <= periods[timePeriod];
-  };
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  const filteredCushion = cushionHistory.filter(timeFilter);
-  const filteredInvestment = investmentHistory.filter(timeFilter);
-  const filteredDebts = debtsHistory.filter(timeFilter);
+  // Determine start date based on period
+  const periodStart = (() => {
+    const d = new Date(end);
+    if (timePeriod === '1M') { d.setMonth(d.getMonth() - 1); return d; }
+    if (timePeriod === '3M') { d.setMonth(d.getMonth() - 3); return d; }
+    if (timePeriod === '6M') { d.setMonth(d.getMonth() - 6); return d; }
+    if (timePeriod === '1Y') { d.setFullYear(d.getFullYear() - 1); return d; }
+    // ALL: from earliest data point
+    const minX = Math.min(
+      ...[...cushionHistory, ...investmentHistory, ...debtsHistory]
+        .map(getPointX)
+        .filter(v => Number.isFinite(v) && v > 0)
+    );
+    return Number.isFinite(minX) ? new Date(minX) : new Date(end.getFullYear() - 1, end.getMonth(), end.getDate());
+  })();
 
-  // Create labels (dates) — use normalized X to avoid undefined and NaN
-  const allDates = new Set([
-    ...filteredCushion.map(getPointX),
-    ...filteredInvestment.map(getPointX),
-    ...filteredDebts.map(getPointX)
-  ]);
-  
-  const sortedDates = Array.from(allDates).sort((a, b) => a - b);
-  const labels = sortedDates.map(date => {
-    const d = new Date(date);
-    return `${d.getDate()}/${d.getMonth() + 1}`;
-  });
+  // Select granularity by period
+  type Granularity = 'day' | 'week' | 'month' | 'year';
+  const granularity: Granularity =
+    timePeriod === '1M' ? 'day' :
+    (timePeriod === '3M' || timePeriod === '6M') ? 'week' :
+    (timePeriod === '1Y' ? 'month' : 'year');
 
-  // Helper: build continuous series using last-known value to avoid artificial zeros
+  // Build uniform date grid
+  const gridDates: Date[] = [];
+  if (granularity === 'day' || granularity === 'week') {
+    const stepDays = granularity === 'day' ? 1 : 7;
+    for (let d = new Date(periodStart); d <= end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + stepDays)) {
+      gridDates.push(new Date(d));
+    }
+  } else if (granularity === 'month') {
+    for (let d = new Date(periodStart.getFullYear(), periodStart.getMonth(), 1); d <= end; d = new Date(d.getFullYear(), d.getMonth() + 1, 1)) {
+      gridDates.push(new Date(d));
+    }
+  } else { // year
+    for (let d = new Date(periodStart.getFullYear(), 0, 1); d <= end; d = new Date(d.getFullYear() + 1, 0, 1)) {
+      gridDates.push(new Date(d));
+    }
+  }
+
+  const sortedDates = gridDates.map(d => d.getTime());
+  const labels = gridDates.map(d => d.toISOString().slice(0, 10));
+
+  // Helper: build continuous series using last-known value at or before each grid date
   const buildSeries = (points: AnyPoint[], abs = false): number[] => {
-    const sortedPts = [...points].sort((a, b) => getPointX(a) - getPointX(b));
-    const firstVal = sortedPts.length ? (abs ? Math.abs(getPointY(sortedPts[0])) : getPointY(sortedPts[0])) : 0;
-    let lastVal = firstVal;
-    return sortedDates.map(date => {
-      const match = sortedPts.find(p => getPointX(p) === date);
-      if (match) {
-        lastVal = abs ? Math.abs(getPointY(match)) : getPointY(match);
+    const sortedPts = [...points]
+      .map(p => ({ t: getPointX(p), v: getPointY(p) }))
+      .filter(p => Number.isFinite(p.t))
+      .sort((a, b) => a.t - b.t);
+    let lastVal = sortedPts.length ? (abs ? Math.abs(sortedPts[0].v) : sortedPts[0].v) : 0;
+    let idx = 0;
+    return sortedDates.map(ts => {
+      while (idx < sortedPts.length && sortedPts[idx].t <= ts) {
+        lastVal = abs ? Math.abs(sortedPts[idx].v) : sortedPts[idx].v;
+        idx += 1;
       }
-      return lastVal;
+      return lastVal || 0;
     });
   };
 

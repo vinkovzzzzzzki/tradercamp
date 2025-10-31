@@ -610,23 +610,22 @@ export const useAppState = () => {
   };
   
   const resetAllFinancialData = () => {
-    // Generate random demo data for quick testing
-    const makeSeries = (start: number) => {
-      const today = new Date();
+    // Generate DAILY demo data for last ~120 days to test chart behavior
+    const makeDailySeries = (start: number) => {
+      const end = new Date();
+      const startDate = new Date(end.getFullYear(), end.getMonth(), end.getDate() - 119);
       const arr: DataPoint[] = [] as any;
       let cur = start;
-      for (let i = 6; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(today.getDate() - i * 5);
-        cur = Math.max(0, Math.round(cur + (Math.random() * 600 - 300)));
+      for (let d = new Date(startDate); d <= end; d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) {
+        cur = Math.max(0, Math.round(cur + (Math.random() * 120 - 60)));
         const iso = d.toISOString().slice(0, 10);
         arr.push({ date: iso, value: cur, y: cur } as any);
       }
       return arr;
     };
-    setCushionHistory(makeSeries(3000));
-    setInvestmentHistory(makeSeries(2500));
-    setDebtsHistory(makeSeries(1800));
+    setCushionHistory(makeDailySeries(3000));
+    setInvestmentHistory(makeDailySeries(2500));
+    setDebtsHistory(makeDailySeries(1800));
     setEmergencyTx([]);
     setInvestTx([]);
     setSortedDebts([]);
