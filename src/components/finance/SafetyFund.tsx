@@ -20,6 +20,7 @@ interface SafetyFundProps {
   onShowLocationDropdown: (show: boolean) => void;
   onLocationSelect: (location: string, currency: string) => void;
   onDeleteEmergencyTx: (id: number) => void;
+  onUpdateEmergencyTx: (id: number, patch: Partial<EmergencyTransaction>) => void;
 }
 
 const SafetyFund: React.FC<SafetyFundProps> = ({
@@ -43,6 +44,8 @@ const SafetyFund: React.FC<SafetyFundProps> = ({
   const [editingExpenses, setEditingExpenses] = useState(false);
   const [tempReserve, setTempReserve] = useState('');
   const [tempExpenses, setTempExpenses] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editDraft, setEditDraft] = useState<any>({});
 
   const handleReserveEdit = () => {
     setEditingReserve(true);
@@ -383,21 +386,93 @@ const SafetyFund: React.FC<SafetyFundProps> = ({
           <Text style={styles.formTitle}>История операций</Text>
           {emergencyTx.slice(-5).reverse().map((tx) => (
             <View key={tx.id} style={styles.transactionItem}>
-              <View style={styles.transactionInfo}>
-                <Text style={styles.transactionDate}>{tx.date}</Text>
-                <Text style={styles.transactionDetails}>
-                  {tx.type === 'deposit' ? '+' : '-'}{formatCurrencyCustom(tx.amount, tx.currency)} - {tx.location}
-                </Text>
-                {tx.note && (
-                  <Text style={[styles.transactionDate, { marginTop: 2 }]}>{tx.note}</Text>
+              {editingId === tx.id ? (
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.transactionDate}>{tx.date}</Text>
+                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 6 }}>
+                    <Pressable
+                      style={[
+                        { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+                        (editDraft.type || tx.type) === 'deposit' ? { backgroundColor: '#22c55e' } : { backgroundColor: isDark ? '#333' : '#f0f0f0' }
+                      ]}
+                      onPress={() => setEditDraft((d: any) => ({ ...d, type: 'deposit' }))}
+                    >
+                      <Text style={{ color: (editDraft.type || tx.type) === 'deposit' ? '#fff' : (isDark ? '#ccc' : '#666') }}>Пополнение</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[
+                        { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
+                        (editDraft.type || tx.type) === 'withdraw' ? { backgroundColor: '#ef4444' } : { backgroundColor: isDark ? '#333' : '#f0f0f0' }
+                      ]}
+                      onPress={() => setEditDraft((d: any) => ({ ...d, type: 'withdraw' }))}
+                    >
+                      <Text style={{ color: (editDraft.type || tx.type) === 'withdraw' ? '#fff' : (isDark ? '#ccc' : '#666') }}>Снятие</Text>
+                    </Pressable>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 8, marginTop: 8 }}>
+                    <TextInput style={[styles.formInput, { flex: 1 }]} value={String(editDraft.amount ?? tx.amount)} onChangeText={(v) => setEditDraft((d: any) => ({ ...d, amount: clampNumericText(v) }))} keyboardType="numeric" />
+                    <TextInput style={[styles.formInput, { width: 90 }]} value={String(editDraft.currency ?? tx.currency)} onChangeText={(v) => setEditDraft((d: any) => ({ ...d, currency: normalizeCurrencyText(v) }))} />
+                  </View>
+                  <View style={{ marginTop: 8 }}>
+                    <TextInput style={styles.formInput} value={String(editDraft.location ?? tx.location || '')} onChangeText={(v) => setEditDraft((d: any) => ({ ...d, location: v }))} placeholder="Место" />
+                  </View>
+                  <View style={{ marginTop: 8 }}>
+                    <TextInput style={styles.formInput} value={String(editDraft.note ?? tx.note || '')} onChangeText={(v) => setEditDraft((d: any) => ({ ...d, note: v }))} placeholder="Заметка" />
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.transactionInfo}>
+                  <Text style={styles.transactionDate}>{tx.date}</Text>
+                  <Text style={styles.transactionDetails}>
+                    {tx.type === 'deposit' ? '+' : '-'}{formatCurrencyCustom(tx.amount, tx.currency)} - {tx.location}
+                  </Text>
+                  {tx.note && (
+                    <Text style={[styles.transactionDate, { marginTop: 2 }]}>{tx.note}</Text>
+                  )}
+                </View>
+              )}
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                {editingId === tx.id ? (
+                  <>
+                    <Pressable
+                      style={[styles.deleteButton, { backgroundColor: '#22c55e' }]}
+                      onPress={() => {
+                        const patch: any = {
+                          type: editDraft.type || tx.type,
+                          amount: parseNumberSafe(String(editDraft.amount ?? tx.amount)),
+                          currency: (editDraft.currency ?? tx.currency),
+                          location: (editDraft.location ?? tx.location),
+                          note: (editDraft.note ?? tx.note)
+                        };
+                        onUpdateEmergencyTx(tx.id, patch);
+                        setEditingId(null);
+                        setEditDraft({});
+                      }}
+                    >
+                      <Text style={styles.deleteButtonText}>Сохранить</Text>
+                    </Pressable>
+                    <Pressable
+                      style={[styles.deleteButton, { backgroundColor: '#6b7280' }]}
+                      onPress={() => { setEditingId(null); setEditDraft({}); }}
+                    >
+                      <Text style={styles.deleteButtonText}>Отмена</Text>
+                    </Pressable>
+                  </>
+                ) : (
+                  <Pressable
+                    style={[styles.deleteButton, { backgroundColor: '#3b82f6' }]}
+                    onPress={() => { setEditingId(tx.id); setEditDraft({}); }}
+                  >
+                    <Text style={styles.deleteButtonText}>Редакт.</Text>
+                  </Pressable>
                 )}
+                <Pressable
+                  style={styles.deleteButton}
+                  onPress={() => onDeleteEmergencyTx(tx.id)}
+                >
+                  <Text style={styles.deleteButtonText}>Удалить</Text>
+                </Pressable>
               </View>
-              <Pressable
-                style={styles.deleteButton}
-                onPress={() => onDeleteEmergencyTx(tx.id)}
-              >
-                <Text style={styles.deleteButtonText}>Удалить</Text>
-              </Pressable>
             </View>
           ))}
         </View>

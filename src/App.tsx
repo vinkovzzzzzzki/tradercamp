@@ -87,7 +87,9 @@ const App: React.FC = () => {
     
     // Business logic functions
     addEmergencyTransaction,
+    updateEmergencyTx,
     addInvestmentTransaction,
+    updateInvestTx,
     addDebt,
     deleteEmergencyTx,
     deleteInvestTx,
@@ -237,6 +239,7 @@ const App: React.FC = () => {
             onCashReserveChange={setCashReserve}
             onNewEmergencyTxChange={setNewEmergencyTx}
             onAddEmergencyTransaction={addEmergencyTransaction}
+            updateEmergencyTx={updateEmergencyTx}
             onShowEmergencyLocationDropdown={setShowEmergencyLocationDropdown}
             onEmergencyLocationSelect={(location, currency) => {
               setNewEmergencyTx(v => ({ ...v, location, currency }));
@@ -245,6 +248,7 @@ const App: React.FC = () => {
             onDeleteEmergencyTx={deleteEmergencyTx}
             onNewInvestTxChange={setNewInvestTx}
             onAddInvestmentTransaction={addInvestmentTransaction}
+            updateInvestTx={updateInvestTx}
             onShowInvestDestinationDropdown={setShowInvestDestinationDropdown}
             onInvestDestinationSelect={(destination, currency) => {
               setNewInvestTx(v => ({ ...v, destination, currency }));

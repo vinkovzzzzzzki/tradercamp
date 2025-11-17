@@ -22,8 +22,8 @@ import {
 } from '../../services/auth';
 import { 
   fetchUserTrades, insertTrade as insertTradeDb, deleteTradeById,
-  fetchEmergencyTx, insertEmergencyTx, deleteEmergencyTxById,
-  fetchInvestTx, insertInvestTx, deleteInvestTxById,
+  fetchEmergencyTx, insertEmergencyTx, deleteEmergencyTxById, updateEmergencyTxById,
+  fetchInvestTx, insertInvestTx, deleteInvestTxById, updateInvestTxById,
   fetchDebts, insertDebt, deleteDebtById, updateDebtAmount,
   fetchWorkouts, insertWorkout, deleteWorkoutById,
   fetchEvents, insertEvent, deleteEventById,
@@ -537,6 +537,45 @@ export const useAppState = () => {
     });
     // Persist delete
     (async () => { await deleteInvestTxById(id); })();
+  };
+
+  const updateEmergencyTx = (id: number, patch: Partial<{ date: string; type: 'deposit' | 'withdraw'; amount: number; currency: string; location: string; note: string }>) => {
+    setEmergencyTx(prev => {
+      const updated = prev.map(tx => tx.id === id ? { ...tx, ...patch } as any : tx);
+      const newCashReserve = updated.reduce((sum, tx) => sum + (tx.type === 'deposit' ? tx.amount : -tx.amount), 0);
+      setCashReserve(newCashReserve);
+      setCushionHistory(prevH => [
+        ...prevH,
+        {
+          date: new Date().toISOString().slice(0, 10),
+          value: newCashReserve,
+          amount: newCashReserve,
+          y: newCashReserve
+        }
+      ]);
+      return updated;
+    });
+    // Persist
+    (async () => { await updateEmergencyTxById(id as any, patch as any); })();
+  };
+
+  const updateInvestTx = (id: number, patch: Partial<{ date: string; type: 'in' | 'out'; amount: number; currency: string; destination: string; note: string }>) => {
+    setInvestTx(prev => {
+      const updated = prev.map(tx => tx.id === id ? { ...tx, ...patch } as any : tx);
+      const newBalance = updated.reduce((sum, it) => sum + (it.type === 'in' ? it.amount : -it.amount), 0);
+      setInvestmentHistory(prevH => [
+        ...prevH,
+        {
+          date: new Date().toISOString().slice(0, 10),
+          value: newBalance,
+          amount: newBalance,
+          y: newBalance
+        }
+      ]);
+      return updated;
+    });
+    // Persist
+    (async () => { await updateInvestTxById(id as any, patch as any); })();
   };
   
   const deleteDebt = (id: number) => {
@@ -1136,7 +1175,9 @@ export const useAppState = () => {
     
     // Business logic functions
     addEmergencyTransaction,
+    updateEmergencyTx,
     addInvestmentTransaction,
+    updateInvestTx,
     addDebt,
     deleteEmergencyTx,
     deleteInvestTx,

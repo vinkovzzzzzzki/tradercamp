@@ -123,6 +123,14 @@ export async function deleteEmergencyTxById(id: number): Promise<boolean> {
   return !error;
 }
 
+export async function updateEmergencyTxById(id: number, patch: Partial<Omit<DbEmergencyTx, 'id' | 'user_id'>>): Promise<boolean> {
+  const { error } = await supabase
+    .from('finance_emergency_tx')
+    .update(patch as any)
+    .eq('id', id);
+  return !error;
+}
+
 // Finance: Investment transactions
 type DbInvestTx = {
   id: number;
@@ -158,6 +166,14 @@ export async function insertInvestTx(userId: string, tx: Omit<DbInvestTx, 'id' |
 
 export async function deleteInvestTxById(id: number): Promise<boolean> {
   const { error } = await supabase.from('finance_invest_tx').delete().eq('id', id);
+  return !error;
+}
+
+export async function updateInvestTxById(id: number, patch: Partial<Omit<DbInvestTx, 'id' | 'user_id'>>): Promise<boolean> {
+  const { error } = await supabase
+    .from('finance_invest_tx')
+    .update(patch as any)
+    .eq('id', id);
   return !error;
 }
 

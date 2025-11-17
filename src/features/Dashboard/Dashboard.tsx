@@ -46,11 +46,13 @@ interface DashboardProps {
   onShowEmergencyLocationDropdown: (show: boolean) => void;
   onEmergencyLocationSelect: (location: string, currency: string) => void;
   onDeleteEmergencyTx: (id: number) => void;
+  updateEmergencyTx: (id: number, patch: any) => void;
   onNewInvestTxChange: (tx: any) => void;
   onAddInvestmentTransaction: () => void;
   onShowInvestDestinationDropdown: (show: boolean) => void;
   onInvestDestinationSelect: (destination: string, currency: string) => void;
   onDeleteInvestTx: (id: number) => void;
+  updateInvestTx: (id: number, patch: any) => void;
   onNewDebtChange: (debt: any) => void;
   onAddDebt: () => void;
   onRepayDraftChange: (debtId: number, amount: string) => void;
@@ -96,11 +98,13 @@ const Dashboard: React.FC<DashboardProps> = ({
   onShowEmergencyLocationDropdown,
   onEmergencyLocationSelect,
   onDeleteEmergencyTx,
+  updateEmergencyTx,
   onNewInvestTxChange,
   onAddInvestmentTransaction,
   onShowInvestDestinationDropdown,
   onInvestDestinationSelect,
   onDeleteInvestTx,
+  updateInvestTx,
   onNewDebtChange,
   onAddDebt,
   onRepayDraftChange,
@@ -291,6 +295,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         onShowLocationDropdown={onShowEmergencyLocationDropdown}
         onLocationSelect={onEmergencyLocationSelect}
         onDeleteEmergencyTx={onDeleteEmergencyTx}
+        onUpdateEmergencyTx={updateEmergencyTx}
         />
       )}
 
@@ -309,6 +314,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         onShowDestinationDropdown={onShowInvestDestinationDropdown}
         onDestinationSelect={onInvestDestinationSelect}
         onDeleteInvestTx={onDeleteInvestTx}
+        onUpdateInvestTx={updateInvestTx}
         />
       )}
 
