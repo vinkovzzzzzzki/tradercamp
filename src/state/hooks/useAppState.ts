@@ -985,9 +985,16 @@ export const useAppState = () => {
           const list = await fetchUserTrades(result.auth.user.id);
           if (Array.isArray(list)) setTrades(list);
         } catch {}
-        // Load finance tx
-        try { const em = await fetchEmergencyTx(result.auth.user.id); if (Array.isArray(em)) setEmergencyTx(em as any); } catch {}
-        try { const inv = await fetchInvestTx(result.auth.user.id); if (Array.isArray(inv)) setInvestTx(inv as any); } catch {}
+        // Load finance tx (only overwrite when remote has data)
+        try { const em = await fetchEmergencyTx(result.auth.user.id); if (Array.isArray(em) && em.length > 0) setEmergencyTx(em as any); } catch {}
+        try { const inv = await fetchInvestTx(result.auth.user.id); if (Array.isArray(inv) && inv.length > 0) setInvestTx(inv as any); } catch {}
+        // Load debts (map to local shape; keep local if remote empty)
+        try { 
+          const dbDebts = await fetchDebts(result.auth.user.id); 
+          if (Array.isArray(dbDebts) && dbDebts.length > 0) {
+            setSortedDebts(dbDebts.map(d => ({ id: d.id, name: d.name, amount: d.amount, currency: d.currency, history: [] })) as any);
+          }
+        } catch {}
         // Load planner
         try { const ws = await fetchWorkouts(result.auth.user.id); if (Array.isArray(ws)) setWorkouts(ws as any); } catch {}
         try { const es = await fetchEvents(result.auth.user.id); if (Array.isArray(es)) setEvents(es as any); } catch {}
@@ -1008,8 +1015,9 @@ export const useAppState = () => {
           setTab('finance' as any);
           setFinanceView('summary');
           try { const list = await fetchUserTrades(auth.user.id); if (Array.isArray(list)) setTrades(list); } catch {}
-          try { const em = await fetchEmergencyTx(auth.user.id); if (Array.isArray(em)) setEmergencyTx(em as any); } catch {}
-          try { const inv = await fetchInvestTx(auth.user.id); if (Array.isArray(inv)) setInvestTx(inv as any); } catch {}
+          try { const em = await fetchEmergencyTx(auth.user.id); if (Array.isArray(em) && em.length > 0) setEmergencyTx(em as any); } catch {}
+          try { const inv = await fetchInvestTx(auth.user.id); if (Array.isArray(inv) && inv.length > 0) setInvestTx(inv as any); } catch {}
+          try { const dbDebts = await fetchDebts(auth.user.id); if (Array.isArray(dbDebts) && dbDebts.length > 0) setSortedDebts(dbDebts.map(d => ({ id: d.id, name: d.name, amount: d.amount, currency: d.currency, history: [] })) as any); } catch {}
           try { const ws = await fetchWorkouts(auth.user.id); if (Array.isArray(ws)) setWorkouts(ws as any); } catch {}
           try { const es = await fetchEvents(auth.user.id); if (Array.isArray(es)) setEvents(es as any); } catch {}
           try { const ps = await fetchPosts(auth.user.id); if (Array.isArray(ps)) setPosts(ps as any); } catch {}
