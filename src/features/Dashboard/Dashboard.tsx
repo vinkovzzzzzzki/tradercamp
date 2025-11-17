@@ -136,12 +136,16 @@ const Dashboard: React.FC<DashboardProps> = ({
 
   // Chart mouse move handler
   const handleChartMouseMove = (event: any) => {
-    const chartData = getComprehensiveChartData();
+    const chartData = (event && (event as any).getData)
+      ? (event as any).getData()
+      : getComprehensiveChartData();
     const rect = event.currentTarget.getBoundingClientRect();
     const x = event.clientX - rect.left;
     const y = event.clientY - rect.top;
     
-    const chartWidth = Dimensions.get('window').width - 60;
+    const chartWidth = (event && (event as any).chartWidth)
+      ? (event as any).chartWidth
+      : Dimensions.get('window').width - 60;
     const chartPadding = 40;
     const effectiveWidth = chartWidth - (chartPadding * 2);
     const relativeX = x - chartPadding;
