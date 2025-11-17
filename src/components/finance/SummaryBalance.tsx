@@ -21,7 +21,6 @@ interface SummaryBalanceProps {
   onChartTimePeriodChange: (period: ChartTimePeriodType) => void;
   onChartMouseMove: (event: any) => void;
   onChartLeave: () => void;
-  onResetAllFinancialData: () => void;
   getComprehensiveChartData: () => any;
   getChartStatistics: () => any;
   formatCurrencyCustom: (value: number, currency: string) => string;
@@ -43,7 +42,6 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
   onChartTimePeriodChange,
   onChartMouseMove,
   onChartLeave,
-  onResetAllFinancialData,
   getComprehensiveChartData,
   getChartStatistics,
   formatCurrencyCustom
@@ -123,12 +121,6 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                       </Text>
                     </Pressable>
                   ))}
-                  <Pressable
-                    style={[styles.timePeriodButton, styles.timePeriodButtonActive]}
-                    onPress={onResetAllFinancialData}
-                  >
-                    <Text style={[styles.timePeriodText, styles.timePeriodTextActive]}>Сброс</Text>
-                  </Pressable>
                 </View>
                 
                 {/* Comprehensive line chart with all metrics */}

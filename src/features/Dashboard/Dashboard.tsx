@@ -39,7 +39,6 @@ interface DashboardProps {
   investDestinations: string[];
   onChartVisibilityChange: (visibility: ChartVisibility) => void;
   onChartTimePeriodChange: (period: ChartTimePeriodType) => void;
-  onResetAllFinancialData: () => void;
   onMonthlyExpensesChange: (value: number) => void;
   onCashReserveChange: (value: number) => void;
   onNewEmergencyTxChange: (tx: any) => void;
@@ -90,7 +89,6 @@ const Dashboard: React.FC<DashboardProps> = ({
   investDestinations,
   onChartVisibilityChange,
   onChartTimePeriodChange,
-  onResetAllFinancialData,
   onMonthlyExpensesChange,
   onCashReserveChange,
   onNewEmergencyTxChange,
@@ -265,7 +263,6 @@ const Dashboard: React.FC<DashboardProps> = ({
         onChartTimePeriodChange={onChartTimePeriodChange}
         onChartMouseMove={handleChartMouseMove}
         onChartLeave={handleChartLeave}
-        onResetAllFinancialData={onResetAllFinancialData}
         getComprehensiveChartData={getComprehensiveChartData}
         getChartStatistics={getChartStatistics}
             formatCurrencyCustom={formatCurrencyLocal}

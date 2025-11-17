@@ -109,10 +109,13 @@ export function generateComprehensiveChartData(
 
   // Select granularity by period
   type Granularity = 'day' | 'week' | 'month' | 'year';
+  // For ALL, fallback to 'month' if the range is short to ensure at least 2 points
+  const monthsDiff = (end.getFullYear() - periodStart.getFullYear()) * 12 + (end.getMonth() - periodStart.getMonth());
   const granularity: Granularity =
     timePeriod === '1M' ? 'day' :
     (timePeriod === '3M' || timePeriod === '6M') ? 'week' :
-    (timePeriod === '1Y' ? 'month' : 'year');
+    (timePeriod === '1Y' ? 'month' :
+      (monthsDiff <= 18 ? 'month' : 'year'));
 
   // Build uniform date grid
   const gridDates: Date[] = [];

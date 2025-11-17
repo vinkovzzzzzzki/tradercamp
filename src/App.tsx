@@ -93,7 +93,6 @@ const App: React.FC = () => {
     deleteInvestTx,
     deleteDebt,
     repayDebt,
-    resetAllFinancialData,
     getComprehensiveChartData,
     addTrade,
     deleteTrade,
@@ -234,7 +233,6 @@ const App: React.FC = () => {
             investDestinations={investDestinations}
             onChartVisibilityChange={setChartVisibility}
             onChartTimePeriodChange={setChartTimePeriod}
-            onResetAllFinancialData={resetAllFinancialData}
             onMonthlyExpensesChange={setMonthlyExpenses}
             onCashReserveChange={setCashReserve}
             onNewEmergencyTxChange={setNewEmergencyTx}
