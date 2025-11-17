@@ -53,6 +53,23 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
   const setChartVisibilitySafe = (updater: (v: ChartVisibility) => ChartVisibility) => {
     onChartVisibilityChange(updater(chartVisibility));
   };
+  // Hover handlers for web (typed as any to satisfy RN types, computed once per deps)
+  const webHoverHandlers: any = useMemo(() => ({
+    onMouseMove: (e: any) => {
+      try {
+        const payload: any = {
+          ...e?.nativeEvent,
+          clientX: e?.clientX,
+          clientY: e?.clientY,
+          currentTarget: e?.currentTarget,
+          chartWidth,
+          getData: () => (getComprehensiveChartData as any)(timePreset, chartVisibility)
+        };
+        (onChartMouseMove as any)(payload);
+      } catch {}
+    },
+    onMouseLeave: onChartLeave
+  }), [chartWidth, timePreset, chartVisibility, onChartMouseMove, onChartLeave, getComprehensiveChartData]);
 
   return (
     <View style={[styles.card, isDark ? styles.cardDark : null]}>
@@ -209,21 +226,7 @@ const SummaryBalance: React.FC<SummaryBalanceProps> = ({
                     return (
               <View 
                         style={styles.chartWrapper}
-                        // Web hover tooltip support via prop spread to avoid RN types error
-                        {...({
-                          onMouseMove: (e: any) => {
-                            const payload: any = {
-                              ...e.nativeEvent,
-                              clientX: e.clientX,
-                              clientY: e.clientY,
-                              currentTarget: e.currentTarget,
-                              chartWidth,
-                              getData: () => (getComprehensiveChartData as any)(timePreset, chartVisibility)
-                            };
-                            (onChartMouseMove as any)(payload);
-                          },
-                          onMouseLeave: onChartLeave
-                        } as any)}
+                        {...webHoverHandlers}
                       >
                         <LineChart
                           data={{

@@ -336,7 +336,7 @@ const Investments: React.FC<InvestmentsProps> = ({
                     <Pressable
                       style={[
                         { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 6 },
-                        (editDraft.type || tx.type) === 'out' ? { backgroundColor: '#ef4444' } : { backgroundColor: isDark ? '#333' : '#f0f0ф0' }
+                        (editDraft.type || tx.type) === 'out' ? { backgroundColor: '#ef4444' } : { backgroundColor: isDark ? '#333' : '#f0f0f0' }
                       ]}
                       onPress={() => setEditDraft((d: any) => ({ ...d, type: 'out' }))}
                     >
