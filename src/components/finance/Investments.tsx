@@ -348,10 +348,10 @@ const Investments: React.FC<InvestmentsProps> = ({
                     <TextInput style={[styles.formInput, { width: 90 }]} value={String(editDraft.currency ?? tx.currency)} onChangeText={(v) => setEditDraft((d: any) => ({ ...d, currency: normalizeCurrencyText(v) }))} />
                   </View>
                   <View style={{ marginTop: 8 }}>
-                    <TextInput style={styles.formInput} value={String(editDraft.destination ?? tx.destination || '')} onChangeText={(v) => setEditDraft((d: any) => ({ ...d, destination: v }))} placeholder="Направление" />
+                    <TextInput style={styles.formInput} value={String((editDraft.destination ?? tx.destination) || '')} onChangeText={(v) => setEditDraft((d: any) => ({ ...d, destination: v }))} placeholder="Направление" />
                   </View>
                   <View style={{ marginTop: 8 }}>
-                    <TextInput style={styles.formInput} value={String(editDraft.note ?? tx.note || '')} onChangeText={(v) => setEditDraft((d: any) => ({ ...d, note: v }))} placeholder="Заметка" />
+                    <TextInput style={styles.formInput} value={String((editDraft.note ?? tx.note) || '')} onChangeText={(v) => setEditDraft((d: any) => ({ ...d, note: v }))} placeholder="Заметка" />
                   </View>
                 </View>
               ) : (
